@@ -1,0 +1,41 @@
+# =========================
+# Node
+# =========================
+node_modules/
+dist/
+build/
+
+# =========================
+# Python
+# =========================
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# =========================
+# Environment files
+# =========================
+.env
+.env.*
+*.env
+
+# =========================
+# Logs & runtime files
+# =========================
+logs/
+*.log
+*.txt
+
+# =========================
+# Uploads (user data)
+# =========================
+erp-backend/uploads/*
+!erp-backend/uploads/.gitkeep
+
+# =========================
+# Editor / OS
+# =========================
+.vscode/
+.DS_Store
+Thumbs.db
