@@ -8,11 +8,11 @@ interface ClassItem {
 }
 
 interface TestType {
-    id: number;
+    id: number; 
     name: string;
 }
 
-interface Assignment {
+interface Assignment { 
     class_id: number;
     test_id: number;
     test_order: number;

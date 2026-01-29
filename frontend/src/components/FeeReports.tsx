@@ -7,7 +7,7 @@ import {
     InstallmentWiseReport,
     DueReport
 } from './FeeReportComponents';
-import FeeReceipt from './FeeReceipt';
+import FeeReceipt from './FeeReceipt'; 
 import api from '../api';
 
 const FeeReports: React.FC = () => {

@@ -4,7 +4,7 @@ import { SearchIcon, TimeIcon, ChevronDownIcon } from './icons';
 import SummaryBar from './SummaryBar';
 
 interface MainContentProps {
-    navigateTo: (page: Page) => void;
+    navigateTo: (page: Page) => void; 
 }
 
 interface WelcomeBarProps {
