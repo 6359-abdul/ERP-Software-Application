@@ -25,7 +25,10 @@ __pycache__/
 # =========================
 logs/
 *.log
-*.txt
+logs/
+*.log
+remove *.txt so requirements.txt is tracked
+
 
 # =========================
 # Uploads (user data)
