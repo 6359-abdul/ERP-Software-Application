@@ -86,8 +86,8 @@ def create_app():
 
         CORS(
             app,
-            origins=allowed_origins,
-            supports_credentials=True,
+            origins="*",
+            supports_credentials=False,
             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
             allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
             expose_headers=["Content-Type", "Authorization"],
