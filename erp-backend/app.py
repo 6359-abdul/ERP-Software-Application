@@ -79,31 +79,23 @@ def create_app():
     # CORS CONFIGURATION FOR VERCEL
     # -----------------------------
     if IS_RENDER:
-        # Get allowed origins from environment variable
         allowed_origins_str = os.environ.get('ALLOWED_ORIGINS', '')
-        if allowed_origins_str:
-            allowed_origins = [origin.strip() for origin in allowed_origins_str.split(',')]
-        else:
-            # Fallback to FRONTEND_URL
-            frontend_url = os.environ.get('FRONTEND_URL', '')
-            allowed_origins = [frontend_url] if frontend_url else []
-        
+        allowed_origins = [o.strip() for o in allowed_origins_str.split(',') if o.strip()]
+
         logger.info(f"Allowed CORS origins: {allowed_origins}")
-        
-        CORS(app, resources={
-            r"/api/*": {
-                "origins": allowed_origins,
-                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-                "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
-                "expose_headers": ["Content-Type", "Authorization"],
-                "supports_credentials": True,
-                "max_age": 600
-            }
-        })
+
+        CORS(
+            app,
+            origins=allowed_origins,
+            supports_credentials=True,
+            methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+            allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+            expose_headers=["Content-Type", "Authorization"],
+            max_age=600
+        )
     else:
-        # Development - allow all origins
         CORS(app)
-        logger.info("Development mode: CORS allows all origins")
+
     
     # -----------------------------
     # INITIALIZE EXTENSIONS
@@ -166,9 +158,7 @@ def create_app():
     # -----------------------------
     # CORS PREFLIGHT HANDLER
     # -----------------------------
-    @app.route('/api/<path:path>', methods=['OPTIONS'])
-    def handle_options(path):
-        return '', 200
+
     
     # -----------------------------
     # ENVIRONMENT INFO
