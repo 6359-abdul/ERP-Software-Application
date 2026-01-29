@@ -5,9 +5,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import exists
 
 bp = Blueprint("academic", __name__)
+
 @bp.route("/api/academic/subjects", methods=["POST"])
 def create_subject():
-    try: 
+    try:
         data = request.json
         print(f"[DEBUG] Received request to create subject: {data}")
 

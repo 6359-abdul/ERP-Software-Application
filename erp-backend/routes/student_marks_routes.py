@@ -6,13 +6,13 @@ from models import (
 )
 from sqlalchemy import and_
 import traceback
-from datetime import datetime 
+from datetime import datetime
 
 student_marks_bp = Blueprint('student_marks_bp', __name__)
 
 @student_marks_bp.route('/api/marks/entry/subject', methods=['GET'])
 def get_marks_entry_grid():
-    try: 
+    try:
         academic_year = request.args.get('academic_year')
         branch = request.args.get('branch')
         class_id = request.args.get('class_id')

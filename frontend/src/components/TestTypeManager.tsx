@@ -7,7 +7,7 @@ interface TestType {
     test_name: string;
     max_marks: number;
     display_order?: number;
-    is_active: boolean; 
+    is_active: boolean;
     academic_year: string;
 }
 

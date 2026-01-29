@@ -3,7 +3,7 @@ import React from 'react';
 interface FeeReceiptProps {
   onClose: () => void;
   receiptData: {
-    studentName: string; 
+    studentName: string;
     admissionNo: string;
     className: string;
     receiptNo: string;

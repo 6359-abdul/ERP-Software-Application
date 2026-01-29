@@ -4,12 +4,12 @@ from models import FeePayment, Student, StudentFee
 from helpers import token_required, require_academic_year
 from datetime import date, datetime
 from sqlalchemy import func
- 
+
 def consolidate_receipts(payments):
     """
     Consolidates multiple payment rows (line items) into single receipt entries.
     Returns a list of receipt dicts suitable for frontend display.
-    """ 
+    """
     receipt_map = {}
     
     for p in payments:

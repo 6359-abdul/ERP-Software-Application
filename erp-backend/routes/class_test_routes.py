@@ -4,8 +4,9 @@ from models import ClassTest, ClassMaster, TestType, OrgMaster, Branch, User, Cl
 import sqlalchemy
 from datetime import datetime
 import jwt
- 
+
 class_test_bp = Blueprint('class_test_bp', __name__)
+
 def get_current_user_id():
     token = None
     if 'Authorization' in request.headers:

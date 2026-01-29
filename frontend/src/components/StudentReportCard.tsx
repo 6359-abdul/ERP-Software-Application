@@ -6,7 +6,7 @@ import {
   TestOption,
   StudentOption,
   ProgressReportData,
-  AcademicHistoryRecord, 
+  AcademicHistoryRecord,
   HistoricalPerformance
 } from '../reportcardtypes';
 import ReportCard from './ReportCard';

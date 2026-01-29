@@ -2,8 +2,11 @@ from flask import Blueprint, jsonify, request
 from extensions import db
 from models import Student, Attendance, Branch, UserBranchAccess, StudentAcademicRecord
 from helpers import token_required, require_academic_year, student_to_dict, get_default_location
+
+
 from datetime import datetime, date
 from sqlalchemy import or_
+
 bp = Blueprint('attendance_routes', __name__)
 
 @bp.route("/api/attendance", methods=["GET"])

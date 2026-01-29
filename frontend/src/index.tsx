@@ -8,4 +8,4 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <SchoolProvider>
     <App />
   </SchoolProvider>
-); 
+);

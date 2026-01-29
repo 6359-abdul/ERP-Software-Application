@@ -4,7 +4,7 @@ import api from "../api";
 interface Subject {
     id: number;
     subject_name: string;
-    subject_type: "Academic" | "Hifz"; 
+    subject_type: "Academic" | "Hifz";
     academic_year: string;
     is_active: boolean;
 }

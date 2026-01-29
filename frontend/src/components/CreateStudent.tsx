@@ -8,7 +8,7 @@ const INPUT_STYLE =
 const LABEL_STYLE = "block text-sm font-medium text-gray-700 mb-1";
 
 // --- Helper Components ---
- 
+
 // 1. Collapsible Section
 const CollapsibleSection = React.memo(
   ({

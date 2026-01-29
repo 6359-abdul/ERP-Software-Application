@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 import mysql.connector
-from mysql.connector import Error 
+from mysql.connector import Error
 import os
 
 report_bp = Blueprint('report', __name__)
@@ -15,6 +15,7 @@ def get_db_connection():
         password=os.getenv('DB_PASSWORD'),
         port=int(os.getenv('DB_PORT', 3306))
     )
+
 # ============== GET STUDENTS FOR DROPDOWN ==============
 @report_bp.route('/api/students', methods=['GET'])
 def get_students():

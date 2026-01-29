@@ -9,7 +9,7 @@ import api from '../api';
 
 
 interface StudentAttendanceProps {
-    navigateTo: (page: Page) => void; 
+    navigateTo: (page: Page) => void;
     defaultTab?: AttendanceTab;
 }
 

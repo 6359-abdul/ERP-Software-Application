@@ -6,11 +6,11 @@ class ClassMaster(db.Model):
     __tablename__ = "classes"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     class_name = db.Column(db.String(50), unique=True, nullable=False)
-    location = db.Column(db.String(50), default="Hyderab")
+    location = db.Column(db.String(50), default="Hyderabad")
     branch = db.Column(db.String(50), default="All")
- 
 
- 
+
+
 class User(db.Model):
     __tablename__ = "users"
     user_id = db.Column(db.Integer, primary_key=True, autoincrement=True)

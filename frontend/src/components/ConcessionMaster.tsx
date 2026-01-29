@@ -8,7 +8,7 @@ interface FeeType {
 }
 
 interface ConcessionItem {
-    id: number; 
+    id: number;
     fee_type_id: number;
     fee_type_name: string;
     percentage: number;

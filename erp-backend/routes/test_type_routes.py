@@ -3,13 +3,13 @@ from extensions import db
 from models import TestType, User
 import jwt
 
-test_type_bp = Blueprint('test_type_bp', __name__) 
+test_type_bp = Blueprint('test_type_bp', __name__)
 
 def get_current_user():
     token = None
     if 'Authorization' in request.headers:
         auth_header = request.headers['Authorization']
-        if auth_header and auth_header.startswith("Bearer "): 
+        if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
     
     if not token:

@@ -10,12 +10,12 @@ def get_test_attendance():
     test_id = request.args.get('test_id')
     academic_year = request.args.get('academic_year')
     branch = request.args.get('branch')
-    class_id = request.args.get('class_id')  
+    class_id = request.args.get('class_id')
     
     if not test_id or not academic_year or not branch or not class_id:
         return jsonify({'error': 'test_id, academic_year, branch, and class_id are required'}), 400
         
-    mappings = TestAttendanceMonth.query.filter_by( 
+    mappings = TestAttendanceMonth.query.filter_by(
         test_id=test_id, 
         academic_year=academic_year,
         branch=branch,

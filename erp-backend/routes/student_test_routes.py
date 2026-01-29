@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 from models import Student, ClassTest, StudentTestAssignment, StudentAcademicRecord, ClassMaster, TestType
 from datetime import datetime
 
-student_test_bp = Blueprint('student_test', __name__)  
+student_test_bp = Blueprint('student_test', __name__)
 
 @student_test_bp.route('/student-test-assignments', methods=['GET'])
 def get_assignments():

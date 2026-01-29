@@ -6,7 +6,7 @@ import CopySubjectTestModal from "./CopySubjectTestModal";
 interface SubjectRow {
     subject_id: number;
     subject_name: string;
-    subject_type: string; 
+    subject_type: string;
     assigned: boolean;
     max_marks: number | null;
     subject_order: number | null;

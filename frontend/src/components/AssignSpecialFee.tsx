@@ -7,7 +7,7 @@ interface Student {
     name: string;
     class: string;
     section: string;
-    fatherMobile: string; 
+    fatherMobile: string;
 }
 
 interface FeeType {

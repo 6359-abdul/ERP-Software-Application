@@ -8,7 +8,7 @@ const SummaryCard: React.FC<{ title: string; value: string | number; icon: React
         <div className="p-3 rounded-full" style={{ backgroundColor: `${color}1A`, color }}>
             {icon}
         </div>
-        <div> 
+        <div>
             <p className="text-sm text-gray-500">{title}</p>
             <p className="text-xl font-semibold text-gray-800">{value}</p>
         </div>

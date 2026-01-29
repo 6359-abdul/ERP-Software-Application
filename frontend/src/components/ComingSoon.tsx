@@ -10,4 +10,4 @@ const ComingSoon: React.FC<{ pageTitle: string }> = ({ pageTitle }) => (
   </div>
 );
 
-export default ComingSoon; 
+export default ComingSoon;

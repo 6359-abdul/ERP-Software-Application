@@ -7,7 +7,7 @@ import {
     TimeIcon,
     DashboardIcon,
     PencilIcon,
-    UserIcon, 
+    UserIcon,
 } from './icons';
 
 interface AcademicManagementProps {

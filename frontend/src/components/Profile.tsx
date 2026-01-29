@@ -4,7 +4,7 @@ import api from '../api';
 const Profile: React.FC = () => {
     const [username, setUsername] = useState('AUDIT-MN');
     const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState(''); 
+    const [confirmPassword, setConfirmPassword] = useState('');
 
     // Teacher Details State
     const [teacherFirstName, setTeacherFirstName] = useState('');

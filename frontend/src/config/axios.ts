@@ -8,7 +8,7 @@ const getApiBaseUrl = () => {
         // Local development - use Vite proxy (empty string means relative URLs)
         return '';
     } else {
-        // Network access - use direct backend URL 
+        // Network access - use direct backend URL
         return `http://${hostname}:5000`;
     }
 };

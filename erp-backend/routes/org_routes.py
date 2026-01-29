@@ -3,7 +3,7 @@ from extensions import db
 from models import Branch, OrgMaster, User, UserBranchAccess, ClassMaster
 from helpers import token_required, require_academic_year, get_branch_query_filter
 from datetime import date, datetime
-from sqlalchemy import or_ 
+from sqlalchemy import or_
 
 bp = Blueprint('org_routes', __name__)
 
@@ -12,7 +12,7 @@ bp = Blueprint('org_routes', __name__)
 def get_all_branches(current_user):
     try:
         branches = Branch.query.filter_by(is_active=True).all()
-      
+        
         # Helper to get location map
         locations = OrgMaster.query.filter_by(master_type='LOCATION').all()
         loc_map = {loc.code: loc.display_name for loc in locations}

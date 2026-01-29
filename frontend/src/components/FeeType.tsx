@@ -8,7 +8,7 @@ interface FeeType {
     fee_type_group: string;
     type: string;
     display_name: string;
-    is_refundable: boolean; 
+    is_refundable: boolean;
     description?: string;
     branch?: string;
     academic_year?: string;

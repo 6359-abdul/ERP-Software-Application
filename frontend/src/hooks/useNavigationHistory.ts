@@ -5,7 +5,7 @@ export const useNavigationHistory = (initialPage: Page) => {
   // Helper to extract page from hash
   const getPageFromHash = (): Page | null => {
     const hash = window.location.hash.replace('#', '');
-    return hash ? (hash as Page) : null; 
+    return hash ? (hash as Page) : null;
   };
 
   const [currentPage, setCurrentPage] = useState<Page>(() => {

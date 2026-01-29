@@ -9,11 +9,11 @@ import autoTable from "jspdf-autotable";
 
 
 
-// Types 
+// Types
 export interface Receipt {
     receipt_no: string;
     student_name: string;
-    class?: string; 
+    class?: string;
     amount: number;
     mode?: string;
     date?: string;

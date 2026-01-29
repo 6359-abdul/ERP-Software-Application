@@ -9,7 +9,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(
-     (config) => {
+    (config) => {
         // Get headers from localStorage
         const savedUser = localStorage.getItem('user');
         const academicYear = localStorage.getItem('academicYear');

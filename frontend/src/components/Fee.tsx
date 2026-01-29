@@ -5,7 +5,7 @@ import { Page } from '../App';
 interface FeeProps {
     navigateTo: (page: Page) => void;
 }
- 
+
 const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 

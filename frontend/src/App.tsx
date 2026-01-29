@@ -5,7 +5,7 @@ import Dashboard from "./components/Dashboard";
 export type Page =
   | "dashboard"
   | "profile"
-  | "fee" 
+  | "fee"
   | "fee-type"
   | "class-fee-structure"
   | "assign-special-fee"

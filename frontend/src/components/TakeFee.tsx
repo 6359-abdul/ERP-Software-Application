@@ -9,7 +9,7 @@ interface FeeStudent {
     name: string;
     admNo: string;
     class: string;
-    section: string; 
+    section: string;
     total_fee: number;
     paid_amount: number;
     concession: number;

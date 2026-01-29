@@ -8,7 +8,7 @@ export interface ClassOption {
 export interface SectionOption {
     section: string;
 }
- 
+
 export interface TestOption {
     test_id: number | string;
     test_name: string;

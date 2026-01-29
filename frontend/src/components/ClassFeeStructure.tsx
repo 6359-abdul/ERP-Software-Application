@@ -7,7 +7,7 @@ interface FeeType {
     category: string;
     fee_type_group: string;
     type: string;
-    display_name: string; 
+    display_name: string;
     is_refundable: boolean;
 }
 

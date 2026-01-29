@@ -7,7 +7,7 @@ import { ProgressReportData } from '../reportcardtypes';
 
 interface ReportCardProps {
   data: ProgressReportData;
-} 
+}
 
 const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
   // ============== DEBUG: Check what data we're getting ==============

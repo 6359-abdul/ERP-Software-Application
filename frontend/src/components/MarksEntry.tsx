@@ -4,7 +4,7 @@ import { Save, AlertCircle, CheckCircle, FileDown } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 
- 
+
 interface StudentMarkEntry {
     student_id: number;
     admission_no: string;

@@ -8,7 +8,7 @@ interface FeeInstallment {
     title: string;
     payable: number;
     paid: boolean;
-    paidAmount: number; 
+    paidAmount: number;
     dueAmount: number;
     concession: number;
     month: string;
