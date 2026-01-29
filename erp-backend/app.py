@@ -2,12 +2,12 @@ from flask import Flask, request, jsonify, send_from_directory # Force Reload
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
-
+ 
 # -----------------------------
 # EXTENSIONS
 # -----------------------------
 from extensions import db
-
+ 
 # -----------------------------
 # BLUEPRINTS
 # -----------------------------

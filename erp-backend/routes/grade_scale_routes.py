@@ -11,7 +11,7 @@ def create_grade_scale():
         data = request.json
         if not data:
             return jsonify({"error": "No data provided"}), 400
-
+ 
         # Extract Master Data
         scale_name = data.get("scale_name")
         location = data.get("location")
