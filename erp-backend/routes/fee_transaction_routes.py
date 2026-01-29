@@ -16,7 +16,7 @@ def get_fee_students(current_user):
     class_name = request.args.get("class")
     section = request.args.get("section")
     search = request.args.get("search")
-    
+ 
     # Header Filtering
     h_branch = request.headers.get("X-Branch")
     

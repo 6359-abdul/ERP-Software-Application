@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from extensions import db
 from models import StudentTestAssignment
 from models import ClassSubjectAssignment
-from models import (
+from models import ( 
     ClassTestSubject,
     ClassTest,
     SubjectMaster,
@@ -13,7 +13,6 @@ from models import (
     OrgMaster
 )
 import jwt
-
 # -------------------------------------------------
 # Blueprint
 # -------------------------------------------------
