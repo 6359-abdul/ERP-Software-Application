@@ -51,8 +51,13 @@ def create_app():
     if IS_RENDER:
         # Render PostgreSQL
         database_url = os.environ.get('DATABASE_URL')
-        if database_url and database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace(
+            "postgres://",
+            "postgresql+psycopg2://",
+            1
+            )
+
         app.config["SQLALCHEMY_DATABASE_URI"] = database_url
         logger.info(f"Using Render PostgreSQL database")
     else:
