@@ -47,4 +47,5 @@ jobs:
       - name: Backend syntax & import check
         working-directory: erp-backend
         run: |
-          python -m compileall app.py
+          python -m compileall .
+
