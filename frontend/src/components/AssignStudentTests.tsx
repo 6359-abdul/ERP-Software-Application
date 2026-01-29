@@ -6,7 +6,7 @@ interface TestColumn {
     class_test_id: number;
     test_name: string;
     test_order: number;
-}
+} 
 
 interface StudentRow {
     student_id: number;

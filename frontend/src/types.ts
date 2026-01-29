@@ -7,7 +7,7 @@ export interface NavItem {
   href: string;
 }
 
-export interface NavCategory {
+export interface NavCategory { 
   title: string;
   icon: React.ReactNode;
   modules: NavItem[];

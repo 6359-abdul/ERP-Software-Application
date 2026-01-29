@@ -5,7 +5,7 @@ import {
 import { Page } from "../App";
 
 
-interface SidebarProps {
+interface SidebarProps { 
   isOpen: boolean;
   toggleSidebar: () => void;
   navigateTo: (page: Page) => void;
