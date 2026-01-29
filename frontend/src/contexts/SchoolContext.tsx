@@ -7,7 +7,7 @@ import React, {
 } from "react";
 
 import { Student, FeeInstallment } from "../types";
-import api from "../api";
+import api from "../api"; 
 
 // ------------------
 // Context Types

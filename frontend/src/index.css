@@ -10,7 +10,7 @@
 
 /* Fix for mixed language in charts (Arabic/Urdu) */
 .recharts-text, 
-text, 
+text,  
 tspan {
     font-family: 'Poppins', 'Noto Sans Arabic', sans-serif !important;
 }

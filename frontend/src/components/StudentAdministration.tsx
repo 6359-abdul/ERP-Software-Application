@@ -7,7 +7,7 @@ import ComingSoon from './ComingSoon';
 import ImportStudentData from './ImportStudentData';
 import CreateStudent from './CreateStudent';
 import PromoteStudents from './PromoteStudents';
-import ClassSummary from './ClassSummary';
+import ClassSummary from './ClassSummary'; 
 import { Student } from '../types';
 import api from '../api';
 

@@ -3,7 +3,7 @@ from extensions import db
 from models import User, Branch, UserBranchAccess
 from datetime import date, datetime, timedelta
 import jwt
-
+ 
 bp = Blueprint('auth_routes', __name__)
 
 @bp.route("/api/users/login", methods=["POST"])

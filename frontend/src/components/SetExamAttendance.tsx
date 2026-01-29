@@ -8,7 +8,7 @@ interface TestType {
     is_active: boolean;
 }
 
-interface MonthOption {
+interface MonthOption { 
     name: string;
     month: number;
     year: number;

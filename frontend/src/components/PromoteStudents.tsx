@@ -5,7 +5,7 @@ import { Student } from '../types';
 interface PromoteStudentsProps {
     onBack?: () => void;
 }
-
+ 
 const PromoteStudents: React.FC<PromoteStudentsProps> = ({ onBack }) => {
     // -------------------------------------------------------------
     // Source State

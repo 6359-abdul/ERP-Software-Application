@@ -7,7 +7,7 @@ interface GradeScaleDetail {
     grade: string;
     min_marks: number;
     max_marks: number;
-    description: string;
+    description: string; 
 }
 
 interface GradeScale {

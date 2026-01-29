@@ -7,7 +7,7 @@ import {
     SearchIcon,
     HomeIcon,
     UserIcon,
-    ChartBarIcon,
+    ChartBarIcon, 
     DashboardIcon,
     SetupIcon,
     HeadphoneIcon,
