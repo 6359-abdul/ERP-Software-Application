@@ -19,7 +19,7 @@ else:
 logger = logging.getLogger(__name__)
 
 # Import extensions
-from extensions import db
+from extensions import db , limiter, cache
 
 # Import blueprints (keep all your existing imports)
 from routes.auth_routes import bp as auth_bp
@@ -104,6 +104,8 @@ def create_app():
     # INITIALIZE EXTENSIONS
     # -----------------------------
     db.init_app(app)
+    limiter.init_app(app)
+    cache.init_app(app)
     
     # -----------------------------
     # REGISTER BLUEPRINTS
