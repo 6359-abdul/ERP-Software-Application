@@ -8,7 +8,7 @@ interface FeeType {
     type: string;
     branch?: string;
 }
-
+ 
 interface Installment {
     id?: number;
     installment_no: number;

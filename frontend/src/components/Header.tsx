@@ -9,7 +9,7 @@ interface HeaderProps {
   onLogout: () => void;
   goBack: () => void;
   goForward: () => void;
-  canGoBack: boolean;
+  canGoBack: boolean; 
   canGoForward: boolean;
 }
 

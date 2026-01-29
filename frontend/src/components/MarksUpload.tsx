@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 
 interface MarksUploadProps { }
 
-const MarksUpload: React.FC<MarksUploadProps> = () => {
+const MarksUpload: React.FC<MarksUploadProps> = () => { 
     // --- State ---
     const [academicYear, setAcademicYear] = useState<string>("");
     const [branches, setBranches] = useState<any[]>([]);

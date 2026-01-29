@@ -5,7 +5,7 @@ import ClassSubjectAssignment from "./ClassSubjectAssignment";
 import ClassTestAssignment from "./ClassTestAssignment";
 import AssignStudentSubjects from "./AssignStudentSubjects";
 import TestTypeManager from "./TestTypeManager";
-import AssignSubjectTests from "./AssignSubjectTests";
+import AssignSubjectTests from "./AssignSubjectTests";  
 import AssignStudentTests from "./AssignStudentTests";
 import GradeScaleManager from "./GradeScaleManager";
 import MarksEntry from "./MarksEntry";

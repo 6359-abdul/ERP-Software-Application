@@ -8,7 +8,7 @@ interface Option {
 
 interface BranchOption extends Option {
     location_name: string;
-}
+} 
 
 interface Subject {
     id: number;
