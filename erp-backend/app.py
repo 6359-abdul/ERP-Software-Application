@@ -86,10 +86,11 @@ def create_app():
 
         CORS(
             app,
+            resources={r"/api/*": {"origins": allowed_origins}},
             origins="*",
             supports_credentials=False,
             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-            allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+            allow_headers=["Content-Type", "Authorization", "X-Requested-With","X-Branch","X-Location","X-Academic-Year"],
             expose_headers=["Content-Type", "Authorization"],
             max_age=600
         )
@@ -129,6 +130,7 @@ def create_app():
     # -----------------------------
     with app.app_context():
         try:
+            import models
             db.create_all()
             logger.info("Database tables initialized/verified")
         except Exception as e:
