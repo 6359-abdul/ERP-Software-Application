@@ -157,17 +157,6 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
 
       {/* Header */}
       <div className="flex justify-between items-center mb-0">
-        <div className="logo-container" style={{ width: 'auto', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
-          <img
-            src="https://mseducationacademy.in/wp-content/uploads/2023/12/msea-logo-headerx2.png"
-            alt="MS Education Academy Logo"
-            style={{ maxWidth: '250px', maxHeight: '80px', width: 'auto', height: '80px', objectFit: 'contain' }}
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              console.log('Logo 1 failed to load');
-            }}
-          />
-        </div>
         <div className="logo-container" style={{ width: 'auto', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
           <img
             src="https://mshifzacademy.com/assets/images/ms-logo.jpg"
@@ -177,6 +166,18 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               console.log('Logo 2 failed to load');
+            }}
+          />
+        </div>
+         <div className="logo-container" style={{ width: 'auto', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-start',marginRight: '20px'}}>
+          <img
+            src="logo1.png"
+            alt="MS Education Academy Logo"
+            referrerPolicy="no-referrer"
+            style={{ maxWidth: '100px', maxHeight: '50px', width: 'auto', height: '80px', objectFit: 'contain' }}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              console.log('Logo 1 failed to load');
             }}
           />
         </div>

@@ -79,6 +79,12 @@ const StudentReportCard: React.FC = () => {
           display: block; 
           overflow: visible !important;
         }
+          margins{
+          left: 0;
+          right:0;
+          top:0;
+          bottom:99;
+          }
 
         /* 6. HIDE PARENT BACKGROUNDS used for screens */
         body {

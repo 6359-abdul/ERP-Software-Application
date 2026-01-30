@@ -134,8 +134,11 @@ const PromoteStudents: React.FC<PromoteStudentsProps> = ({ onBack }) => {
             });
             alert("Students Promoted Successfully!");
             // Refresh
-            setSourceStudents(prev => prev.filter(s => !selectedStudentIds.includes(s.student_id))); // Remove locally or refresh
+            setSourceStudents(prev =>
+                prev.filter(s => s.student_id === undefined || !selectedStudentIds.includes(s.student_id))
+            ); // Remove locally or refresh
             setSelectedStudentIds([]);
+
             // Reload target list
             const globalBranch = localStorage.getItem('currentBranch') || 'All';
             const res = await api.get('/students', {
