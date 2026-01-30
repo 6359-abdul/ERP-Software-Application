@@ -44,7 +44,7 @@ class Student(db.Model):
     section = db.Column(db.String(20))
     Roll_Number = db.Column(db.Integer)
     admission_date = db.Column(db.Date)
-    status = db.Column(db.Enum("Active", "Inactive"), default="Active")
+    status = db.Column(db.Enum("Active", "Inactive", name="student_status"), default="Active")
     MotherTongue = db.Column(db.String(50))
     Caste = db.Column(db.String(50))
     StudentType = db.Column(db.String(50))
@@ -160,7 +160,7 @@ class StudentFee(db.Model):
     paid_amount = db.Column(db.Numeric(10, 2), default=0)
     due_amount = db.Column(db.Numeric(10, 2), default=0)
     concession = db.Column(db.Numeric(10, 2), default=0)
-    status = db.Column(db.Enum("Pending", "Partial", "Paid"), default="Pending")
+    status = db.Column(db.Enum("Pending", "Partial", "Paid", name="student_fee_status"), default="Pending")
     due_date = db.Column(db.Date, nullable=True)  # Added to match DB schema
     fee_type = db.relationship("FeeType")
     student = db.relationship("Student")
@@ -275,7 +275,7 @@ class FeePayment(db.Model):
 class OrgMaster(db.Model):
     __tablename__ = "org_master"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    master_type = db.Column(db.Enum('LOCATION', 'ACADEMIC_YEAR'), nullable=False)
+    master_type = db.Column(db.Enum('LOCATION', 'ACADEMIC_YEAR', name="org_master_type"), nullable=False)
     code = db.Column(db.String(50), nullable=False)
     display_name = db.Column(db.String(100), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
@@ -332,7 +332,7 @@ class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey("students.student_id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.Enum("Present", "Absent", "Leave", "Holiday", "Sunday", "Weekoff"), default="Present")
+    status = db.Column(db.Enum("Present", "Absent", "Leave", "Holiday", "Sunday", "Weekoff", name="attendance_status"), default="Present")
     remarks = db.Column(db.String(255))
     update_count = db.Column(db.Integer, default=0)
     updated_at = db.Column(db.DateTime, default=datetime.now)
@@ -354,7 +354,7 @@ class SubjectMaster(db.Model):
     __tablename__ = "subjectmaster"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     subject_name = db.Column(db.String(100), nullable=False)
-    subject_type = db.Column(db.Enum('Hifz', 'Academic'), default='Academic')
+    subject_type = db.Column(db.Enum('Hifz', 'Academic', name="subject_type_enum"), default='Academic')
     academic_year = db.Column(db.String(20)) # New: Scope to year
     is_active = db.Column(db.Boolean, default=True) # New: Active Status
 
