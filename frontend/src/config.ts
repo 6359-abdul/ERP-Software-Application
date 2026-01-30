@@ -1,7 +1,8 @@
 // config.ts - Environment configuration
 
 // Determine the API URL based on environment
-const getApiUrl = (): string => {
+const getApiUrl = (): string => 
+{
   // Development: Use Vite proxy
   if (import.meta.env.DEV) {
     return '/api';
@@ -10,17 +11,20 @@ const getApiUrl = (): string => {
   // Production: Use environment variable or fallback
   const apiUrl = import.meta.env.VITE_API_URL;
   
-  if (apiUrl) {
+   if (apiUrl) {
     // Ensure it has /api suffix
     return apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
   }
-  
-  // Fallback for local production build or missing env
-  console.warn('VITE_API_URL not set, using localhost fallback');
-  return 'http://localhost:5000/api';
-};
 
+  if (import.meta.env.PROD) {
+    throw new Error('VITE_API_URL not set in production environment');
+  }
+  // Local Production build fallback
+ console.warn('VITE_API_URL not set, using localhost fallback');
+  return 'http://localhost:5000/api';
+}
 // Export the API URL
+// 
 export const API_URL = getApiUrl();
 
 // Configuration object
@@ -48,4 +52,4 @@ export interface ApiError {
   timestamp?: string;
 }
 
-export default CONFIG;
+export default CONFIG;  
