@@ -8,7 +8,7 @@ const INPUT_STYLE =
 const LABEL_STYLE = "block text-sm font-medium text-gray-700 mb-1";
 
 // --- Helper Components ---
- 
+
 // 1. Collapsible Section
 const CollapsibleSection = React.memo(
   ({
@@ -774,6 +774,8 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
         !formData.last_name ||
         !formData.admissionNo ||
         !formData.admission_date ||
+        !formData.AdmissionCategory ||
+        !formData.AdmissionClass ||
         !formData.branch ||
         !formData.academic_year ||
         !formData.class ||
@@ -906,17 +908,24 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
             <FormField
               label="Admission Category"
               name="AdmissionCategory"
+              as="select"
+              required
               value={formData.AdmissionCategory}
               onChange={handleInputChange}
               disabled={isViewMode}
-            />
-            {/*<FormField
+            >
+              <option value="">-- Select --</option>
+              <option value="Hifz">Hifz</option>
+              <option value="Nazira">Nazira</option>
+            </FormField>
+            <FormField
               label="Admission Class"
               name="AdmissionClass"
               value={formData.AdmissionClass}
+              required
               onChange={handleInputChange}
               disabled={isViewMode}
-            />*/}
+            />
             <FormField
               label="Location"
               name="location"
