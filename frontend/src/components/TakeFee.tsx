@@ -394,7 +394,8 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
         // This is critical for the generic grouping logic to work
         const enrichedPayments = payments.map(p => {
             // Find matching installment by Title (since ID is not available in history)
-            const match = installments.find(i => i.title === p.installment);
+            // Backend might store "March" while frontend title is "March Fee"
+            const match = installments.find(i => i.title === p.installment || i.title === `${p.installment} Fee`);
             return {
                 ...p,
                 sr: match ? match.sr : 0 // 0 will prevent grouping
@@ -773,6 +774,21 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
             // Backend returns receipt_no
             const realReceiptNo = response.data.receipt_no;
 
+            // Prepare Grouped Items for Receipt (Consistent with History)
+            const receiptLineItemsRaw = selectedItems.map((item: FeeInstallment, index: number) => {
+                const alloc = feeAllocations[index];
+                return {
+                    installment: item.title,
+                    fee_type: "Tuition Fee", // Default or fetch if available
+                    sr: item.sr,
+                    amount_paid: alloc.amount,
+                    concession_amount: alloc.concession_amount,
+                    gross_amount: (item.dueAmount !== undefined && item.dueAmount > 0) ? item.dueAmount : item.payable
+                };
+            });
+
+            const groupedReceiptItems = groupInstallments(receiptLineItemsRaw);
+
             // Show Receipt with Real Data
             const data = {
                 studentName: selectedStudent.name,
@@ -785,7 +801,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                 paymentDate,
                 paymentMode,
                 paymentNote,
-                items: selectedItems, // We show what was selected
+                items: groupedReceiptItems, // Use Grouped Items
                 amount,
                 concession: appliedConcession,
                 payable: payable, // Net Payable (Amount - Concession)
@@ -1119,8 +1135,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                                     <th className="p-2">Receipt No</th>
                                     <th className="p-2">Academic Year</th>
                                     <th className="p-2">Date</th>
-                                    <th className="p-2">Fee Type</th>
-                                    <th className="p-2">Installment</th>
+                                    <th className="p-2" colSpan={2}>Title</th>
                                     <th className="p-2 text-right">Amount</th>
                                     <th className="p-2 text-right">Concession</th>
                                     <th className="p-2">Mode</th>
@@ -1138,7 +1153,8 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
 
                                     // Enrich group with SR to enable sorting/grouping
                                     const enrichedGroup = group.map((p: any) => {
-                                        const match = installments.find(i => i.title === p.installment);
+                                        // Backend might store "March" while frontend title is "March Fee"
+                                        const match = installments.find(i => i.title === p.installment || i.title === `${p.installment} Fee`);
                                         return { ...p, sr: match ? match.sr : 0 };
                                     });
 
@@ -1153,7 +1169,6 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                                             <td className="p-2">{first.receipt_no}</td>
                                             <td className="p-2">{first.academic_year}</td>
                                             <td className="p-2">{first.payment_date}</td>
-                                            {/* Merged Title Column */}
                                             <td className="p-2" colSpan={2}>
                                                 <div className="space-y-1">
                                                     {groupedDetails.map((g: any, i: number) => (
