@@ -16,6 +16,7 @@ interface FeeStudent {
     balance: number;
     status: string;
     fatherName: string;
+    fatherPhone: string | number;
     branch: string;
 }
 
@@ -302,6 +303,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
         const data = {
             studentName: selectedStudent?.name,
             fatherName: selectedStudent?.fatherName,
+            fatherPhone: selectedStudent?.fatherPhone,
             admissionNo: selectedStudent?.admNo,
             branch: selectedStudent?.branch,
             className: selectedStudent?.class,
@@ -658,6 +660,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
             const data = {
                 studentName: selectedStudent.name,
                 fatherName: selectedStudent.fatherName,
+                fatherPhone: selectedStudent.fatherPhone,
                 admissionNo: selectedStudent.admNo,
                 branch: selectedStudent.branch,
                 className: selectedStudent.class,
@@ -780,7 +783,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                             </div>}
 
                             <div className="flex items-center justify-between">
-                                <h4 className="font-semibold text-gray-700">Details <a href="#" className="text-blue-500 text-sm font-normal hover:underline">show student details  </a></h4>
+                                <h4 className="font-semibold text-gray-700">Details <span className="text-xs text-gray-500 font-normal ml-2">Phone: {selectedStudent?.fatherPhone || 'N/A'}</span> <a href="#" className="text-blue-500 text-sm font-normal hover:underline">show student details  </a></h4>
                                 <div className="flex items-center space-x-2">
                                     {/* <button className="text-sm px-3 py-1.5 border rounded-md hover:bg-gray-100 flex items-center">Follow up</button>
                                     <button className="text-sm px-3 py-1.5 border rounded-md hover:bg-gray-100 flex items-center">

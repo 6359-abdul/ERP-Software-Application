@@ -5,6 +5,7 @@ interface FeeReceiptProps {
   receiptData: {
     studentName: string;
     fatherName: string;
+    fatherPhone: string | number;
     admissionNo: string;
     branch: string;
     className: string;
@@ -20,7 +21,7 @@ interface FeeReceiptProps {
 }
 
 const FeeReceipt: React.FC<FeeReceiptProps> = ({ onClose, receiptData }) => {
-  const { studentName, fatherName, admissionNo, branch, className, receiptNo, paymentDate, paymentMode, paymentNote, items, amount, concession, payable } = receiptData;
+  const { studentName, fatherName, fatherPhone, admissionNo, branch, className, receiptNo, paymentDate, paymentMode, paymentNote, items, amount, concession, payable } = receiptData;
 
   const handlePrint = () => {
     const receiptElement = document.querySelector('.printable-receipt');
@@ -110,7 +111,8 @@ const FeeReceipt: React.FC<FeeReceiptProps> = ({ onClose, receiptData }) => {
             <div>
               <p><strong className="font-semibold">Student Name:</strong> {studentName}</p>
               <p><strong className="font-semibold">Father Name:</strong> {fatherName}</p>
-              <p><strong className="font-semibold">Admission No:</strong> {admissionNo}</p> 
+              <p><strong className="font-semibold">Father Phone:</strong> {fatherPhone || "N/A"}</p>
+              <p><strong className="font-semibold">Admission No:</strong> {admissionNo}</p>
               <p><strong className="font-semibold">Branch:</strong> {branch}</p>
               <p><strong className="font-semibold">Class:</strong> {className}</p>
             </div>
