@@ -4,6 +4,94 @@ import { ChevronDownIcon, TrashIcon, PrinterIcon } from './icons';
 import FeeReceipt from './FeeReceipt';
 import { Page } from '../App';
 
+
+// Removed monthOrder in favor of Sr based dynamic grouping
+
+
+const groupInstallments = (items: any[]) => {
+    // Separate Installment Fees from Others (e.g. Admission Fee, Special Fee)
+    const installmentFees = items.filter(i => i.installment && i.installment !== "One-Time" && i.installment !== "None");
+    const otherFees = items.filter(i => !i.installment || i.installment === "One-Time" || i.installment === "None");
+
+    const groups: any[] = [];
+
+    // Group Installments by Fee Type
+    const byType: Record<string, any[]> = {};
+    installmentFees.forEach(i => {
+        const type = i.fee_type || "Tuition Fee";
+        if (!byType[type]) byType[type] = [];
+        byType[type].push(i);
+    });
+
+    // Process each Fee Type
+    Object.keys(byType).forEach(type => {
+        // Sort by sr (Serial Number) if available
+        const sorted = byType[type].sort((a, b) => (a.sr || 0) - (b.sr || 0));
+
+        if (sorted.length === 0) return;
+
+        let currentGroup = [sorted[0]];
+
+        for (let i = 1; i < sorted.length; i++) {
+            const prev = currentGroup[currentGroup.length - 1];
+            const curr = sorted[i];
+
+            const prevSr = prev.sr || 0;
+            const currSr = curr.sr || 0;
+
+            // Check if consecutive by SR
+            // If SRs are missing or 0, we can't reliably group by sequence, so we split.
+            // Assumption: SR is 1-based index (1, 2, 3...)
+            if (prevSr > 0 && currSr > 0 && currSr === prevSr + 1) {
+                currentGroup.push(curr);
+            } else {
+                // Push current group and start new
+                groups.push(createGroupedItem(type, currentGroup));
+                currentGroup = [curr];
+            }
+        }
+        // Push last group
+        if (currentGroup.length > 0) {
+            groups.push(createGroupedItem(type, currentGroup));
+        }
+    });
+
+    // Add other fees as is
+    otherFees.forEach(f => {
+        groups.push({
+            title: f.fee_type === "General" ? "One-Time Fee" : f.fee_type,
+            amount: parseFloat(f.amount_paid),
+            concession: parseFloat(f.concession_amount),
+            payable: parseFloat(f.gross_amount || f.amount_paid),
+            originalItems: [f]
+        });
+    });
+
+    return groups;
+};
+
+const createGroupedItem = (type: string, items: any[]) => {
+    const start = items[0].installment.replace(" Fee", "");
+    const end = items[items.length - 1].installment.replace(" Fee", "");
+
+    let title = `${type} - ${start} Fee`;
+    if (items.length > 1) {
+        title = `Payment for ${start} Fee to ${end} Fee`;
+    }
+
+    const totalPaid = items.reduce((sum: number, i: any) => sum + parseFloat(i.amount_paid), 0);
+    const totalConcession = items.reduce((sum: number, i: any) => sum + parseFloat(i.concession_amount), 0);
+    const totalGross = items.reduce((sum: number, i: any) => sum + parseFloat(i.gross_amount || i.amount_paid), 0); // Fallback if gross missing
+
+    return {
+        title,
+        amount: totalPaid, // Paid Amount
+        concession: totalConcession,
+        payable: totalGross, // Gross Amount for table display
+        originalItems: items
+    };
+};
+
 interface FeeStudent {
     student_id: number;
     name: string;
@@ -259,11 +347,19 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
         }
     };
 
-    const handleDeletePayment = async (paymentId: number) => {
-        if (!window.confirm("Are you sure you want to delete this payment? This will revert the fee status.")) return;
+    const handleDeleteReceipt = async (receiptNo: string) => {
+        if (!window.confirm("Are you sure you want to delete this ENTIRE RECEIPT? This will revert all associated fee payments.")) return;
+
+        // Find all payments with this receipt no
+        const paymentsToDelete = paymentHistory.filter(p => p.receipt_no === receiptNo);
+
         try {
-            await api.delete(`/fees/payment/${paymentId}`);
-            alert("Payment deleted successfully.");
+            // Delete sequentially
+            for (const p of paymentsToDelete) {
+                await api.delete(`/fees/payment/${p.payment_id}`);
+            }
+
+            alert("Receipt deleted successfully.");
             fetchPaymentHistory(); // Refresh history
 
             // Refresh main installments view
@@ -275,28 +371,47 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
             }
 
         } catch (error: any) {
-            console.error("Error deleting payment:", error);
-            alert(error.response?.data?.error || "Failed to delete payment.");
+            console.error("Error deleting receipt:", error);
+            alert(error.response?.data?.error || "Failed to delete receipt.");
         }
     };
+
 
     const handlePrintHistoryReceipt = (receiptNo: string) => {
         const payments = paymentHistory.filter(p => p.receipt_no === receiptNo);
         if (payments.length === 0) return;
 
         // Calculate totals
-        const totalAmount = payments.reduce((sum, p) => sum + parseFloat(p.amount_paid), 0);
+        const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount_paid), 0);
         const totalConcession = payments.reduce((sum, p) => sum + parseFloat(p.concession_amount), 0);
-        const grossAmount = totalAmount + totalConcession;
+        const totalGross = payments.reduce((sum, p) => sum + parseFloat(p.gross_amount || 0), 0) || (totalPaid + totalConcession);
+        const totalDue = payments.reduce((sum, p) => sum + parseFloat(p.due_amount || 0), 0);
 
-        // Construct items for receipt
-        const items = payments.map((p, index) => ({
+        const netPayable = totalGross - totalConcession;
+
+
+        // Map history items to include SR from the main installments list
+        // This is critical for the generic grouping logic to work
+        const enrichedPayments = payments.map(p => {
+            // Find matching installment by Title (since ID is not available in history)
+            const match = installments.find(i => i.title === p.installment);
+            return {
+                ...p,
+                sr: match ? match.sr : 0 // 0 will prevent grouping
+            };
+        });
+
+        // Create Grouped Items
+        const groupedItems = groupInstallments(enrichedPayments);
+
+        // Map to Receipt Item format
+        const items = groupedItems.map((g, index) => ({
             sr: index + 1,
-            title: (p.installment === "One-Time" || !p.installment) ? p.fee_type : `${p.fee_type} - ${p.installment}`,
-            payable: parseFloat(p.amount_paid) + parseFloat(p.concession_amount),
-            dueAmount: 0,
-            paidAmount: parseFloat(p.amount_paid),
-            concession: parseFloat(p.concession_amount),
+            title: g.title,
+            payable: g.payable,
+            dueAmount: 0, // Not relevant for paid history receipt receipt
+            paidAmount: g.amount,
+            concession: g.concession,
             paid: true
         }));
 
@@ -312,9 +427,11 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
             paymentMode: payments[0].mode,
             paymentNote: "",
             items: items,
-            amount: grossAmount,
+            amount: totalGross,
             concession: totalConcession,
-            payable: totalAmount,
+            payable: netPayable,
+            paid: totalPaid,
+            due: totalDue
         };
 
         setReceiptData(data);
@@ -671,7 +788,9 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                 items: selectedItems, // We show what was selected
                 amount,
                 concession: appliedConcession,
-                payable: Number(paidInput),
+                payable: payable, // Net Payable (Amount - Concession)
+                paid: Number(paidInput),
+                due: due,
             };
             setReceiptData(data);
             setShowReceipt(true);
@@ -1009,26 +1128,53 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                                 </tr>
                             </thead>
                             <tbody>
-                                {paymentHistory.map(p => (
-                                    <tr key={p.payment_id} className="border-b hover:bg-gray-50">
-                                        <td className="p-2">{p.receipt_no}</td>
-                                        <td className="p-2">{p.academic_year}</td>
-                                        <td className="p-2">{p.payment_date}</td>
-                                        <td className="p-2">{p.fee_type}</td>
-                                        <td className="p-2">{p.installment}</td>
-                                        <td className="p-2 text-right">₹{parseFloat(p.amount_paid).toLocaleString('en-IN')}</td>
-                                        <td className="p-2 text-right">₹{parseFloat(p.concession_amount).toLocaleString('en-IN')}</td>
-                                        <td className="p-2">{p.mode}</td>
-                                        <td className="p-2 flex justify-center space-x-2">
-                                            <button onClick={() => handlePrintHistoryReceipt(p.receipt_no)} title="Print Receipt" className="text-blue-600 hover:text-blue-800">
-                                                <PrinterIcon className="w-5 h-5" />
-                                            </button>
-                                            <button onClick={() => handleDeletePayment(p.payment_id)} title="Delete Payment" className="text-red-600 hover:text-red-800">
-                                                <TrashIcon className="w-5 h-5" />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {Object.values(paymentHistory.reduce((acc: any, curr) => {
+                                    // Group by Receipt No
+                                    if (!acc[curr.receipt_no]) acc[curr.receipt_no] = [];
+                                    acc[curr.receipt_no].push(curr);
+                                    return acc;
+                                }, {})).map((group: any) => {
+                                    const first = group[0];
+
+                                    // Enrich group with SR to enable sorting/grouping
+                                    const enrichedGroup = group.map((p: any) => {
+                                        const match = installments.find(i => i.title === p.installment);
+                                        return { ...p, sr: match ? match.sr : 0 };
+                                    });
+
+                                    const groupedDetails = groupInstallments(enrichedGroup);
+
+                                    // Summarize Group for Table Display
+                                    const totalAmount = group.reduce((sum: number, p: any) => sum + parseFloat(p.amount_paid), 0);
+                                    const totalConcession = group.reduce((sum: number, p: any) => sum + parseFloat(p.concession_amount), 0);
+
+                                    return (
+                                        <tr key={first.receipt_no} className="border-b hover:bg-gray-50 align-top">
+                                            <td className="p-2">{first.receipt_no}</td>
+                                            <td className="p-2">{first.academic_year}</td>
+                                            <td className="p-2">{first.payment_date}</td>
+                                            {/* Merged Title Column */}
+                                            <td className="p-2" colSpan={2}>
+                                                <div className="space-y-1">
+                                                    {groupedDetails.map((g: any, i: number) => (
+                                                        <div key={i} className="font-medium">{g.title}</div>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="p-2 text-right">₹{totalAmount.toLocaleString('en-IN')}</td>
+                                            <td className="p-2 text-right">₹{totalConcession.toLocaleString('en-IN')}</td>
+                                            <td className="p-2">{first.mode}</td>
+                                            <td className="p-2 flex justify-center space-x-2">
+                                                <button onClick={() => handlePrintHistoryReceipt(first.receipt_no)} title="Print Receipt" className="text-blue-600 hover:text-blue-800">
+                                                    <PrinterIcon className="w-5 h-5" />
+                                                </button>
+                                                <button onClick={() => handleDeleteReceipt(first.receipt_no)} title="Delete Receipt" className="text-red-600 hover:text-red-800">
+                                                    <TrashIcon className="w-5 h-5" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                                 {paymentHistory.length === 0 && <tr><td colSpan={9} className="p-4 text-center text-gray-500">No payments found.</td></tr>}
                             </tbody>
                         </table>

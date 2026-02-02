@@ -486,6 +486,8 @@ def get_student_payment_history(current_user, student_id):
                 "payment_date": p.payment_date.isoformat() if p.payment_date else None,
                 "amount_paid": str(p.amount_paid),
                 "concession_amount": str(p.concession_amount),
+                "gross_amount": str(p.gross_amount),
+                "due_amount": str(p.due_amount),
                 "fee_type": p.fee_type,
                 "installment": p.installment_name,
                 "mode": p.payment_mode,

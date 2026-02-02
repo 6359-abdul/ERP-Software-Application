@@ -1,6 +1,5 @@
 import React from 'react';
-import Receiptlogo from '../images/Receiptlogo.png';
-
+import ReceiptLogo from '../images/Receiptlogo.png';
 
 interface FeeReceiptProps {
   onClose: () => void;
@@ -19,6 +18,8 @@ interface FeeReceiptProps {
     amount: number;
     concession: number;
     payable: number;
+    paid: number;
+    due: number;
   };
 }
 
@@ -100,7 +101,7 @@ const FeeReceipt: React.FC<FeeReceiptProps> = ({ onClose, receiptData }) => {
         <div className="printable-receipt p-8 text-gray-800 bg-white">
           {/* Header */}
           <div className="flex items-center justify-start mb-4">
-            <img src={Receiptlogo} alt="School Logo" className="h-16 mr-4" />
+            <img src={ReceiptLogo} alt="School Logo" className="h-16 mr-4" />
             <div>
               <h1 className="text-2xl font-bold text-black">MS Education Academy</h1>
               <p className="text-md text-gray-600">Fee Receipt</p>
@@ -147,22 +148,29 @@ const FeeReceipt: React.FC<FeeReceiptProps> = ({ onClose, receiptData }) => {
 
           {/* Footer & Totals */}
           <div className="flex justify-between items-start">
-            <div className="text-sm">
+            <div className="text-sm w-1/2">
               {paymentNote && <p><strong className="font-semibold">Note:</strong> {paymentNote}</p>}
             </div>
-            <div className="w-1/3 text-sm">
-              <div className="flex justify-between">
+            <div className="w-1/2 text-sm">
+              <div className="flex justify-between border-b pb-1 mb-1">
                 <span className="text-gray-600">Total Amount:</span>
                 <span className="font-mono text-right">₹{amount.toLocaleString('en-IN')}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between border-b pb-1 mb-1">
                 <span className="text-gray-600">Concession:</span>
                 <span className="font-mono text-right">- ₹{concession.toLocaleString('en-IN')}</span>
               </div>
-              <hr className="my-2" />
-              <div className="flex justify-between font-bold text-base">
+              <div className="flex justify-between font-bold text-base border-b pb-1 mb-1">
                 <span>Net Payable:</span>
                 <span className="font-mono text-right">₹{payable.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex justify-between font-bold text-base text-green-700 border-b pb-1 mb-1">
+                <span>Paid Amount:</span>
+                <span className="font-mono text-right">₹{receiptData.paid.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex justify-between font-bold text-base text-red-700">
+                <span>Balance Due:</span>
+                <span className="font-mono text-right">₹{receiptData.due.toLocaleString('en-IN')}</span>
               </div>
             </div>
           </div>
