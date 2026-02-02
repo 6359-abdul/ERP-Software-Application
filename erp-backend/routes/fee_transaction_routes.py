@@ -83,7 +83,9 @@ def get_fee_students(current_user):
                 Student.first_name.like(like),
                 Student.StudentMiddleName.like(like),
                 Student.last_name.like(like),
+                Student.Fatherfirstname.like(like),
                 Student.admission_no.like(like),
+                Student.branch.like(like),
             )
         )
     
@@ -107,7 +109,9 @@ def get_fee_students(current_user):
         output.append({
             "student_id": s.student_id,
             "name": f"{s.first_name} {s.last_name}".strip(),
+            "fatherName": s.Fatherfirstname,
             "admNo": s.admission_no,
+            "branch": s.branch,
             "class": record.class_name, # Historical Class
             "section": record.section,   # Historical Section
             "total_fee": total,

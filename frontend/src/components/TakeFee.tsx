@@ -15,6 +15,8 @@ interface FeeStudent {
     concession: number;
     balance: number;
     status: string;
+    fatherName: string;
+    branch: string;
 }
 
 interface FeeInstallment {
@@ -299,7 +301,9 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
 
         const data = {
             studentName: selectedStudent?.name,
+            fatherName: selectedStudent?.fatherName,
             admissionNo: selectedStudent?.admNo,
+            branch: selectedStudent?.branch,
             className: selectedStudent?.class,
             receiptNo: receiptNo,
             paymentDate: payments[0].payment_date,
@@ -653,7 +657,9 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
             // Show Receipt with Real Data
             const data = {
                 studentName: selectedStudent.name,
+                fatherName: selectedStudent.fatherName,
                 admissionNo: selectedStudent.admNo,
+                branch: selectedStudent.branch,
                 className: selectedStudent.class,
                 receiptNo: realReceiptNo, // Use backend receipt
                 paymentDate,
