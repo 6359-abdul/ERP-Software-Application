@@ -260,6 +260,7 @@ class FeePayment(db.Model):
     payment_year = db.Column(db.Integer) 
 
     note = db.Column(db.String(25))
+    TransactionDetails = db.Column(db.String(255))
     collected_by = db.Column(db.Integer) # User ID
     collected_by_name = db.Column(db.String(100)) # User Name (Added per request)
     created_at = db.Column(db.DateTime, default=datetime.now)

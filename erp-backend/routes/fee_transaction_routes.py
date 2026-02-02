@@ -16,7 +16,7 @@ def get_fee_students(current_user):
     class_name = request.args.get("class")
     section = request.args.get("section")
     search = request.args.get("search")
- 
+    
     # Header Filtering
     h_branch = request.headers.get("X-Branch")
     
@@ -229,16 +229,17 @@ def record_fee_payment(current_user):
     
     payment_mode = data.get("payment_mode", "Cash")
     payment_date_str = data.get("payment_date", datetime.now().strftime("%Y-%m-%d"))
+     # Get transaction details
+    transaction_id = data.get("transaction_id")
+    transaction_id_description = data.get("transaction_id_description")
+
     try:
         payment_date = datetime.strptime(payment_date_str, "%Y-%m-%d").date()
     except ValueError:
        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
 
     note = data.get("note", "")
-
-    if not student_id or not payment_amount:
-        return jsonify({"error": "Student ID and Amount are required"}), 400
-
+    
     # MANDATORY: Require Academic Year (Fix Issue 5)
     h_year, err, code = require_academic_year()
     if err:
@@ -257,7 +258,20 @@ def record_fee_payment(current_user):
         student = Student.query.get(student_id)
         if not student:
             return jsonify({"error": "Student not found"}), 404
-
+        
+        #Build Transaction Details from Transaction Id and Transaction Description
+        #transaction_details = f"Transaction ID: {transaction_id}, Transaction Description: {transaction_description}"
+        transaction_details = " "  # Use None instead of empty string for NULL in DB
+        
+        if transaction_id or transaction_id_description:
+            parts = []
+            if transaction_id:
+                parts.append(transaction_id)
+            if transaction_id_description:
+                parts.append(transaction_id_description)
+            
+            if parts:  # Only set if we have actual data
+                transaction_details = " / ".join(parts)
         # 1. GENERATE RECEIPT NUMBER (Step 4)
         manual_receipt_no = data.get("receipt_no")
         
@@ -377,6 +391,7 @@ def record_fee_payment(current_user):
                 payment_month=payment_date.month,
                 payment_year=payment_date.year,
                 note=note,
+                TransactionDetails=transaction_details,
                 collected_by=current_user.user_id,
                 collected_by_name=current_user.username 
             )
@@ -389,7 +404,8 @@ def record_fee_payment(current_user):
             "message": "Payment recorded successfully", 
             "receipt_no": receipt_no,
             "total_paid": str(total_allocated),
-            "collected_by_name": current_user.username
+            "collected_by_name": current_user.username,
+            "transaction_detials":transaction_details
         }), 201
     
     except Exception as e:

@@ -307,8 +307,9 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
     AccountNumber: "",
     MICR: "",
     AdmissionCategory: "",
-    location: "Hyderabad",
-    branch: "",
+    AdmissionClass: "",
+    location: localStorage.getItem('location') || '',
+    branch: localStorage.getItem('branch') || '',
     academic_year: localStorage.getItem('academicYear') || "",
     presentAddress: "",
     presentCity: "",
@@ -916,7 +917,7 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
             >
               <option value="">-- Select --</option>
               <option value="Hifz">Hifz</option>
-              <option value="Nazira">Nazira</option>
+              <option value="Nazira">Hifz+Nazira</option>
             </FormField>
             <FormField
               label="Admission Class"
@@ -924,7 +925,7 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               value={formData.AdmissionClass}
               required
               onChange={handleInputChange}
-              disabled={isViewMode}
+              disabled={isViewMode || mode === "edit" && formData.AdmissionClass}
             />
             <FormField
               label="Location"
@@ -932,7 +933,7 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               as="select"
               value={formData.location}
               onChange={handleInputChange}
-              disabled={isViewMode || isBranchLocked}
+              disabled={isViewMode || mode === "edit" && formData.location}
               className={isBranchLocked ? "bg-gray-100 cursor-not-allowed" : ""}
             >
               <option value="">-- Select --</option>
@@ -949,7 +950,7 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               required
               value={formData.branch}
               onChange={handleInputChange}
-              disabled={isViewMode || isBranchLocked}
+              disabled={isViewMode || mode === "edit" && formData.branch}
               className={isBranchLocked ? "bg-gray-100 cursor-not-allowed" : ""}
             >
               <option value="">-- Select --</option>

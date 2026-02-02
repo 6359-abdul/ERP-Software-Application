@@ -9,7 +9,7 @@ interface FeeStudent {
     name: string;
     admNo: string;
     class: string;
-    section: string; 
+    section: string;
     total_fee: number;
     paid_amount: number;
     concession: number;
@@ -379,6 +379,8 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
     const [paymentNote, setPaymentNote] = useState('');
     const [paymentMode, setPaymentMode] = useState('Cash');
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+    const [transactionId, setTransactionId] = useState('');
+    const [transactionIdDescription, setTransactionIdDescription] = useState('');
 
     // Admin State
     const [isAdmin, setIsAdmin] = useState(false);
@@ -585,6 +587,8 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
         setPaymentNote('');
         setPaymentMode('Cash');
         setPaymentDate(new Date().toISOString().split('T')[0]);
+        setTransactionId('');
+        setTransactionIdDescription('');
     };
 
     const handleTakeFee = async () => {
@@ -639,9 +643,10 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                 payment_date: paymentDate,
                 note: paymentNote,
                 receipt_no: schoolReceiptNo, // Pass the manual receipt number
+                transaction_id: transactionId,
+                transaction_id_description: transactionIdDescription,
                 fee_allocations: feeAllocations
             });
-
             // Backend returns receipt_no
             const realReceiptNo = response.data.receipt_no;
 
@@ -912,7 +917,11 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">Payment Mode*</label>
                                         <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500">
-                                            <option>Cash</option> <option>Card</option> <option>Online</option>
+                                            <option>Cash</option>
+                                            <option>CardSwap</option>
+                                            <option>Online</option>
+                                            <option>UPI</option>
+                                            <option>Cheque</option>
                                         </select>
                                     </div>
                                     <div>
@@ -927,6 +936,33 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                                         <label className="block text-sm font-medium text-gray-700">Payment Note</label>
                                         <input type="text" value={paymentNote} maxLength={25} onChange={e => setPaymentNote(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500" />
                                     </div>
+
+                                    {/* Conditionally render UPI/Card fields */}
+                                    {(paymentMode === 'CardSwap' || paymentMode === 'UPI') && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">UPI/Card Transaction ID*</label>
+                                                <input
+                                                    type="text"
+                                                    value={transactionId}
+                                                    onChange={e => setTransactionId(e.target.value)}
+                                                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                                                    placeholder="Enter UPI/Card transaction ID"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">UPI/Card Description*</label>
+                                                <input
+                                                    type="text"
+                                                    value={transactionIdDescription}
+                                                    required
+                                                    onChange={e => setTransactionIdDescription(e.target.value)}
+                                                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                                                    placeholder="Enter UPI/Card description"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                                 <div className="flex items-center">
                                     <input id="keep-details" type="checkbox" className="h-4 w-4 text-violet-600 border-gray-300 rounded focus:ring-violet-500" />
