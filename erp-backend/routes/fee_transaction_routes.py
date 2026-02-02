@@ -104,15 +104,7 @@ def get_fee_students(current_user):
             "Pending"
         )
         
-        # DEBUG PRINT
-        if "Latheef" in f"{s.first_name} {s.last_name}" or "Kareem" in f"{s.first_name} {s.last_name}":
-             print(f"DEBUG: Student {s.student_id} ({s.first_name})")
-             print(f" - FatherName: {s.Fatherfirstname}")
-             print(f" - FatherPhone: {s.FatherPhone}")
-             print(f" - SmsNo: {s.SmsNo}")
-             print(f" - Phone: {s.phone}")
-             print(f" - Branch: {s.branch}")
-             print(f" - Record Class: {record.class_name}")
+  
 
         output.append({
             "student_id": s.student_id, 
