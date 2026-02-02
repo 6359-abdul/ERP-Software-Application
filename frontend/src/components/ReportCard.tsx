@@ -4,6 +4,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
 import { ProgressReportData } from '../reportcardtypes';
+import logo1 from '../images/logo1.png';
 
 interface ReportCardProps {
   data: ProgressReportData;
@@ -171,7 +172,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
         </div>
          <div className="logo-container" style={{ width: 'auto', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-start',marginRight: '20px'}}>
           <img
-            src="logo1.png"
+            src={logo1}
             alt="MS Education Academy Logo"
             referrerPolicy="no-referrer"
             style={{ maxWidth: '100px', maxHeight: '50px', width: 'auto', height: '80px', objectFit: 'contain' }}

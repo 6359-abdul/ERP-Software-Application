@@ -1,4 +1,6 @@
 import React from 'react';
+import Receiptlogo from '../images/Receiptlogo.png';
+
 
 interface FeeReceiptProps {
   onClose: () => void;
@@ -98,7 +100,7 @@ const FeeReceipt: React.FC<FeeReceiptProps> = ({ onClose, receiptData }) => {
         <div className="printable-receipt p-8 text-gray-800 bg-white">
           {/* Header */}
           <div className="flex items-center justify-start mb-4">
-            <img src="https://mshifzacademy.com/assets/images/ms-logo.jpg" alt="School Logo" className="h-16 mr-4" />
+            <img src={Receiptlogo} alt="School Logo" className="h-16 mr-4" />
             <div>
               <h1 className="text-2xl font-bold text-black">MS Education Academy</h1>
               <p className="text-md text-gray-600">Fee Receipt</p>
