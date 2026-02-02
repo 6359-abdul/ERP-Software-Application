@@ -4,12 +4,12 @@ from models import FeePayment, Student, StudentFee
 from helpers import token_required, require_academic_year
 from datetime import date, datetime
 from sqlalchemy import func
- 
+
 def consolidate_receipts(payments):
     """
     Consolidates multiple payment rows (line items) into single receipt entries.
     Returns a list of receipt dicts suitable for frontend display.
-    """ 
+    """
     receipt_map = {}
     
     for p in payments:
@@ -501,34 +501,53 @@ def get_receipt_data(current_user, receipt_no):
         if not payments:
             return jsonify({"error": "Receipt not found"}), 404
             
+        if not payments:
+            return jsonify({"error": "Receipt not found"}), 404
+            
         # One receipt = Multiple payment rows
         first = payments[0]
         student = first.student
         
         items = []
-        total_amount = 0
+        total_paid = 0
         total_concession = 0
+        total_gross = 0
+        total_due = 0
         
         for p in payments:
             items.append({
                 "title": f"{p.fee_type or ''} {p.installment_name or ''}".strip(),
-                "payable": float(p.amount_paid) # Verify if we show Paid or Payable? Receipt usually shows Paid amount for line items
+                "installment": p.installment_name,
+                "fee_type": p.fee_type,
+                "amount_paid": str(p.amount_paid),
+                "concession_amount": str(p.concession_amount),
+                "gross_amount": str(p.gross_amount),
+                "due_amount": str(p.due_amount),
+                "student_id": p.student_id,
+                "branch": p.branch
             })
-            total_amount += float(p.amount_paid)
+            total_paid += float(p.amount_paid)
             total_concession += float(p.concession_amount or 0)
+            total_gross += float(p.gross_amount or 0)
+            total_due += float(p.due_amount or 0)
             
         return jsonify({
             "receiptNo": first.receipt_no,
             "studentName": f"{student.first_name} {student.StudentMiddleName or ''} {student.last_name}".strip(),
+            "fatherName": student.Fatherfirstname,
+            "fatherPhone": student.FatherPhone or student.SmsNo or student.phone,
             "admissionNo": student.admission_no,
+            "branch": student.branch,
             "className": first.class_name, # Snapshot class from payment
             "paymentDate": first.payment_date.isoformat(),
             "paymentMode": first.payment_mode,
             "paymentNote": first.note,
             "items": items,
-            "amount": total_amount + total_concession, # Gross
+            "amount": total_gross, # Gross
             "concession": total_concession,
-            "payable": total_amount # Net Paid
+            "payable": total_gross - total_concession, # Net Payable
+            "paid": total_paid,
+            "due": total_due
         }), 200
         
     except Exception as e:
