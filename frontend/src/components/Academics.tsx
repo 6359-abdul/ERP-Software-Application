@@ -5,14 +5,15 @@ import ClassSubjectAssignment from "./ClassSubjectAssignment";
 import ClassTestAssignment from "./ClassTestAssignment";
 import AssignStudentSubjects from "./AssignStudentSubjects";
 import TestTypeManager from "./TestTypeManager";
-import AssignSubjectTests from "./AssignSubjectTests";  
+import AssignSubjectTests from "./AssignSubjectTests";
 import AssignStudentTests from "./AssignStudentTests";
 import GradeScaleManager from "./GradeScaleManager";
 import MarksEntry from "./MarksEntry";
 import MarksUpload from "./MarksUpload";
 import StudentReportCard from "./StudentReportCard";
 import SetExamAttendance from "./SetExamAttendance";
-import MultiSubjectMarksEntry from "./MultiSubjectsMarksEntry"
+import MarksEntryAllSubjects from "./MarksEntryAllSubjects";
+
 
 // --- Types ---
 type AcademicView =
@@ -27,8 +28,8 @@ type AcademicView =
     | "GRADING"
     | "ADD_EXAM"
     | "MARKS_ENTRY_SUBJECT"
-    | "MARKS_ENTRY_MULTI_SUBJECT"
     | "MARKS_ENTRY_UPLOAD"
+    | "MARKS_ENTRY_ALL_SUBJECTS"
     | "ACADEMIC_SETTING"
     | "STUDENT_REPORT_CARD"
     | "SET_EXAM_ATTENDANCE";
@@ -109,7 +110,7 @@ const Academics: React.FC = () => {
                                     title="Enter Marks"
                                     items={[
                                         { label: "Subject Wise", onClick: () => setView("MARKS_ENTRY_SUBJECT") },
-                                        { label: "Multi Subject", onClick: () => setView("MARKS_ENTRY_MULTI_SUBJECT") },
+                                        { label: "Enter All Subject Marks", onClick: () => setView("MARKS_ENTRY_ALL_SUBJECTS") },
                                         { label: "Upload Exam Marks", onClick: () => setView("MARKS_ENTRY_UPLOAD") },
                                         { label: "Marks Progress Report", disabled: true },
                                         { label: "Student Health Details", disabled: true }
@@ -196,10 +197,10 @@ const Academics: React.FC = () => {
                         {view === "ADD_EXAM" && <ClassTestAssignment />}
                         {view === "GRADING" && <GradeScaleManager />}
                         {view === "MARKS_ENTRY_SUBJECT" && <MarksEntry />}
-                        {view === "MARKS_ENTRY_MULTI_SUBJECT" && <MultiSubjectMarksEntry />}
                         {view === "MARKS_ENTRY_UPLOAD" && <MarksUpload />}
                         {view === "STUDENT_REPORT_CARD" && <StudentReportCard />}
                         {view === "SET_EXAM_ATTENDANCE" && <SetExamAttendance />}
+                        {view === "MARKS_ENTRY_ALL_SUBJECTS" && <MarksEntryAllSubjects />}
 
 
 
