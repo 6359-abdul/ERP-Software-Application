@@ -320,7 +320,6 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
   };
 
   const [formData, setFormData] = useState<Record<string, any>>(initialFormData);
-  const [isBranchLocked, setIsBranchLocked] = useState(false);
 
   // DEBUGVARS (Safe to assume studentData exists if referenced inside useEffect, but here at top level?)
   // No, studentData is a prop. Accessing it here is fine.
@@ -481,13 +480,23 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
           }
 
           let targetBranch = "";
+          const isAllBranch = savedBranch === "All" || savedBranch === "All Branches";
           if (userRole === 'Admin') {
-            if (savedBranch && savedBranch !== 'All') {
+            if (savedBranch && !isAllBranch) {
               targetBranch = savedBranch;
             }
           } else {
             if (userBranch) {
               targetBranch = userBranch;
+            }
+          }
+
+          if (!targetBranch && !isAllBranch) {
+            const storedBranch = localStorage.getItem("branch") || "";
+            if (storedBranch) {
+              targetBranch = storedBranch;
+            } else if (branches.length > 0) {
+              targetBranch = branches[0].branch_name;
             }
           }
 
@@ -509,9 +518,16 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               location: derivedLoc || prev.location,
               academic_year: normalizedYear
             }));
-            setIsBranchLocked(true);
+          } else if (isAllBranch) {
+            setFormData(prev => ({
+              ...prev,
+              branch: "",
+              location: "",
+              academic_year: prev.academic_year || (localStorage.getItem("academicYear") || "")
+            }));
           }
         }
+
       })
       .catch(err => console.error("Failed to load master data", err));
 
@@ -933,8 +949,8 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               as="select"
               value={formData.location}
               onChange={handleInputChange}
-              disabled={isViewMode || mode === "edit" && formData.location}
-              className={isBranchLocked ? "bg-gray-100 cursor-not-allowed" : ""}
+              disabled={true}
+              className="bg-gray-100 cursor-not-allowed"
             >
               <option value="">-- Select --</option>
               {locationOptions.map((loc) => (
@@ -950,8 +966,8 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               required
               value={formData.branch}
               onChange={handleInputChange}
-              disabled={isViewMode || mode === "edit" && formData.branch}
-              className={isBranchLocked ? "bg-gray-100 cursor-not-allowed" : ""}
+              disabled={true}
+              className="bg-gray-100 cursor-not-allowed"
             >
               <option value="">-- Select --</option>
               {branchOptions.map((b) => (
@@ -1388,30 +1404,30 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
           </CollapsibleSection>
 
           {/* --- 5. BANK DETAILS --- */}
-          <CollapsibleSection title="Bank Details">
+          <CollapsibleSection title="Previous School Details">
             <FormField
-              label="Bank Name"
+              label="School Name"
               name="BankName"
               value={formData.BankName}
               onChange={handleInputChange}
               disabled={isViewMode}
             />
             <FormField
-              label="Account Number"
+              label="School Class"
               name="AccountNumber"
               value={formData.AccountNumber}
               onChange={handleInputChange}
               disabled={isViewMode}
             />
             <FormField
-              label="IFSC Code"
+              label="TC Number"
               name="IFSC"
               value={formData.IFSC}
               onChange={handleInputChange}
               disabled={isViewMode}
             />
             <FormField
-              label="Branch Name"
+              label="Admission Number"
               name="BranchName"
               value={formData.BranchName}
               onChange={handleInputChange}
