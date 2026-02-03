@@ -4,11 +4,10 @@ import {
   PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
 import { ProgressReportData } from '../reportcardtypes';
-import logo1 from '../images/logo1.png';
-
 interface ReportCardProps {
   data: ProgressReportData;
-} 
+}
+import logo1 from '../images/logo1.png';
 
 const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
   // ============== DEBUG: Check what data we're getting ==============
@@ -170,7 +169,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
             }}
           />
         </div>
-         <div className="logo-container" style={{ width: 'auto', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-start',marginRight: '20px'}}>
+        <div className="logo-container" style={{ width: 'auto', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', marginRight: '20px' }}>
           <img
             src={logo1}
             alt="MS Education Academy Logo"
@@ -184,12 +183,12 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
         </div>
       </div>
 
-      <div className="bg-violet-800 text-white text-center py-2 font-bold tracking-widest text-lg mb-2 shadow-md uppercase">
+      <div className="bg-violet-800 text-white text-center py-2 font-bold tracking-widest text-lg mb-0 shadow-md uppercase">
         {data.reportTitle || 'Student Progress Report'}
       </div>
 
       {/* Top Section: Student Details and Grading Scale */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-0.5">
         <div className="border border-indigo-900 rounded-lg overflow-hidden shadow-sm">
           <div className="bg-[#4a235a] text-white px-4 py-2 text-sm font-semibold">Student Detail</div>
           <div className="p-4 grid grid-cols-[1fr,2fr] gap-y-2 text-sm font-semibold">
@@ -218,7 +217,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
 
       {/* Second Section: HIFZ Progress */}
       {data.hifzData && data.hifzData.length > 0 && data.hifzData.some(h => h.subject && h.subject !== '') ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-0.5">
           <div className="border border-indigo-900 rounded-lg overflow-hidden flex flex-col shadow-sm">
             <div className="bg-[#4a235a] text-white px-4 py-2 text-sm font-semibold flex justify-between">
               <span>HIFZ</span>
@@ -254,10 +253,10 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
               <table className="w-full text-xs">
                 <thead className="bg-gray-100 border-b border-indigo-900">
                   <tr>
-                    <th className="p-2 text-left">گریڈ</th>
-                    <th className="p-2 text-left">حاصل شدہ نمبرات</th>
-                    <th className="p-2 text-left">کل نمبرات</th>
-                    <th className="p-2 text-right">مضامین</th>
+                    <th className="p-2 text-left font-arabic">گریڈ</th>
+                    <th className="p-2 text-left font-arabic">حاصل شدہ نمبرات</th>
+                    <th className="p-2 text-left font-arabic">کل نمبرات</th>
+                    <th className="p-2 text-right font-arabic">مضامین</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -303,7 +302,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
 
       {/* Third Section: Academic Performance */}
       {data.academicPerformance && data.academicPerformance.length > 0 && data.academicPerformance.some(ap => ap.subject && ap.subject !== '') ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-0.5">
           <div className="border border-indigo-900 rounded-lg overflow-hidden flex flex-col shadow-sm">
             <div className="bg-[#4a235a] text-white px-4 py-2 text-sm font-semibold">ACADEMIC PERFORMANCE</div>
             <div className="p-4 grid grid-cols-[1fr,1.5fr]" style={{ height: '220px' }}>
@@ -358,10 +357,10 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
               <table className="w-full text-xs">
                 <thead className="bg-gray-100 border-b border-indigo-900">
                   <tr>
-                    <th className="p-2 text-left">گریڈ</th>
-                    <th className="p-2 text-left">حاصل شدہ نمبرات</th>
-                    <th className="p-2 text-left">کل نمبرات</th>
-                    <th className="p-2 text-right">مضامین</th>
+                    <th className="p-2 text-left font-arabic">گریڈ</th>
+                    <th className="p-2 text-left font-arabic">حاصل شدہ نمبرات</th>
+                    <th className="p-2 text-left font-arabic">کل نمبرات</th>
+                    <th className="p-2 text-right font-arabic">مضامین</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -404,7 +403,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
       )}
 
       {/* Fourth Section: Attendance and Target Level */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-0.5">
         <div className="border border-indigo-900 rounded-lg overflow-hidden flex flex-col shadow-sm">
           <div className="bg-[#4a235a] text-white px-4 py-2 text-sm font-semibold uppercase">Attendance</div>
           <div className="p-4">

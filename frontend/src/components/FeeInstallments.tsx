@@ -8,7 +8,7 @@ interface FeeType {
     type: string;
     branch?: string;
 }
- 
+
 interface Installment {
     id?: number;
     installment_no: number;
@@ -626,7 +626,7 @@ const FeeInstallments: React.FC = () => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Last Pay Date *
+                                    Cut Off Date *
                                 </label>
                                 <input
                                     type="date"
