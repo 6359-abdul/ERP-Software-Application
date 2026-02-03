@@ -587,18 +587,14 @@ const MarksEntryAllSubjects: React.FC = () => {
                     </div>
                 </div>
             )}
-
-            {/* --- BOTTOM ACTIONS --- */}
+            {/* --- DOWNLOAD BUTTON --- */}
             {students.length > 0 && (
-                <div className="mt-4 flex justify-end space-x-3">
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50">
-                        <Upload size={16} /> Upload CSV file
-                    </button>
+                <div className="mt-4 flex justify-end">
                     <button
                         onClick={handleDownload}
-                        className="flex items-center gap-2 px-4 py-2 border border-blue-300 rounded text-blue-700 hover:bg-blue-50"
+                        className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                     >
-                        <FileDown size={16} /> Download Template
+                        <FileDown size={16} /> Download Excel
                     </button>
                 </div>
             )}
