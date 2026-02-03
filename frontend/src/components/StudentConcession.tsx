@@ -8,7 +8,7 @@ interface FeeType {
 
 interface ConcessionItem {
     fee_type_id: number;
-    fee_type_name: string; 
+    fee_type_name: string;
     percentage: number;
 }
 
@@ -114,20 +114,20 @@ const StudentConcession: React.FC = () => {
                 const branchParam = globalBranch === "All Branches" || globalBranch === "All" ? "All" : globalBranch;
                 params.append('branch', branchParam);
 
-                console.log("Fetching sections with params:", params.toString());
+                //console.log("Fetching sections with params:", params.toString());
 
                 const response = await api.get(`/students?${params}`);
-                console.log("Students API Response for Sections:", response.data);
+                //console.log("Students API Response for Sections:", response.data);
 
                 const data = response.data;
                 const allStudents: Student[] = Array.isArray(data) ? data : (data.students || []);
 
-                console.log("Student count:", allStudents.length);
+                //console.log("Student count:", allStudents.length);
                 const rawSections = allStudents.map(s => s.section);
-                console.log("Raw Sections extracted:", rawSections);
+                //console.log("Raw Sections extracted:", rawSections);
 
                 const sec = [...new Set(rawSections.filter(Boolean))].sort();
-                console.log("Final Unique Sections:", sec);
+                //console.log("Final Unique Sections:", sec);
                 setSections(sec);
             } catch (error) {
                 console.error("Error fetching sections:", error);

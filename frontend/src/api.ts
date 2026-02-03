@@ -43,6 +43,8 @@ const api: AxiosInstance = axios.create({
   },
 });
 
+const shouldLogApi = import.meta.env.DEV && import.meta.env.VITE_LOG_API === 'true';
+
 // Request interceptor
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
@@ -92,7 +94,7 @@ api.interceptors.request.use(
     }
 
     // Log request in development
-    if (import.meta.env.DEV) {
+    if (shouldLogApi) {
       console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     }
 
@@ -108,7 +110,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response: AxiosResponse): AxiosResponse => {
     // Log response in development
-    if (import.meta.env.DEV) {
+    if (shouldLogApi) {
       console.log(`API Response: ${response.status} ${response.config.url}`);
     }
     
