@@ -7,7 +7,7 @@ import ComingSoon from './ComingSoon';
 import ImportStudentData from './ImportStudentData';
 import CreateStudent from './CreateStudent';
 import PromoteStudents from './PromoteStudents';
-import ClassSummary from './ClassSummary'; 
+import ClassSummary from './ClassSummary';
 import { Student } from '../types';
 import api from '../api';
 
@@ -220,9 +220,13 @@ const StudentList: React.FC<{ onView: any; onEdit: any; setActiveView: any }> =
                 } else {
                     alert("Invalid Password");
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error(error);
-                alert("Error deleting student");
+                if (error.response && error.response.data && error.response.data.error) {
+                    alert(error.response.data.error);
+                } else {
+                    alert("Error deleting student");
+                }
             }
         };
 

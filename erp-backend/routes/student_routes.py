@@ -238,6 +238,7 @@ def update_student(current_user, student_id):
             'email': 'email',
             'address': 'address',
             'Category': 'Category',
+            'AdmissionClass': 'AdmissionClass',
             'MotherTongue': 'MotherTongue',
             'Caste': 'Caste',
             'StudentType': 'StudentType',
@@ -307,7 +308,7 @@ def update_student(current_user, student_id):
             'AccountNumber': 'AccountNumber',
             'MICR': 'MICR',
             'AdmissionCategory': 'AdmissionCategory',
-            'AdmissionClass': 'AdmissionClass',
+            
         }
 
         # Update fields
@@ -351,6 +352,15 @@ def update_student(current_user, student_id):
         # -------- ADDRESS HANDLING --------
         if data.get("presentAddress"):
             student.address = data["presentAddress"]
+
+        # -------- STATUS CHANGE VALIDATION --------
+        # If incorrectly setting to Inactive, check fee
+        if data.get("status") == "Inactive" and student.status != "Inactive":
+            total_due = db.session.query(func.sum(StudentFee.due_amount)).filter_by(student_id=student_id).scalar() or 0
+            if total_due > 0:
+                print(f"Blocking inactivation for student {student_id} due to pending fee: {total_due}")
+                return jsonify({"error": "student has fee to pay unable to deactivate"}), 400 # User requested exact message
+
 
         # -------- PHOTO HANDLING --------
         photos = data.get("photos")
@@ -583,6 +593,12 @@ def delete_student(student_id):
             return jsonify({"error": "Student not found"}), 404
             
         # Soft Delete Implementation
+        
+        # Check for outstanding fees before inactivating
+        total_due = db.session.query(func.sum(StudentFee.due_amount)).filter_by(student_id=student_id).scalar() or 0
+        if total_due > 0:
+             return jsonify({"error": "student has fee to pay unable to deactivate"}), 400
+
         student.status = "Inactive"
         db.session.commit()
         return jsonify({"message": "Student marked as Inactive successfully"}), 200
@@ -685,6 +701,7 @@ def upload_students_csv():
                     email=row.get('email'),
                     address=row.get('address'),
                     Category=row.get('Category'),
+                    AdmissionClass=row.get('AdmissionClass'),
                     clazz=row.get('class'),
                     section=row.get('section'),
                     Roll_Number=int(row['Roll_Number']) if row.get('Roll_Number') else None,
@@ -739,7 +756,6 @@ def upload_students_csv():
                     MICR=row.get('MICR'),
                     # Additional Information
                     AdmissionCategory=row.get('AdmissionCategory'),
-                    AdmissionClass=row.get('AdmissionClass'),
                     StudentHeight=float(row['StudentHeight']) if row.get('StudentHeight') else None,
                     StudentWeight=float(row['StudentWeight']) if row.get('StudentWeight') else None,
                     SamagraId=row.get('SamagraId'),
