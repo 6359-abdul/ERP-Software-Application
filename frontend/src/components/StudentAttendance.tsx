@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Page } from '../App';
 import { ChevronDownIcon } from './icons';
-import { useSchool } from '../contexts/SchoolContext';
+import { useSchool } from '../contexts/SchoolContext'; 
 import { Student } from '../types';
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -242,7 +242,7 @@ const TakeAttendanceForm: React.FC = () => {
                                 <button onClick={() => markAll('Holiday')} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded border border-gray-200 hover:bg-gray-200">Mark All Holiday</button>
                                 <button onClick={() => markAll('Sunday')} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded border border-red-200 hover:bg-red-200">Mark All Sunday</button>
                             </div>
-                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                            <table className="min-w-full divide-y divide-gray-200 text-m">
                                 <thead className="bg-gray-50">
                                     <tr>
                                         <th className="px-4 py-2 text-left font-medium text-gray-500">Roll No.</th>
@@ -262,7 +262,7 @@ const TakeAttendanceForm: React.FC = () => {
                                             <td className="px-4 py-2 whitespace-nowrap text-gray-500">{student.father}</td>
                                             <td className="px-4 py-2 whitespace-nowrap text-gray-500">{student.smsNo || student.fatherMobile}</td>
                                             <td className="px-4 py-2 whitespace-nowrap">
-                                                <div className="flex items-center space-x-3">
+                                                <div className="flex items-center space-x-5">
                                                     {[
                                                         { val: 'Present', label: 'P', color: 'green' },
                                                         { val: 'Absent', label: 'A', color: 'red' },
@@ -275,7 +275,7 @@ const TakeAttendanceForm: React.FC = () => {
                                                                 name={`status-${student.student_id}`}
                                                                 checked={attendance[student.student_id!] === opt.val}
                                                                 onChange={() => handleStatusChange(student.student_id!, opt.val)}
-                                                                className={`h-4 w-4 text-${opt.color}-600 border-gray-300 focus:ring-${opt.color}-500`}
+                                                                className={`h-5 w-5 text-${opt.color}-600 border-gray-300 focus:ring-${opt.color}-500`}
                                                             />
                                                             <span className={`ml-1 text-${opt.color}-700 font-medium`}>{opt.label}</span>
                                                         </label>
