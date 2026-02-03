@@ -6,7 +6,7 @@ from extensions import db
 from datetime import datetime, date
 import os
 from models import Branch, OrgMaster, Student, FeeInstallment, StudentFee, User, FeeType
- 
+
 MONTHS = [
     "May", "June", "July", "August", "September", "October",
     "November", "December", "January", "February", "March", "April"
@@ -152,12 +152,10 @@ def student_to_dict(s):
         "GuardianDepartment": s.GuardianDepartment,
         "GuardianOfficeAddress": s.GuardianOfficeAddress,
         "GuardianContactNo": s.GuardianContactNo,
-        "BankName": s.BankName,
-        "BankCodeNo": s.BankCodeNo,
-        "BranchName": s.BranchName,
-        "IFSC": s.IFSC,
-        "AccountNumber": s.AccountNumber,
-        "MICR": s.MICR,
+        "SchoolName": s.SchoolName,
+        "AdmissionNumber": s.AdmissionNumber,
+        "TCNumber": s.TCNumber,
+        "PreviousSchoolClass": s.PreviousSchoolClass,
         "AdmissionCategory": s.AdmissionCategory,
         "AdmissionClass": s.AdmissionClass,
         "StudentHeight": str(s.StudentHeight) if s.StudentHeight else None,
@@ -404,7 +402,7 @@ def auto_enroll_student_fee(student_id, class_name, year=None, is_student_new=Tr
          raise Exception(f"Academic Year missing for auto enrollment of Student {student_id}")
 
     from models import ClassFeeStructure # Avoid circular import if needed or already imported?
-    # It is already imported at top. 
+    # It is already imported at top.
 
     # FIX 3: STRICT AUTO-ENROLLMENT LOGIC
     # User Request: "Refine auto_enroll_student_fee logic"

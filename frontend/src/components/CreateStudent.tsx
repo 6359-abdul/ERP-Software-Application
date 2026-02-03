@@ -221,6 +221,12 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
   const [locationOptions, setLocationOptions] = useState<{ code: string, name: string }[]>([]);
   const [academicYearOptions, setAcademicYearOptions] = useState<{ code: string, name: string }[]>([]);
   const isViewMode = mode === "view";
+  const currentBranch = localStorage.getItem("currentBranch");
+  const isAllBranch = currentBranch === "All" || currentBranch === "All Branches";
+  const canSelectBranch = mode === "create" && isAllBranch;
+  const currentLocation = localStorage.getItem("currentLocation");
+  const isAllLocation = currentLocation === "All" || currentLocation === "All Locations";
+  const canSelectLocation = mode === "create" && isAllLocation;
 
 
 
@@ -300,12 +306,7 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
     GuardianDepartment: "",
     GuardianOfficeAddress: "",
     GuardianContactNo: "",
-    BankName: "",
-    BankCodeNo: "",
-    BranchName: "",
-    IFSC: "",
-    AccountNumber: "",
-    MICR: "",
+
     AdmissionCategory: "",
     AdmissionClass: "",
     location: localStorage.getItem('location') || '',
@@ -317,6 +318,11 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
     permanentAddress: "",
     permanentCity_ui: "",
     isSameAddress: false,
+    // Previous School Details (New Fields)
+    SchoolName: "",
+    PreviousSchoolClass: "",
+    TCNumber: "",
+    PreviousAdmissionNumber: "",
   };
 
   const [formData, setFormData] = useState<Record<string, any>>(initialFormData);
@@ -402,6 +408,12 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
       mapped.admissionNo = studentData.admission_no ?? mapped.admissionNo;
       mapped.presentAddress = studentData.address ?? "";
       mapped.class = studentData.class ?? studentData.clazz ?? "";
+
+      // Explicit Mapping for Previous School Details
+      mapped.SchoolName = studentData.SchoolName || "";
+      mapped.PreviousSchoolClass = studentData.PreviousSchoolClass || "";
+      mapped.TCNumber = studentData.TCNumber || "";
+      mapped.PreviousAdmissionNumber = studentData.AdmissionNumber || ""; // Back from backend is AdmissionNumber
 
       console.log("Mapped formData:", mapped);
       setFormData(mapped);
@@ -742,12 +754,7 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
       GuardianDepartment: formData.GuardianDepartment,
       GuardianOfficeAddress: formData.GuardianOfficeAddress,
       GuardianContactNo: formData.GuardianContactNo,
-      BankName: formData.BankName,
-      BankCodeNo: formData.BankCodeNo,
-      BranchName: formData.BranchName,
-      IFSC: formData.IFSC,
-      AccountNumber: formData.AccountNumber,
-      MICR: formData.MICR,
+
       AdmissionCategory: formData.AdmissionCategory,
       AdmissionClass: formData.AdmissionClass,
       StudentHeight: formData.StudentHeight ? Number(formData.StudentHeight) : null,
@@ -781,6 +788,11 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
       },
       documents: checkedDocuments,
       feeInstallments: formData.feeInstallments,
+      // Previous School Details Mapped to Backend
+      SchoolName: formData.SchoolName,
+      PreviousSchoolClass: formData.PreviousSchoolClass,
+      TCNumber: formData.TCNumber,
+      AdmissionNumber: formData.PreviousAdmissionNumber, // Map to backend AdmissionNumber (distinct from admission_no)
     };
   };
 
@@ -949,8 +961,8 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               as="select"
               value={formData.location}
               onChange={handleInputChange}
-              disabled={true}
-              className="bg-gray-100 cursor-not-allowed"
+              disabled={isViewMode || !canSelectLocation}
+              className={(isViewMode || !canSelectLocation) ? "bg-gray-100 cursor-not-allowed" : ""}
             >
               <option value="">-- Select --</option>
               {locationOptions.map((loc) => (
@@ -966,8 +978,8 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               required
               value={formData.branch}
               onChange={handleInputChange}
-              disabled={true}
-              className="bg-gray-100 cursor-not-allowed"
+              disabled={isViewMode || !canSelectBranch}
+              className={(isViewMode || !canSelectBranch) ? "bg-gray-100 cursor-not-allowed" : ""}
             >
               <option value="">-- Select --</option>
               {branchOptions.map((b) => (
@@ -1407,29 +1419,29 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
           <CollapsibleSection title="Previous School Details">
             <FormField
               label="School Name"
-              name="BankName"
-              value={formData.BankName}
+              name="SchoolName"
+              value={formData.SchoolName}
               onChange={handleInputChange}
               disabled={isViewMode}
             />
             <FormField
               label="School Class"
-              name="AccountNumber"
-              value={formData.AccountNumber}
+              name="PreviousSchoolClass"
+              value={formData.PreviousSchoolClass}
               onChange={handleInputChange}
               disabled={isViewMode}
             />
             <FormField
               label="TC Number"
-              name="IFSC"
-              value={formData.IFSC}
+              name="TCNumber"
+              value={formData.TCNumber}
               onChange={handleInputChange}
               disabled={isViewMode}
             />
             <FormField
               label="Admission Number"
-              name="BranchName"
-              value={formData.BranchName}
+              name="PreviousAdmissionNumber"
+              value={formData.PreviousAdmissionNumber}
               onChange={handleInputChange}
               disabled={isViewMode}
             />

@@ -10,7 +10,7 @@ import pandas as pd
 import traceback 
 import base64
 import os 
-
+ 
 bp = Blueprint('student_routes', __name__)
 
 def save_student_photo(student, photo_data):

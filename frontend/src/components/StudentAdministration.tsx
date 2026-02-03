@@ -316,11 +316,12 @@ const StudentList: React.FC<{ onView: any; onEdit: any; setActiveView: any }> =
                                 </div>
                              </div>
 
-                             <h2>Bank Details</h2>
+                             <h2>Previous School Details</h2>
                              <div class="grid">
-                                <div class="field"><span class="label">Bank Name:</span> <span class="value">${s.BankName || '-'}</span></div>
-                                <div class="field"><span class="label">Account No:</span> <span class="value">${s.AccountNumber || '-'}</span></div>
-                                <div class="field"><span class="label">IFSC:</span> <span class="value">${s.IFSC || '-'}</span></div>
+                                <div class="field"><span class="label">School Name:</span> <span class="value">${s.SchoolName || '-'}</span></div>
+                                <div class="field"><span class="label">Admission No:</span> <span class="value">${s.AdmissionNumber || '-'}</span></div>
+                                <div class="field"><span class="label">TC No:</span> <span class="value">${s.TCNumber || '-'}</span></div>
+                                <div class="field"><span class="label">Previous School Class:</span> <span class="value">${s.PreviousSchoolClass || '-'}</span></div>
                              </div>
 
                              <script>window.print();</script>

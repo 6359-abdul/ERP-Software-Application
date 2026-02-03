@@ -6,11 +6,11 @@ class ClassMaster(db.Model):
     __tablename__ = "classes"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     class_name = db.Column(db.String(50), unique=True, nullable=False)
-    location = db.Column(db.String(50), default="Hyderab")
+    location = db.Column(db.String(50), default="Hyderabad")
     branch = db.Column(db.String(50), default="All")
- 
 
- 
+
+
 class User(db.Model):
     __tablename__ = "users"
     user_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -44,7 +44,7 @@ class Student(db.Model):
     section = db.Column(db.String(20))
     Roll_Number = db.Column(db.Integer)
     admission_date = db.Column(db.Date)
-    status = db.Column(db.Enum("Active", "Inactive", name="student_status"), default="Active")
+    status = db.Column(db.Enum("Active", "Inactive"), default="Active")
     MotherTongue = db.Column(db.String(50))
     Caste = db.Column(db.String(50))
     StudentType = db.Column(db.String(50))
@@ -90,13 +90,12 @@ class Student(db.Model):
     GuardianOfficeAddress = db.Column(db.Text)
     GuardianContactNo = db.Column(db.String(20))
     
-    # Bank Information
-    BankName = db.Column(db.String(100))
-    BankCodeNo = db.Column(db.String(50))
-    BranchName = db.Column(db.String(100))
-    IFSC = db.Column(db.String(20))
-    AccountNumber = db.Column(db.String(50))
-    MICR = db.Column(db.String(20))
+    # Previous School Information
+    SchoolName = db.Column(db.String(100))
+    AdmissionNumber = db.Column(db.String(100))
+    TCNumber = db.Column(db.String(20))
+    PreviousSchoolClass = db.Column(db.String(15))
+   
     
     # Additional Information
     AdmissionCategory = db.Column(db.String(50))
@@ -160,7 +159,7 @@ class StudentFee(db.Model):
     paid_amount = db.Column(db.Numeric(10, 2), default=0)
     due_amount = db.Column(db.Numeric(10, 2), default=0)
     concession = db.Column(db.Numeric(10, 2), default=0)
-    status = db.Column(db.Enum("Pending", "Partial", "Paid", name="student_fee_status"), default="Pending")
+    status = db.Column(db.Enum("Pending", "Partial", "Paid"), default="Pending")
     due_date = db.Column(db.Date, nullable=True)  # Added to match DB schema
     fee_type = db.relationship("FeeType")
     student = db.relationship("Student")
@@ -260,7 +259,7 @@ class FeePayment(db.Model):
     payment_year = db.Column(db.Integer) 
 
     note = db.Column(db.String(25))
-    TransactionDetails = db.Column(db.String(255))
+    TransactionDetails=db.Column(db.String(100))
     collected_by = db.Column(db.Integer) # User ID
     collected_by_name = db.Column(db.String(100)) # User Name (Added per request)
     created_at = db.Column(db.DateTime, default=datetime.now)
@@ -276,7 +275,7 @@ class FeePayment(db.Model):
 class OrgMaster(db.Model):
     __tablename__ = "org_master"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    master_type = db.Column(db.Enum('LOCATION', 'ACADEMIC_YEAR', name="org_master_type"), nullable=False)
+    master_type = db.Column(db.Enum('LOCATION', 'ACADEMIC_YEAR'), nullable=False)
     code = db.Column(db.String(50), nullable=False)
     display_name = db.Column(db.String(100), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
@@ -333,7 +332,7 @@ class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey("students.student_id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.Enum("Present", "Absent", "Leave", "Holiday", "Sunday", "Weekoff", name="attendance_status"), default="Present")
+    status = db.Column(db.Enum("Present", "Absent", "Leave", "Holiday", "Sunday", "Weekoff"), default="Present")
     remarks = db.Column(db.String(255))
     update_count = db.Column(db.Integer, default=0)
     updated_at = db.Column(db.DateTime, default=datetime.now)
@@ -355,7 +354,7 @@ class SubjectMaster(db.Model):
     __tablename__ = "subjectmaster"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     subject_name = db.Column(db.String(100), nullable=False)
-    subject_type = db.Column(db.Enum('Hifz', 'Academic', name="subject_type_enum"), default='Academic')
+    subject_type = db.Column(db.Enum('Hifz', 'Academic'), default='Academic')
     academic_year = db.Column(db.String(20)) # New: Scope to year
     is_active = db.Column(db.Boolean, default=True) # New: Active Status
 
