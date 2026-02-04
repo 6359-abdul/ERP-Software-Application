@@ -400,7 +400,6 @@ const FeeTypeManagement: React.FC = () => {
                                     <option value="">Select Fee Type Group</option>
                                     <option value="Standard">Standard</option>
                                     <option value="Special">Special</option>
-                                    <option value="Optional">Optional</option>
                                 </select>
                             </div>
 

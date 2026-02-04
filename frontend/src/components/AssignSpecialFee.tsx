@@ -145,7 +145,7 @@ const AssignSpecialFee: React.FC = () => {
                 setRestrictedFeeTypeIds(new Set());
             }
 
-            setFeeTypes(availableFeeTypes.filter((ft: FeeType) => ft.fee_type !== 'Tuition Fee'));
+            setFeeTypes(availableFeeTypes.filter((ft: FeeType) => ft.fee_type_group?.toLowerCase() === 'special'));
 
         } catch (error) {
             console.error('Error fetching fee types:', error);
