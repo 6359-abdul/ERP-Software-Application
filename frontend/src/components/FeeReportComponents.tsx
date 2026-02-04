@@ -1289,10 +1289,21 @@ export const InstallmentWiseReport: React.FC<ReportProps> = ({ onViewReceipt }) 
     useEffect(() => {
         const loadData = async () => {
             try {
-                const resTypes = await api.get('/fee-types');
-                const allTypes = Array.isArray(resTypes.data) ? resTypes.data : resTypes.data.fee_types || [];
-                setFeeTypes(allTypes);
-                if (allTypes.length > 0) setInstallment(allTypes[0].fee_type);
+                // Fetch Installments for the "Fee Head" dropdown
+                // This ensures we match 'StudentFee.month' which stores installment titles (e.g. "June Fee")
+                const resInst = await api.get('/installment-schedule');
+                const installmentsData = resInst.data.installments || [];
+
+                // Also fetch Fee Types for One-Time fees if needed, 
+                // but primarily we need Installment Titles.
+                // Let's combine unique titles from Installments.
+                const uniqueTitles = Array.from(new Set(installmentsData.map((i: any) => i.title)));
+
+                // If we also want to support "One-Time" or direct Fee Type matches that might be stored in 'month' column (rare but possible)
+                // we could fetch fee types, but normally 'month' column aligns with Installment Title.
+
+                setFeeTypes(uniqueTitles.map((t, idx) => ({ id: idx, fee_type: t }))); // Map to expected shape { fee_type: string }
+                if (uniqueTitles.length > 0) setInstallment(uniqueTitles[0] as string);
 
                 const resClasses = await api.get('/classes');
                 const classesData = resClasses.data.classes || [];

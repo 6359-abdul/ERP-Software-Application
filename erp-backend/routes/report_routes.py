@@ -458,8 +458,10 @@ def report_fee_due(current_user):
             output.append({
                 "student_id": s.student_id,
                 "name": f"{s.first_name} {s.StudentMiddleName or ''} {s.last_name}".strip(),
+                "admission_no": s.admission_no,
                 "class": s.clazz,
                 "section": s.section,
+                "father_name": s.Fatherfirstname,
                 "total_fee": float(fee or 0),
                 "due_amount": float(due or 0),
                 "father_mobile": s.FatherPhone
