@@ -139,6 +139,28 @@ const MarksEntryAllSubjects: React.FC = () => {
     }, [selectedTestId, tests]);
 
 
+
+    // --- Filtering Logic ---
+    const getFilteredSubjects = () => {
+        if (!subjects || subjects.length === 0) return [];
+        if (selectedSubjectType === "All") return subjects;
+
+        return subjects.filter(s => {
+            const sId = s.id;
+            const meta = allSubjectsMeta[sId];
+            const type = meta ? (meta.type || "Academic") : "Academic";
+            return type.toLowerCase() === selectedSubjectType.toLowerCase();
+        });
+    };
+
+    const filteredSubjects = getFilteredSubjects();
+
+    // Auto-select filtered subjects when type changes
+    useEffect(() => {
+        const ids = filteredSubjects.map(s => s.id);
+        setSelectedSubjectIds(ids);
+    }, [selectedSubjectType, subjects, allSubjectsMeta]); // Re-run if meta loads later
+
     // --- Fetch Data (Students + Marks) ---
     const handleGetData = async () => {
         if (!selectedTestId || subjects.length === 0) {
@@ -174,20 +196,8 @@ const MarksEntryAllSubjects: React.FC = () => {
             studentsList.sort((a: any, b: any) => parseInt(a.roll_number || 0) - parseInt(b.roll_number || 0));
             setStudents(studentsList);
 
-            // 2. Filter Subjects based on selectedSubjectType
-            let subjectsToFetch = subjects;
-            if (selectedSubjectType !== "All") {
-                subjectsToFetch = subjects.filter(s => {
-                    // Check local meta if we have it, else rely on subject name pattern? 
-                    // Preferably meta. If meta missing, default default to 'Academic' (usually safe)
-                    const meta = allSubjectsMeta[s.id];
-                    if (meta) return meta.type === selectedSubjectType;
-                    return true; // fallback
-                });
-            }
-
-            // Update selected IDs to match what we are fetching (and thus showing)
-            setSelectedSubjectIds(subjectsToFetch.map(s => s.id));
+            // 2. Identify subjects to fetch (based on selection)
+            const subjectsToFetch = subjects.filter(s => selectedSubjectIds.includes(s.id));
 
             // 3. Fetch Marks for EACH (filtered) subject
             const newMarksData: MarksData = {};
@@ -445,11 +455,11 @@ const MarksEntryAllSubjects: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700">Select Subjects</label>
                     <div className="relative group">
                         <button className="mt-1 block w-full text-left rounded-md border p-2 border-gray-300 shadow-sm bg-white overflow-hidden text-ellipsis whitespace-nowrap">
-                            {selectedSubjectIds.length === subjects.length && subjects.length > 0 ? "All Subjects" : `${selectedSubjectIds.length} Selected`}
+                            {selectedSubjectIds.length === filteredSubjects.length && filteredSubjects.length > 0 ? `All ${selectedSubjectType === 'All' ? '' : selectedSubjectType} Subjects` : `${selectedSubjectIds.length} Selected`}
                         </button>
                         {/* Simple Dropdown for Multi-select */}
                         <div className="absolute hidden group-hover:block z-10 w-full bg-white border shadow-lg max-h-60 overflow-y-auto p-2">
-                            {subjects.map(s => (
+                            {filteredSubjects.map(s => (
                                 <label key={s.id} className="flex items-center space-x-2 p-1 hover:bg-gray-50 cursor-pointer">
                                     <input
                                         type="checkbox"
