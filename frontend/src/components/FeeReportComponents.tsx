@@ -492,20 +492,6 @@ export const TodayCollection: React.FC<ReportProps> = ({ onViewReceipt }) => {
                         ))}
                     </select>
                 </div>
-
-                {/* Collected By */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Collected By</label>
-                    <select
-                        value={selectedCollector}
-                        onChange={(e) => setSelectedCollector(e.target.value)}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                    >
-                        {collectors.map(c => (
-                            <option key={c} value={c}>{c === 'All' ? 'All Users' : c}</option>
-                        ))}
-                    </select>
-                </div>
             </FilterContainer>
 
             {/* Actions Row */}
@@ -739,20 +725,6 @@ export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
                         ))}
                     </select>
                 </div>
-
-                {/* Collected By */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Collected By</label>
-                    <select
-                        value={selectedCollector}
-                        onChange={(e) => setSelectedCollector(e.target.value)}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                    >
-                        {collectors.map(c => (
-                            <option key={c} value={c}>{c === 'All' ? 'All Users' : c}</option>
-                        ))}
-                    </select>
-                </div>
             </FilterContainer>
 
             {/* Actions Row */}
@@ -964,7 +936,6 @@ export const MonthlyReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
                         ))}
                     </select>
                 </div>
-
                 {/* Section */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
@@ -1657,18 +1628,6 @@ export const DueReport: React.FC = () => {
                             <option key={s} value={s}>{s === 'All' ? 'All Sections' : s}</option>
                         ))}
                     </select>
-                </div>
-
-                {/* Min Due Amount */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Min Due</label>
-                    <input
-                        type="number"
-                        placeholder="e.g. 1000"
-                        value={minDueAmount}
-                        onChange={(e) => setMinDueAmount(e.target.value)}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                    />
                 </div>
 
                 {/* Search */}
