@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, send_file
 from extensions import db
 from models import Student, Branch, UserBranchAccess, StudentFee, StudentAcademicRecord
+from services.sequence_service import SequenceService
 from helpers import token_required, require_academic_year, get_branch_query_filter, student_to_dict, auto_enroll_student_fee
 from datetime import datetime
 from sqlalchemy import or_, and_, func
@@ -10,7 +11,7 @@ import pandas as pd
 import traceback 
 import base64
 import os 
- 
+
 bp = Blueprint('student_routes', __name__)
 
 def save_student_photo(student, photo_data):
@@ -301,14 +302,15 @@ def update_student(current_user, student_id):
             'GuardianOfficeAddress': 'GuardianOfficeAddress',
             'GuardianContactNo': 'GuardianContactNo',
             # Bank
-            'BankName': 'BankName',
-            'BankCodeNo': 'BankCodeNo',
-            'BranchName': 'BranchName',
-            'IFSC': 'IFSC',
-            'AccountNumber': 'AccountNumber',
-            'MICR': 'MICR',
+            'SchoolName': 'SchoolName',
+            'AdmissionNumber': 'AdmissionNumber',
+            'TCNumber': 'TCNumber',
+            'PreviousSchoolClass': 'PreviousSchoolClass',
             'AdmissionCategory': 'AdmissionCategory',
-            
+            'SchoolName': 'SchoolName',
+            'PreviousSchoolClass': 'PreviousSchoolClass',
+            'TCNumber': 'TCNumber',
+            'AdmissionNumber': 'AdmissionNumber', 
         }
 
         # Update fields
@@ -422,7 +424,32 @@ def create_student():
     
     try:
         s = Student()
-        s.admission_no = data.get("admission_no")
+        
+        # -------------------------------------------------------------
+        # AUTO-ENROLLMENT LOGIC (ADMISSION NUMBER)
+        # -------------------------------------------------------------
+        # 1. Resolve Academic Year ID
+        ay_id = SequenceService.resolve_academic_year_id(h_year)
+        if not ay_id:
+            # Fallback or initialization required? 
+            # If OrgMaster isn't populated, this fails. 
+            # Ideally OrgMaster should have this year.
+            return jsonify({"error": f"Academic Year {h_year} not found in Master"}), 400
+
+        # 2. Resolve Branch ID
+        branch_name_code = data.get("branch")
+        branch_id = SequenceService.resolve_branch_id(branch_name_code)
+        if not branch_id:
+             return jsonify({"error": f"Invalid Branch: {branch_name_code}"}), 400
+
+        # 3. Generate Number (Thread-Safe)
+        # Note: We must ensure this runs in the transaction. 
+        # db.session is active here.
+        new_admission_no = SequenceService.generate_admission_number(branch_id, ay_id)
+        
+        s.admission_no = new_admission_no
+        # -------------------------------------------------------------
+        
         s.first_name = data.get("first_name")
         s.StudentMiddleName = data.get("StudentMiddleName")
         s.last_name = data.get("last_name")
@@ -515,12 +542,10 @@ def create_student():
         s.GuardianContactNo = data.get("GuardianContactNo")
 
         # Bank Information
-        s.BankName = data.get("BankName")
-        s.BankCodeNo = data.get("BankCodeNo")
-        s.BranchName = data.get("BranchName")
-        s.IFSC = data.get("IFSC")
-        s.AccountNumber = data.get("AccountNumber")
-        s.MICR = data.get("MICR")
+        s.SchoolName = data.get("SchoolName")
+        s.AdmissionNumber = data.get("AdmissionNumber")
+        s.TCNumber = data.get("TCNumber")
+        s.PreviousSchoolClass = data.get("PreviousSchoolClass")
 
         # Additional Information
         s.AdmissionCategory = data.get("AdmissionCategory")
@@ -541,6 +566,12 @@ def create_student():
             s.primaryIncomePerYear = float(data.get("primaryIncomePerYear"))
         if data.get("secondaryIncomePerYear"):
             s.secondaryIncomePerYear = float(data.get("secondaryIncomePerYear"))
+            
+        s.SchoolName = data.get("SchoolName")
+        s.PreviousSchoolClass = data.get("PreviousSchoolClass")
+        s.TCNumber = data.get("TCNumber")
+        s.AdmissionNumber = data.get("AdmissionNumber")
+
             
         s.primaryOfficeAddress = data.get("primaryOfficeAddress")
         s.secondaryOfficeAddress = data.get("secondaryOfficeAddress")
@@ -748,12 +779,10 @@ def upload_students_csv():
                     GuardianOfficeAddress=row.get('GuardianOfficeAddress'),
                     GuardianContactNo=row.get('GuardianContactNo'),
                     # Bank Information
-                    BankName=row.get('BankName'),
-                    BankCodeNo=row.get('BankCodeNo'),
-                    BranchName=row.get('BranchName'),
-                    IFSC=row.get('IFSC'),
-                    AccountNumber=row.get('AccountNumber'),
-                    MICR=row.get('MICR'),
+                    SchoolName=row.get('SchoolName'),
+                    AdmissionNumber=row.get('AdmissionNumber'),
+                    TCNumber=row.get('TCNumber'),
+                    PreviousSchoolClass=row.get('PreviousSchoolClass'),
                     # Additional Information
                     AdmissionCategory=row.get('AdmissionCategory'),
                     StudentHeight=float(row['StudentHeight']) if row.get('StudentHeight') else None,

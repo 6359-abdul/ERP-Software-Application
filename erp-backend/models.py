@@ -307,6 +307,30 @@ class UserBranchAccess(db.Model):
     user = db.relationship("User")
 
 
+class BranchYearSequence(db.Model):
+    __tablename__ = "erp_branch_year_sequence"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False)
+    academic_year_id = db.Column(db.Integer, db.ForeignKey("org_master.id"), nullable=False)
+    
+    admission_prefix = db.Column(db.String(20), nullable=False)
+    last_admission_no = db.Column(db.Integer, default=0, nullable=False)
+    
+    receipt_prefix = db.Column(db.String(20), nullable=False)
+    last_receipt_no = db.Column(db.Integer, default=0, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    created_by = db.Column(db.Integer) # User ID
+    updated_by = db.Column(db.Integer) # User ID
+
+    __table_args__ = (
+        db.UniqueConstraint('branch_id', 'academic_year_id', name='uq_branch_year_sequence'),
+        db.CheckConstraint('last_admission_no >= 0', name='chk_admission_no_positive'),
+        db.CheckConstraint('last_receipt_no >= 0', name='chk_receipt_no_positive'),
+    )
+
+
 class StudentAcademicRecord(db.Model):
     __tablename__ = "student_academic_records"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)

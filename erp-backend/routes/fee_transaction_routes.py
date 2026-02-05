@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from extensions import db
 from models import Student, StudentFee, FeePayment, Branch, FeeInstallment, Concession, ClassFeeStructure, StudentAcademicRecord, FeeType
 from helpers import token_required, require_academic_year, normalize_fee_title, assign_fee_to_student
+from services.sequence_service import SequenceService
 from datetime import datetime, date
 from decimal import Decimal
 from sqlalchemy import func, or_, and_
@@ -104,7 +105,15 @@ def get_fee_students(current_user):
             "Pending"
         )
         
-  
+        # DEBUG PRINT
+        if "Latheef" in f"{s.first_name} {s.last_name}" or "Kareem" in f"{s.first_name} {s.last_name}":
+             print(f"DEBUG: Student {s.student_id} ({s.first_name})")
+             print(f" - FatherName: {s.Fatherfirstname}")
+             print(f" - FatherPhone: {s.FatherPhone}")
+             print(f" - SmsNo: {s.SmsNo}")
+             print(f" - Phone: {s.phone}")
+             print(f" - Branch: {s.branch}")
+             print(f" - Record Class: {record.class_name}")
 
         output.append({
             "student_id": s.student_id, 
@@ -278,31 +287,20 @@ def record_fee_payment(current_user):
             if parts:  # Only set if we have actual data
                 transaction_details = " / ".join(parts)
         # 1. GENERATE RECEIPT NUMBER (Step 4)
-        manual_receipt_no = data.get("receipt_no")
+        # 1. GENERATE RECEIPT NUMBER (Step 4)
+        # STRICT AUTO GENERATION (Ignore frontend input)
         
-        if manual_receipt_no and manual_receipt_no.strip():
-             receipt_no = manual_receipt_no.strip()
-        else:
-            # Auto Generate
-            branch_code = (student.branch or "GEN").upper()[:3] 
-            year_part = payment_date.year
-            
-            last_receipt = FeePayment.query.filter(
-                FeePayment.branch == student.branch,
-                FeePayment.payment_year == year_part
-            ).order_by(FeePayment.created_at.desc()).first()
-            
-            running_no = 0
-            if last_receipt and last_receipt.receipt_no:
-                parts = last_receipt.receipt_no.split("-")
-                if len(parts) >= 3:
-                    try:
-                        running_no = int(parts[-1])
-                    except:
-                        pass
-            
-            next_no = running_no + 1
-            receipt_no = f"{branch_code}-{year_part}-{next_no:06d}"
+        # 1. Resolve IDs
+        ay_id = SequenceService.resolve_academic_year_id(h_year)
+        branch_id = SequenceService.resolve_branch_id(student.branch)
+        
+        if not ay_id:
+                return jsonify({"error": f"Academic Year {h_year} not found"}), 400
+        if not branch_id:
+                return jsonify({"error": f"Branch {student.branch} not found"}), 400
+
+        # 2. Generate
+        receipt_no = SequenceService.generate_receipt_number(branch_id, ay_id)
 
         # 2. PROCESS ALLOCATIONS
         total_allocated = Decimal(0)
