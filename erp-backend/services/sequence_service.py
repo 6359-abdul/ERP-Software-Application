@@ -1,5 +1,5 @@
 from extensions import db
-from models import BranchYearSequence, Branch, OrgMaster
+from models import BranchYearSequence, Branch, OrgMaster , FeePayment
 from datetime import datetime
 
 class SequenceService:
@@ -142,4 +142,83 @@ class SequenceService:
             seq = SequenceService.get_or_create_sequence(branch_id, academic_year_id)
         
         seq.last_receipt_no += 1
+<<<<<<< Updated upstream
         return f"{seq.receipt_prefix}{seq.last_receipt_no:02d}"
+=======
+        
+        if include_prefix:
+            return f"{seq.receipt_prefix}{seq.last_receipt_no:02d}"
+        else:
+            return f"{seq.last_receipt_no:02d}"  # Just the number
+    
+    @staticmethod
+    def recalculate_receipt_sequence_after_delete(branch, academic_year, deleted_receipt_no):
+        """
+        Recalculates the receipt sequence after a payment deletion.
+        Finds the maximum receipt number still in use and updates the sequence.
+        
+        Args:
+            branch: Branch name/code (string)
+            academic_year: Academic year code (string like '2025-2026')
+            deleted_receipt_no: The receipt number that was deleted (string like '07' or 'TC07')
+        """
+        from models import FeePayment
+        
+        # Resolve IDs
+        branch_id = SequenceService.resolve_branch_id(branch)
+        ay_id = SequenceService.resolve_academic_year_id(academic_year)
+        
+        if not branch_id or not ay_id:
+            print(f"DEBUG: Could not resolve branch_id ({branch}) or ay_id ({academic_year})")
+            return
+        
+        # Get the sequence record (with lock)
+        seq = SequenceService._get_locked_sequence(branch_id, ay_id)
+        
+        if not seq:
+            print(f"DEBUG: No sequence found for branch_id={branch_id}, ay_id={ay_id}")
+            return
+        
+        # Find all REMAINING receipt numbers for this branch/year
+        # IMPORTANT: This runs AFTER db.session.delete() and flush()
+        remaining_receipts = db.session.query(FeePayment.receipt_no).filter(
+            FeePayment.branch == branch,
+            FeePayment.academic_year == academic_year,
+            FeePayment.receipt_no.isnot(None)
+        ).distinct().all()
+        
+        print(f"DEBUG: Remaining receipts for {branch}/{academic_year}: {remaining_receipts}")
+        
+        # Extract numeric part from receipt numbers
+        max_number = 0
+        prefix = seq.receipt_prefix or ""
+        
+        for (receipt_no,) in remaining_receipts:
+            if not receipt_no:
+                continue
+            
+            # Skip if this is the deleted one (safety check)
+            if receipt_no == deleted_receipt_no:
+                continue
+                
+            numeric_part = receipt_no.strip()
+            
+            # Remove prefix if present
+            if prefix and numeric_part.startswith(prefix):
+                numeric_part = numeric_part[len(prefix):]
+            
+            # Try to convert to int
+            try:
+                num = int(numeric_part)
+                print(f"DEBUG: Parsed receipt '{receipt_no}' -> number {num}")
+                max_number = max(max_number, num)
+            except ValueError:
+                print(f"DEBUG: Could not parse receipt '{receipt_no}', numeric_part='{numeric_part}'")
+                continue
+        
+        print(f"DEBUG: Max receipt number found: {max_number}, updating sequence from {seq.last_receipt_no}")
+        
+        # Update sequence to the maximum found
+        seq.last_receipt_no = max_number
+        seq.updated_at = datetime.now()
+>>>>>>> Stashed changes

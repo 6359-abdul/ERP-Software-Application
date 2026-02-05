@@ -500,14 +500,14 @@ def delete_fee_payment(current_user, payment_id):
 
         # Permission Check
         if current_user.role != 'Admin' and payment.branch != current_user.branch:
-             return jsonify({"error": "Unauthorized"}), 403
+            return jsonify({"error": "Unauthorized"}), 403
 
-        # Revert Logic
-        # Find the linked StudentFee record
-        # We match on student_id, academic_year, fee_type, and installment
-        
-        # NOTE: payment.installment_name is "One-Time" if sf.month was None or "One-Time"
-        
+        # SAVE payment details BEFORE deletion (we need these for sequence recalculation)
+        payment_branch = payment.branch
+        payment_academic_year = payment.academic_year
+        payment_receipt_no = payment.receipt_no
+
+        # Revert Logic - Find the linked StudentFee record
         sf_query = StudentFee.query.join(FeeType).filter(
             StudentFee.student_id == payment.student_id,
             StudentFee.academic_year == payment.academic_year,
@@ -515,9 +515,9 @@ def delete_fee_payment(current_user, payment_id):
         )
         
         if payment.installment_name == "One-Time":
-             sf_query = sf_query.filter(or_(StudentFee.month == "One-Time", StudentFee.month.is_(None)))
+            sf_query = sf_query.filter(or_(StudentFee.month == "One-Time", StudentFee.month.is_(None)))
         else:
-             sf_query = sf_query.filter(StudentFee.month == payment.installment_name)
+            sf_query = sf_query.filter(StudentFee.month == payment.installment_name)
              
         sf = sf_query.first()
         
@@ -526,6 +526,10 @@ def delete_fee_payment(current_user, payment_id):
             sf.paid_amount = (sf.paid_amount or Decimal(0)) - payment.amount_paid
             sf.concession = (sf.concession or Decimal(0)) - (payment.concession_amount or Decimal(0))
             
+            # Ensure non-negative values
+            sf.paid_amount = max(Decimal(0), sf.paid_amount)
+            sf.concession = max(Decimal(0), sf.concession)
+            
             # Recalculate due
             total = sf.total_fee or Decimal(0)
             paid_plus_concession = sf.paid_amount + sf.concession
@@ -533,22 +537,35 @@ def delete_fee_payment(current_user, payment_id):
             
             # Update Status
             if sf.due_amount <= 0 and total > 0:
-                 sf.status = "Paid"
+                sf.status = "Paid"
             elif sf.paid_amount > 0:
-                 sf.status = "Partial"
+                sf.status = "Partial"
             else:
-                 sf.status = "Pending"
+                sf.status = "Pending"
         
+        # DELETE the payment
         db.session.delete(payment)
+        db.session.flush()  # Flush to actually remove from DB before recalculation
+        
+        # RECALCULATE the sequence based on REMAINING receipts
+        SequenceService.recalculate_receipt_sequence_after_delete(
+            branch=payment_branch,
+            academic_year=payment_academic_year,
+            deleted_receipt_no=payment_receipt_no
+        )
+        
         db.session.commit()
         
-        return jsonify({"message": "Payment deleted and fee status reverted"}), 200
+        return jsonify({
+            "message": "Payment deleted and receipt sequence updated",
+            "deleted_receipt": payment_receipt_no
+        }), 200
 
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
+    
 @bp.route("/api/fees/assign-special", methods=["POST"])
 @token_required
 def assign_special_fee(current_user):
