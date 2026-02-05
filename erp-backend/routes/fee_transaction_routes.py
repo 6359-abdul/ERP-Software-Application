@@ -17,21 +17,21 @@ def get_fee_students(current_user):
     class_name = request.args.get("class")
     section = request.args.get("section")
     search = request.args.get("search")
-    
+
     # Header Filtering
     h_branch = request.headers.get("X-Branch")
-    
+
     # MANDATORY: Require Academic Year
     h_year, err, code = require_academic_year()
     if err:
         return err, code
-    
+
     # STRICT BRANCH ENFORCEMENT
     if current_user.role != 'Admin':
          h_branch = current_user.branch
     elif not h_branch:
          h_branch = "All"
-    
+
     # HISTORY-AWARE QUERY
     # query selects: Student, StudentAcademicRecord, total, paid, due, concession
     q = db.session.query(
@@ -43,11 +43,8 @@ def get_fee_students(current_user):
         func.sum(StudentFee.concession).label("concession"),
     ).join(StudentAcademicRecord, Student.student_id == StudentAcademicRecord.student_id)\
      .outerjoin(StudentFee, (Student.student_id == StudentFee.student_id) & (StudentFee.academic_year == h_year)) # Filter fees by year in join itself? 
-     # Actually StudentFee has academic_year. joining on year ensures we sum fees for THAT year.
-     # BUT we used to use WHERE clause for that.
-     
     # Let's stick to WHERE for StudentFee filtering for safety, but the join above is crucial for StudentAcademicRecord
-    
+
     # FIX: STRICT CROSS-TABLE YEAR FILTERING
     q = q.filter(
         StudentAcademicRecord.academic_year == h_year, # Filter by Record's year
@@ -59,24 +56,23 @@ def get_fee_students(current_user):
     )
 
     # STRICT BRANCH SEGREGATION
-    if current_user.role != 'Admin':
-         if current_user.branch != 'All':
-            q = q.filter(Student.branch == current_user.branch)
-    else:
-         # Admins: Check Query Param first, then Header
-         branch_param = request.args.get("branch")
-         if branch_param and branch_param != "All":
-             q = q.filter(Student.branch == branch_param)
-         elif branch_param == "All":
-             pass # Explicitly show all
-         elif h_branch and h_branch != "All":
-             q = q.filter(Student.branch == h_branch)
+    if current_user.role == 'Admin':
+        # Admins: Check Query Param first, then Header
+        branch_param = request.args.get("branch")
+        if branch_param and branch_param != "All":
+            q = q.filter(Student.branch == branch_param)
+        elif branch_param == "All":
+            pass # Explicitly show all
+        elif h_branch and h_branch != "All":
+            q = q.filter(Student.branch == h_branch)
 
+    elif current_user.branch != 'All':
+        q = q.filter(Student.branch == current_user.branch)
     if class_name:
         q = q.filter(StudentAcademicRecord.class_name == class_name) # Use Record's class
     if section:
         q = q.filter(StudentAcademicRecord.section == section) # Use Record's section
-    
+
     if search:
         like = f"%{search}%"
         q = q.filter(
@@ -87,24 +83,24 @@ def get_fee_students(current_user):
                 Student.admission_no.like(like),
             )
         )
-    
+
     q = q.group_by(Student.student_id, StudentAcademicRecord.id) # Group by record too for safety
     rows = q.all()
-    
+
     output = []
-    
+
     for s, record, total, paid, due, concession in rows:
         total = float(total or 0)
         paid = float(paid or 0)
         due = float(due or 0)
         concession = float(concession or 0)
-        
+
         status = (
             "Paid" if due <= 0 else
             "Partial" if paid > 0 else
             "Pending"
         )
-        
+
         # DEBUG PRINT
         if "Latheef" in f"{s.first_name} {s.last_name}" or "Kareem" in f"{s.first_name} {s.last_name}":
              print(f"DEBUG: Student {s.student_id} ({s.first_name})")
@@ -130,7 +126,7 @@ def get_fee_students(current_user):
             "concession": concession,
             "status": status,
         })
-    
+
     return jsonify(output), 200
 
 
@@ -300,7 +296,8 @@ def record_fee_payment(current_user):
                 return jsonify({"error": f"Branch {student.branch} not found"}), 400
 
         # 2. Generate
-        receipt_no = SequenceService.generate_receipt_number(branch_id, ay_id)
+        receipt_no = SequenceService.generate_receipt_number(branch_id, ay_id, include_prefix = False) 
+                    #Remove inclue_prefix = Flase for prefix
 
         # 2. PROCESS ALLOCATIONS
         total_allocated = Decimal(0)
