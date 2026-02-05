@@ -132,11 +132,9 @@ class SequenceService:
         return f"{seq.admission_prefix}{seq.last_admission_no:04d}"
 
     @staticmethod
-    def generate_receipt_number(branch_id, academic_year_id, include_prefix=False):
+    def generate_receipt_number(branch_id, academic_year_id):
         """
-        Generates next Fee Receipt Number.
-        If include_prefix=True: {Prefix}{00} (e.g. TC01)
-        If include_prefix=False: {00} (e.g. 01, 02, 03...)
+        Generates next Fee Receipt Number: {Prefix}{00} (e.g. TC01)
         """
         seq = SequenceService._get_locked_sequence(branch_id, academic_year_id)
         
@@ -144,8 +142,4 @@ class SequenceService:
             seq = SequenceService.get_or_create_sequence(branch_id, academic_year_id)
         
         seq.last_receipt_no += 1
-        
-        if include_prefix:
-            return f"{seq.receipt_prefix}{seq.last_receipt_no:02d}"
-        else:
-            return f"{seq.last_receipt_no:02d}"  # Just the number
+        return f"{seq.receipt_prefix}{seq.last_receipt_no:02d}"

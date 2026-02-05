@@ -308,7 +308,7 @@ class UserBranchAccess(db.Model):
 
 
 class BranchYearSequence(db.Model):
-    __tablename__ = "enrollment_sequences"
+    __tablename__ = "erp_branch_year_sequence"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False)
     academic_year_id = db.Column(db.Integer, db.ForeignKey("org_master.id"), nullable=False)
