@@ -142,15 +142,8 @@ class SequenceService:
             seq = SequenceService.get_or_create_sequence(branch_id, academic_year_id)
         
         seq.last_receipt_no += 1
-<<<<<<< Updated upstream
         return f"{seq.receipt_prefix}{seq.last_receipt_no:02d}"
-=======
-        
-        if include_prefix:
-            return f"{seq.receipt_prefix}{seq.last_receipt_no:02d}"
-        else:
-            return f"{seq.last_receipt_no:02d}"  # Just the number
-    
+
     @staticmethod
     def recalculate_receipt_sequence_after_delete(branch, academic_year, deleted_receipt_no):
         """
@@ -221,4 +214,3 @@ class SequenceService:
         # Update sequence to the maximum found
         seq.last_receipt_no = max_number
         seq.updated_at = datetime.now()
->>>>>>> Stashed changes
