@@ -107,9 +107,9 @@ if __name__ == "__main__":
     app = create_app()
 
     # 🔴 RUN ONCE IF TABLES NOT CREATED (DEV ONLY)
-    # from extensions import db
-    # with app.app_context():
-    #     db.create_all()
+    from extensions import db
+    with app.app_context():
+        db.create_all()
 
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
