@@ -148,4 +148,4 @@ class SequenceService:
         if include_prefix:
             return f"{seq.receipt_prefix}{seq.last_receipt_no:02d}"
         else:
-            return f"{seq.last_receipt_no:02d}"  # Just the number
+            return f"{seq.last_receipt_no:02d}"  # Just the number 
