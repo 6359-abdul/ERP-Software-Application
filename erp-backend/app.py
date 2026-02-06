@@ -63,8 +63,7 @@ def create_app():
     CORS(app, resources={
         r"/*": {
             "origins": [
-                "https://kmsabdulerp.vercel.app/"
-                "https://mshifz.vercel.app",
+                r"https://.*\.vercel\.app",
                 "http://localhost:5173",
                 "http://localhost:3000"
             ],
