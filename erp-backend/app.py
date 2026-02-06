@@ -59,7 +59,20 @@ def create_app():
     # -----------------------------
     # INIT EXTENSIONS
     # -----------------------------
-    CORS(app)
+    # Allow specific origins with credentials
+    CORS(app, resources={
+        r"/*": {
+            "origins": [
+                "https://kmsabdulerp.vercel.app/"
+                "https://mshifz.vercel.app",
+                "http://localhost:5173",
+                "http://localhost:3000"
+            ],
+            "supports_credentials": True,
+            "allow_headers": ["Content-Type", "Authorization", "X-Branch", "X-Location", "X-Academic-Year", "X-Requested-With"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        }
+    })
     db.init_app(app)
 
     # -----------------------------
@@ -90,11 +103,21 @@ def create_app():
         return send_from_directory(os.path.join(app.root_path, 'uploads'), filename)
 
     # -----------------------------
+    # FAVICON FIX
+    # -----------------------------
+    @app.route('/favicon.ico')
+    def favicon():
+        return '', 204
+
+    # -----------------------------
     # SERVE FRONTEND (PRODUCTION)
     # -----------------------------
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
     def serve(path):
+        if path.startswith("api/"):
+            return jsonify({"error": "Not Found"}), 404
+
         file_path = os.path.join(app.static_folder, path)
         if path and os.path.exists(file_path):
             return send_from_directory(app.static_folder, path)
