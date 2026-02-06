@@ -16,12 +16,9 @@ const getApiUrl = (): string =>
     return apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
   }
 
-  if (import.meta.env.PROD) {
-    throw new Error('VITE_API_URL not set in production environment');
-  }
-  // Local Production build fallback
- console.warn('VITE_API_URL not set, using localhost fallback');
-  return 'http://localhost:5000/api';
+  // Production with no VITE_API_URL set: default to relative path
+  // This allows the backend to serve the frontend and handle API requests on the same domain
+  return '/api';
 }
 // Export the API URL
 // 

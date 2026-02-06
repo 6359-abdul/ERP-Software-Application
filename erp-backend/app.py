@@ -34,7 +34,9 @@ from routes.test_attendance_routes import test_attendance_bp
 # -----------------------------
 # LOAD ENV
 # -----------------------------
-load_dotenv()
+# Load .env from the same directory as app.py
+basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(basedir, ".env"))
 
 
 def create_app():
