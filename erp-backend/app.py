@@ -67,7 +67,8 @@ def create_app():
             "origins": [
                 r"https://.*\.vercel\.app",
                 "http://localhost:5173",
-                "http://localhost:3000"
+                "http://localhost:3000",
+            
             ],
             "supports_credentials": True,
             "allow_headers": ["Content-Type", "Authorization", "X-Branch", "X-Location", "X-Academic-Year", "X-Requested-With"],
