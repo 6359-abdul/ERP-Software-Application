@@ -1,0 +1,52 @@
+# =========================
+# Node
+# =========================
+node_modules/
+dist/
+build/
+!frontend/dist/
+
+# =========================
+# Python
+# =========================
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# =========================
+# Ignore all txt files
+# =========================
+*.txt
+
+# =========================
+# Allow required txt files
+# =========================
+!erp-backend/requirements.txt
+!erp-backend/runtime.txt
+
+# =========================
+# Environment files
+# =========================
+.env
+.env.*
+*.env
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# Uploads (user data)
+# =========================
+erp-backend/uploads/*
+!erp-backend/uploads/.gitkeep
+
+# =========================
+# Editor / OS
+# =========================
+.vscode/
+.DS_Store
+Thumbs.db
