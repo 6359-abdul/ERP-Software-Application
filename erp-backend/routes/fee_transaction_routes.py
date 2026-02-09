@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from extensions import db
-from models import Student, StudentFee, FeePayment, Branch, FeeInstallment, Concession, ClassFeeStructure, StudentAcademicRecord, FeeType, BranchYearSequence
+from models import Student, StudentFee, FeePayment, Branch, FeeInstallment, Concession, ClassFeeStructure, StudentAcademicRecord, FeeType
 from helpers import token_required, require_academic_year, normalize_fee_title, assign_fee_to_student
 from services.sequence_service import SequenceService
 from datetime import datetime, date
@@ -17,21 +17,21 @@ def get_fee_students(current_user):
     class_name = request.args.get("class")
     section = request.args.get("section")
     search = request.args.get("search")
-
+    
     # Header Filtering
     h_branch = request.headers.get("X-Branch")
-
+    
     # MANDATORY: Require Academic Year
     h_year, err, code = require_academic_year()
     if err:
         return err, code
-
+    
     # STRICT BRANCH ENFORCEMENT
     if current_user.role != 'Admin':
          h_branch = current_user.branch
     elif not h_branch:
          h_branch = "All"
-
+    
     # HISTORY-AWARE QUERY
     # query selects: Student, StudentAcademicRecord, total, paid, due, concession
     q = db.session.query(
@@ -43,8 +43,11 @@ def get_fee_students(current_user):
         func.sum(StudentFee.concession).label("concession"),
     ).join(StudentAcademicRecord, Student.student_id == StudentAcademicRecord.student_id)\
      .outerjoin(StudentFee, (Student.student_id == StudentFee.student_id) & (StudentFee.academic_year == h_year)) # Filter fees by year in join itself? 
+     # Actually StudentFee has academic_year. joining on year ensures we sum fees for THAT year.
+     # BUT we used to use WHERE clause for that.
+     
     # Let's stick to WHERE for StudentFee filtering for safety, but the join above is crucial for StudentAcademicRecord
-
+    
     # FIX: STRICT CROSS-TABLE YEAR FILTERING
     q = q.filter(
         StudentAcademicRecord.academic_year == h_year, # Filter by Record's year
@@ -56,23 +59,24 @@ def get_fee_students(current_user):
     )
 
     # STRICT BRANCH SEGREGATION
-    if current_user.role == 'Admin':
-        # Admins: Check Query Param first, then Header
-        branch_param = request.args.get("branch")
-        if branch_param and branch_param != "All":
-            q = q.filter(Student.branch == branch_param)
-        elif branch_param == "All":
-            pass # Explicitly show all
-        elif h_branch and h_branch != "All":
-            q = q.filter(Student.branch == h_branch)
+    if current_user.role != 'Admin':
+         if current_user.branch != 'All':
+            q = q.filter(Student.branch == current_user.branch)
+    else:
+         # Admins: Check Query Param first, then Header
+         branch_param = request.args.get("branch")
+         if branch_param and branch_param != "All":
+             q = q.filter(Student.branch == branch_param)
+         elif branch_param == "All":
+             pass # Explicitly show all
+         elif h_branch and h_branch != "All":
+             q = q.filter(Student.branch == h_branch)
 
-    elif current_user.branch != 'All':
-        q = q.filter(Student.branch == current_user.branch)
     if class_name:
         q = q.filter(StudentAcademicRecord.class_name == class_name) # Use Record's class
     if section:
         q = q.filter(StudentAcademicRecord.section == section) # Use Record's section
-
+    
     if search:
         like = f"%{search}%"
         q = q.filter(
@@ -83,23 +87,33 @@ def get_fee_students(current_user):
                 Student.admission_no.like(like),
             )
         )
-
+    
     q = q.group_by(Student.student_id, StudentAcademicRecord.id) # Group by record too for safety
     rows = q.all()
-
+    
     output = []
-
+    
     for s, record, total, paid, due, concession in rows:
         total = float(total or 0)
         paid = float(paid or 0)
         due = float(due or 0)
         concession = float(concession or 0)
-
+        
         status = (
             "Paid" if due <= 0 else
             "Partial" if paid > 0 else
             "Pending"
         )
+        
+        # DEBUG PRINT
+        if "Latheef" in f"{s.first_name} {s.last_name}" or "Kareem" in f"{s.first_name} {s.last_name}":
+             print(f"DEBUG: Student {s.student_id} ({s.first_name})")
+             print(f" - FatherName: {s.Fatherfirstname}")
+             print(f" - FatherPhone: {s.FatherPhone}")
+             print(f" - SmsNo: {s.SmsNo}")
+             print(f" - Phone: {s.phone}")
+             print(f" - Branch: {s.branch}")
+             print(f" - Record Class: {record.class_name}")
 
         output.append({
             "student_id": s.student_id, 
@@ -116,7 +130,7 @@ def get_fee_students(current_user):
             "concession": concession,
             "status": status,
         })
-
+    
     return jsonify(output), 200
 
 
@@ -286,8 +300,7 @@ def record_fee_payment(current_user):
                 return jsonify({"error": f"Branch {student.branch} not found"}), 400
 
         # 2. Generate
-        receipt_no = SequenceService.generate_receipt_number(branch_id, ay_id, include_prefix = False) 
-                    #Remove inclue_prefix = Flase for prefix
+        receipt_no = SequenceService.generate_receipt_number(branch_id, ay_id, include_prefix=False)
 
         # 2. PROCESS ALLOCATIONS
         total_allocated = Decimal(0)
@@ -489,11 +502,6 @@ def delete_fee_payment(current_user, payment_id):
         if current_user.role != 'Admin' and payment.branch != current_user.branch:
              return jsonify({"error": "Unauthorized"}), 403
 
-        # Capture info for sequence rollback BEFORE deletion
-        receipt_no = payment.receipt_no
-        branch_name = payment.branch
-        academic_year = payment.academic_year
-
         # Revert Logic
         # Find the linked StudentFee record
         # We match on student_id, academic_year, fee_type, and installment
@@ -532,47 +540,6 @@ def delete_fee_payment(current_user, payment_id):
                  sf.status = "Pending"
         
         db.session.delete(payment)
-        
-        # --- SEQUENCE ROLLBACK LOGIC ---
-        # Check if we should decrement sequence (only if this was the last receipt and fully deleted)
-        try:
-            db.session.flush() # Ensure deletion is visible to queries in same transaction
-            
-            # Check if any other payment rows exist for this receipt number
-            # Must scope by branch/year as receipt numbers (e.g. "10") are not globally unique
-            others_count = FeePayment.query.filter_by(
-                receipt_no=receipt_no,
-                branch=branch_name,
-                academic_year=academic_year
-            ).count()
-            
-            if others_count == 0:
-                # No other rows for this receipt. Safe to check sequence.
-                branch_id = SequenceService.resolve_branch_id(branch_name)
-                ay_id = SequenceService.resolve_academic_year_id(academic_year)
-                
-                if branch_id and ay_id:
-                    # Get sequence (locked ideally, but simplified here)
-                    seq = BranchYearSequence.query.filter_by(
-                        branch_id=branch_id, 
-                        academic_year_id=ay_id
-                    ).first()
-                    
-                    if seq:
-                        # Compare: Is the deleted receipt equal to the last generated number?
-                        # receipt_no is string (e.g., "10"), last_receipt_no is int (e.g., 10)
-                        try:
-                            deleted_num = int(receipt_no)
-                            if deleted_num == seq.last_receipt_no:
-                                seq.last_receipt_no -= 1
-                                # print(f"DEBUG: Rolled back sequence for {branch_name}/{academic_year} to {seq.last_receipt_no}")
-                        except ValueError:
-                            pass # Not a number, ignore
-        except Exception as ex:
-            print(f"Error in sequence rollback logic: {ex}")
-            # Do not fail the transaction just for sequence logic
-            pass
-            
         db.session.commit()
         
         return jsonify({"message": "Payment deleted and fee status reverted"}), 200
