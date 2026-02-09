@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from extensions import db
-from models import Student, StudentFee, FeePayment, Branch, FeeInstallment, Concession, ClassFeeStructure, StudentAcademicRecord, FeeType
+from models import Student, StudentFee, FeePayment, Branch, FeeInstallment, Concession, ClassFeeStructure, StudentAcademicRecord, FeeType, BranchYearSequence
 from helpers import token_required, require_academic_year, normalize_fee_title, assign_fee_to_student
 from services.sequence_service import SequenceService
 from datetime import datetime, date
@@ -489,6 +489,11 @@ def delete_fee_payment(current_user, payment_id):
         if current_user.role != 'Admin' and payment.branch != current_user.branch:
              return jsonify({"error": "Unauthorized"}), 403
 
+        # Capture info for sequence rollback BEFORE deletion
+        receipt_no = payment.receipt_no
+        branch_name = payment.branch
+        academic_year = payment.academic_year
+
         # Revert Logic
         # Find the linked StudentFee record
         # We match on student_id, academic_year, fee_type, and installment
@@ -527,6 +532,47 @@ def delete_fee_payment(current_user, payment_id):
                  sf.status = "Pending"
         
         db.session.delete(payment)
+        
+        # --- SEQUENCE ROLLBACK LOGIC ---
+        # Check if we should decrement sequence (only if this was the last receipt and fully deleted)
+        try:
+            db.session.flush() # Ensure deletion is visible to queries in same transaction
+            
+            # Check if any other payment rows exist for this receipt number
+            # Must scope by branch/year as receipt numbers (e.g. "10") are not globally unique
+            others_count = FeePayment.query.filter_by(
+                receipt_no=receipt_no,
+                branch=branch_name,
+                academic_year=academic_year
+            ).count()
+            
+            if others_count == 0:
+                # No other rows for this receipt. Safe to check sequence.
+                branch_id = SequenceService.resolve_branch_id(branch_name)
+                ay_id = SequenceService.resolve_academic_year_id(academic_year)
+                
+                if branch_id and ay_id:
+                    # Get sequence (locked ideally, but simplified here)
+                    seq = BranchYearSequence.query.filter_by(
+                        branch_id=branch_id, 
+                        academic_year_id=ay_id
+                    ).first()
+                    
+                    if seq:
+                        # Compare: Is the deleted receipt equal to the last generated number?
+                        # receipt_no is string (e.g., "10"), last_receipt_no is int (e.g., 10)
+                        try:
+                            deleted_num = int(receipt_no)
+                            if deleted_num == seq.last_receipt_no:
+                                seq.last_receipt_no -= 1
+                                # print(f"DEBUG: Rolled back sequence for {branch_name}/{academic_year} to {seq.last_receipt_no}")
+                        except ValueError:
+                            pass # Not a number, ignore
+        except Exception as ex:
+            print(f"Error in sequence rollback logic: {ex}")
+            # Do not fail the transaction just for sequence logic
+            pass
+            
         db.session.commit()
         
         return jsonify({"message": "Payment deleted and fee status reverted"}), 200
