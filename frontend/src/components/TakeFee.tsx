@@ -721,11 +721,6 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
             return;
         }
 
-        if (!schoolReceiptNo.trim()) {
-            alert('Please enter School Receipt No');
-            return;
-        }
-
         try {
             // Sequential allocation: Fill installments in order
             let remainingAmount = Number(paidInput);
@@ -919,9 +914,9 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
 
                             <div className="flex items-center justify-between">
                                 <h4 className="font-semibold text-gray-700">Details <span className="text-sm text-black-500 font-normal ml-3">
-                            {selectedStudent? `Student Name: ${selectedStudent.name} || FatherName: ${selectedStudent.fatherName} 
-                            || Adm No: ${selectedStudent.admNo} || Phone: ${selectedStudent.fatherPhone}`: 'Details : N/A'}
-                            </span></h4>
+                                    {selectedStudent ? `Student Name: ${selectedStudent.name} || FatherName: ${selectedStudent.fatherName} 
+                            || Adm No: ${selectedStudent.admNo} || Phone: ${selectedStudent.fatherPhone}` : 'Details : N/A'}
+                                </span></h4>
                                 <div className="flex items-center space-x-2">
                                     {/* <button className="text-sm px-3 py-1.5 border rounded-md hover:bg-gray-100 flex items-center">Follow up</button>
                                     <button className="text-sm px-3 py-1.5 border rounded-md hover:bg-gray-100 flex items-center">
@@ -1076,8 +1071,8 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                                         <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500" />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">School Receipt No*</label>
-                                        <input type="text" value={schoolReceiptNo} onChange={e => setSchoolReceiptNo(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500" />
+                                        <label className="block text-sm font-medium text-gray-700">School Receipt No</label>
+                                        <input type="text" value={schoolReceiptNo} onChange={e => setSchoolReceiptNo(e.target.value)} disabled={true} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">Payment Note</label>

@@ -801,7 +801,6 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
       mode === "create" &&
       (!formData.first_name ||
         !formData.last_name ||
-        !formData.admissionNo ||
         !formData.admission_date ||
         !formData.AdmissionCategory ||
         !formData.AdmissionClass ||
@@ -911,11 +910,9 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
             <FormField
               label="Admission No"
               name="admissionNo"
-              required
               value={formData.admissionNo}
               onChange={handleInputChange}
-
-              disabled={isViewMode}
+              disabled={true}
             />
             <FormField
               label="Admission Date"
