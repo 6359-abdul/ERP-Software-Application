@@ -8,3 +8,4 @@ sys.path.insert(0, os.path.dirname(__file__))
 # 2. Import the 'application' object from 'wsgi.py'
 #    cPanel looks for a variable named 'application' by default in this file.
 from wsgi import application
+ 

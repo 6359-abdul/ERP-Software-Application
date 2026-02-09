@@ -68,6 +68,7 @@ def create_app():
                 r"https://.*\.vercel\.app",
                 "http://localhost:5173",
                 "http://localhost:3000",
+                "http://43.205.112.158",
             
             ],
             "supports_credentials": True,
