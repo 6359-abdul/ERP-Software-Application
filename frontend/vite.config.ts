@@ -3,26 +3,27 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig(({ mode }) => {
-  // Load environment variables
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
+    base: '/', // 🔥 VERY IMPORTANT FOR NGINX ROOT SERVING
+
     plugins: [react()],
+
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
     },
+
     server: {
       port: 5173,
       host: true,
       proxy: {
         '/api': {
-          // Always proxy to local backend in dev, keep /api prefix
           target: 'http://localhost:5000',
           changeOrigin: true,
           secure: false,
-          // no rewrite: backend expects paths starting with /api
         },
         '/uploads': {
           target: 'http://localhost:5000',
@@ -31,6 +32,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+
     build: {
       outDir: 'dist',
       sourcemap: mode === 'development',
@@ -43,6 +45,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || ''),
     },
