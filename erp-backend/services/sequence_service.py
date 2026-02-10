@@ -91,7 +91,7 @@ class SequenceService:
                 branch_id=branch_id,
                 academic_year_id=academic_year_id,
                 admission_prefix=adm_prefix,
-                receipt_prefix=rec_prefix,
+                receipt_prefix=rec_prefix,  
                 last_admission_no=0,
                 last_receipt_no=0,
                 created_by=user_id,
