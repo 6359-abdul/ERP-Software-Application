@@ -3,6 +3,7 @@ Flask-Cors==4.0.0
 Flask-Limiter==3.7.0
 Flask-SQLAlchemy==3.0.5
 Flask-Caching==2.1.0
+Flask-Migrate==4.0.5
 python-dotenv==1.0.0
 
 # MySQL (local)
@@ -17,3 +18,4 @@ numpy==1.26.4
 pandas==2.1.4
 openpyxl==3.1.2
 gunicorn==21.2.0
+alembic==1.13.1

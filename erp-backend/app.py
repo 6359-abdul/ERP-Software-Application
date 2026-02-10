@@ -1,13 +1,14 @@
 from flask import Flask, request, jsonify, send_from_directory # Force Reload
 from flask_cors import CORS
 from dotenv import load_dotenv
+from flask_migrate import Migrate 
 import os
 
 # -----------------------------
 # EXTENSIONS
 # -----------------------------
 from extensions import db
-
+migrate = Migrate()
 # -----------------------------
 # BLUEPRINTS
 # -----------------------------
@@ -79,6 +80,8 @@ def create_app():
         }
     })
     db.init_app(app)
+    migrate.init_app(app, db)
+
 
     # -----------------------------
     # REGISTER BLUEPRINTS
