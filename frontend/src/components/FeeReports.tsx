@@ -75,16 +75,16 @@ const FeeReports: React.FC = () => {
 
             // 6. Construct Receipt Data object
             const formattedData = {
-                studentName: payments[0].name, // API should return enriched details
-                fatherName: payments[0].fatherName,
-                fatherPhone: payments[0].fatherPhone,
-                admissionNo: payments[0].admNo,
-                branch: payments[0].branch,
-                className: payments[0].class,
+                studentName: res.data.studentName || payments[0]?.name, // Prefer API root property
+                fatherName: res.data.fatherName || payments[0]?.fatherName,
+                fatherPhone: res.data.fatherPhone || payments[0]?.fatherPhone,
+                admissionNo: res.data.admissionNo || payments[0]?.admNo,
+                branch: res.data.branch || payments[0]?.branch,
+                className: res.data.className || payments[0]?.class,
                 receiptNo: receiptNo,
-                paymentDate: payments[0].payment_date,
-                paymentMode: payments[0].mode,
-                paymentNote: "", // Report API needs to return note if needed
+                paymentDate: res.data.paymentDate || payments[0]?.payment_date,
+                paymentMode: res.data.paymentMode || payments[0]?.mode,
+                paymentNote: res.data.paymentNote || "",
                 items: groupedItems.map((g, i) => ({
                     title: g.title,
                     payable: g.payable

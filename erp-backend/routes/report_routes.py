@@ -81,6 +81,9 @@ def report_fee_today(current_user):
         if target_branch and target_branch not in ['All', 'AllBranches']:
             query = query.filter(FeePayment.branch == target_branch)
             
+        # Exclude Cancelled Receipts
+        query = query.filter(FeePayment.status == 'A')
+
         payments = query.order_by(FeePayment.created_at.desc()).all()
         
         total_amount = sum(float(p.amount_paid or 0) for p in payments)
@@ -147,6 +150,9 @@ def report_fee_daily(current_user):
         if fee_type_filter and fee_type_filter != 'All':
             query = query.filter(FeePayment.fee_type == fee_type_filter)
             
+        # Exclude Cancelled Receipts
+        query = query.filter(FeePayment.status == 'A')
+
         payments = query.order_by(FeePayment.created_at.desc()).all()
         
         # Consolidate Receipts
@@ -238,6 +244,9 @@ def report_fee_monthly(current_user):
                 "receipts": []
             }), 200
             
+        # Exclude Cancelled Receipts
+        query = query.filter(FeePayment.status == 'A')
+            
         payments = query.all()
         
         total = sum(float(p.amount_paid or 0) for p in payments)
@@ -289,6 +298,10 @@ def report_fee_class_wise(current_user):
         p_query = FeePayment.query.filter_by(class_name=class_name, academic_year=h_year)
         if target_branch and target_branch not in ['All', 'AllBranches']:
             p_query = p_query.filter_by(branch=target_branch)
+        
+        # Exclude Cancelled Receipts
+        p_query = p_query.filter(FeePayment.status == 'A')
+            
         payments = p_query.all()
         collected = sum(float(p.amount_paid or 0) for p in payments)
         
@@ -365,6 +378,9 @@ def report_fee_installment_wise(current_user):
         
         if target_branch and target_branch not in ['All', 'AllBranches']:
             p_query = p_query.filter(FeePayment.branch == target_branch)
+        
+        # Exclude Cancelled Receipts
+        p_query = p_query.filter(FeePayment.status == 'A')
         
         payments = p_query.all()
         collected = sum(float(p.amount_paid or 0) for p in payments)
