@@ -429,8 +429,12 @@ def get_student_payment_history(current_user, student_id):
         
         # Filter by Academic Year (SMART FILTER)
         h_year = request.headers.get("X-Academic-Year")
+        show_cancelled = request.args.get("show_cancelled", "false").lower() == "true"
         
         query = FeePayment.query.filter_by(student_id=student_id)
+
+        if not show_cancelled:
+            query = query.filter(FeePayment.status == 'A')
         
         if h_year:
             # We want payments that are EITHER tagged with h_year OR tagged with NULL (Legacy)
@@ -481,7 +485,9 @@ def get_student_payment_history(current_user, student_id):
                 "fee_type": p.fee_type,
                 "installment": p.installment_name,
                 "mode": p.payment_mode,
-                "collected_by": p.collected_by_name
+                "collected_by": p.collected_by_name,
+                "status": p.status,
+                "cancel_reason": p.cancel_reason
             })
             
         return jsonify(output), 200
@@ -492,11 +498,23 @@ def get_student_payment_history(current_user, student_id):
 @bp.route("/api/fees/payment/<int:payment_id>", methods=["DELETE"])
 @token_required
 def delete_fee_payment(current_user, payment_id):
-    """Delete a payment and revert the fee status"""
+    """Cancel a payment (soft delete) and revert the fee status"""
     try:
+        # Get Reason from Body (DELETE with body)
+        data = request.get_json(silent=True) or {}
+        reason = data.get("reason")
+        
+        # If no body or reason provided, you might want to enforce it, but let's allow optional for backward compat
+        # User requested "valid reason", so let's check it.
+        if not reason:
+             return jsonify({"error": "Cancellation reason is required"}), 400
+
         payment = FeePayment.query.get(payment_id)
         if not payment:
             return jsonify({"error": "Payment not found"}), 404
+        
+        if payment.status == 'I':
+            return jsonify({"error": "Payment is already cancelled"}), 400
 
         # Permission Check
         if current_user.role != 'Admin' and payment.branch != current_user.branch:
@@ -539,10 +557,14 @@ def delete_fee_payment(current_user, payment_id):
             else:
                  sf.status = "Pending"
         
-        db.session.delete(payment)
+        # Soft Delete (Cancel)
+        payment.status = 'I'
+        payment.cancel_reason = reason
+        # We do NOT decrement sequence here. Sequence continues.
+        
         db.session.commit()
         
-        return jsonify({"message": "Payment deleted and fee status reverted"}), 200
+        return jsonify({"message": "Payment cancelled and fee status reverted"}), 200
 
     except Exception as e:
         db.session.rollback()

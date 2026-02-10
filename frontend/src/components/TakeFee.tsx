@@ -334,11 +334,12 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
 
     const [showHistory, setShowHistory] = useState(false);
     const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+    const [showCancelled, setShowCancelled] = useState(false);
 
     const fetchPaymentHistory = async () => {
         if (!selectedStudent) return;
         try {
-            const response = await api.get(`/fees/payments/${selectedStudent.student_id}`);
+            const response = await api.get(`/fees/payments/${selectedStudent.student_id}?show_cancelled=${showCancelled}`);
             setPaymentHistory(response.data);
             setShowHistory(true);
         } catch (error) {
@@ -347,8 +348,20 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
         }
     };
 
+    useEffect(() => {
+        if (showHistory) {
+            fetchPaymentHistory();
+        }
+    }, [showCancelled]);
+
     const handleDeleteReceipt = async (receiptNo: string) => {
-        if (!window.confirm("Are you sure you want to delete this ENTIRE RECEIPT? This will revert all associated fee payments.")) return;
+        if (!window.confirm("Are you sure you want to cancel this ENTIRE RECEIPT? This will revert all associated fee payments.")) return;
+        
+        const reason = prompt("Please enter a valid reason for cancellation:");
+        if (!reason || reason.trim() === "") {
+            alert("Cancellation aborted. Reason is required.");
+            return;
+        }
 
         // Find all payments with this receipt no
         const paymentsToDelete = paymentHistory.filter(p => p.receipt_no === receiptNo);
@@ -356,10 +369,12 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
         try {
             // Delete sequentially
             for (const p of paymentsToDelete) {
-                await api.delete(`/fees/payment/${p.payment_id}`);
+                await api.delete(`/fees/payment/${p.payment_id}`, {
+                    data: { reason: reason }
+                });
             }
 
-            alert("Receipt deleted successfully.");
+            alert("Receipt cancelled successfully.");
             fetchPaymentHistory(); // Refresh history
 
             // Refresh main installments view
@@ -578,6 +593,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
             setSelectedConcession('0');
             setAppliedConcession(0);
             setItemConcessions({});
+            setShowCancelled(false);
         };
         fetchInstallments();
     }, [selectedStudent]); // Removed selectedBranch dependency
@@ -1125,7 +1141,18 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                     <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Payment History - {selectedStudent?.name} ({localStorage.getItem('academicYear')})</h2>
-                            <button onClick={() => setShowHistory(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+                            <div className="flex items-center space-x-4">
+                                <label className="flex items-center space-x-2 text-sm">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={showCancelled} 
+                                        onChange={e => setShowCancelled(e.target.checked)}
+                                        className="h-4 w-4 text-violet-600 rounded border-gray-300" 
+                                    />
+                                    <span>Show Cancelled</span>
+                                </label>
+                                <button onClick={() => setShowHistory(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+                            </div>
                         </div>
                         <table className="w-full text-sm text-left">
                             <thead className="bg-gray-100">
@@ -1137,6 +1164,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                                     <th className="p-2 text-right">Amount</th>
                                     <th className="p-2 text-right">Concession</th>
                                     <th className="p-2">Mode</th>
+                                    <th className="p-2">Status</th>
                                     <th className="p-2 text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -1162,8 +1190,10 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                                     const totalAmount = group.reduce((sum: number, p: any) => sum + parseFloat(p.amount_paid), 0);
                                     const totalConcession = group.reduce((sum: number, p: any) => sum + parseFloat(p.concession_amount), 0);
 
+                                    const isCancelled = first.status === 'I';
+
                                     return (
-                                        <tr key={first.receipt_no} className="border-b hover:bg-gray-50 align-top">
+                                        <tr key={first.receipt_no} className={`border-b hover:bg-gray-50 align-top ${isCancelled ? 'bg-red-50' : ''}`}>
                                             <td className="p-2">{first.receipt_no}</td>
                                             <td className="p-2">{first.academic_year}</td>
                                             <td className="p-2">{first.payment_date}</td>
@@ -1177,13 +1207,25 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                                             <td className="p-2 text-right">₹{totalAmount.toLocaleString('en-IN')}</td>
                                             <td className="p-2 text-right">₹{totalConcession.toLocaleString('en-IN')}</td>
                                             <td className="p-2">{first.mode}</td>
+                                            <td className="p-2">
+                                                {isCancelled ? (
+                                                    <div className="text-red-600 font-semibold text-xs">
+                                                        Cancelled
+                                                        {first.cancel_reason && <div className="text-gray-500 font-normal italic">{first.cancel_reason}</div>}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-green-600 font-semibold text-xs">Active</span>
+                                                )}
+                                            </td>
                                             <td className="p-2 flex justify-center space-x-2">
                                                 <button onClick={() => handlePrintHistoryReceipt(first.receipt_no)} title="Print Receipt" className="text-blue-600 hover:text-blue-800">
                                                     <PrinterIcon className="w-5 h-5" />
                                                 </button>
-                                                <button onClick={() => handleDeleteReceipt(first.receipt_no)} title="Delete Receipt" className="text-red-600 hover:text-red-800">
-                                                    <TrashIcon className="w-5 h-5" />
-                                                </button>
+                                                {!isCancelled && (
+                                                    <button onClick={() => handleDeleteReceipt(first.receipt_no)} title="Cancel Receipt" className="text-red-600 hover:text-red-800">
+                                                        <TrashIcon className="w-5 h-5" />
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     );

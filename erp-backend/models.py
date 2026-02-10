@@ -264,6 +264,9 @@ class FeePayment(db.Model):
     collected_by_name = db.Column(db.String(100)) # User Name (Added per request)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
+    status = db.Column(db.Enum("A", "I"), default="A") # A=Active, I=Inactive (Cancelled)
+    cancel_reason = db.Column(db.String(255)) # Reason for cancellation
+
     student = db.relationship("Student")
 
 
