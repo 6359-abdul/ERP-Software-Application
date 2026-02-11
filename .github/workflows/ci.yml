@@ -1,0 +1,64 @@
+name: ERP CI Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - develop
+
+jobs:
+  backend:
+    name: Backend Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Create virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r erp-backend/requirements.txt
+
+      - name: Check Python syntax
+        run: |
+          source venv/bin/activate
+          python -m compileall erp-backend
+
+      - name: Validate Alembic migration scripts
+        run: |
+          source venv/bin/activate
+          cd erp-backend
+          python -m compileall migrations
+
+  frontend:
+    name: Frontend Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
