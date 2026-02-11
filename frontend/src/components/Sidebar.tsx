@@ -34,7 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, navigateTo, cu
       </div>
 
       <div className="p-4">
-        <p className="text-sm text-gray-500">School Name: <span className="font-semibold text-gray-800">MSHifzAcademy</span></p>
+        <p className="text-sm text-gray-500">SchoolName: <span className="font-semibold text-gray-800">MSHifzAcademy</span></p>
       </div>
 
       <nav className="flex-1 px-2 space-y-1 overflow-y-auto">
