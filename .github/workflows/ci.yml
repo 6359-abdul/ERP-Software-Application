@@ -35,10 +35,13 @@ jobs:
           python -m compileall erp-backend
 
       - name: Validate Alembic migration
+        env:
+          DATABASE_URL: sqlite:///ci_test.db
         run: |
           source venv/bin/activate
           cd erp-backend
           alembic -c migrations/alembic.ini upgrade head --sql > migration.sql
+
 
   frontend:
     name: Frontend Validation
