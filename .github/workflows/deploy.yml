@@ -14,6 +14,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -21,7 +26,18 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy Application
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy Frontend to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p /home/ubuntu/frontend-dist"
+          scp -o StrictHostKeyChecking=no -r frontend/dist/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/frontend-dist/
+
+      - name: Deploy Application on EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
             cd /home/ubuntu/ERP-Software-Application &&
@@ -33,12 +49,10 @@ jobs:
             pip install -r requirements.txt &&
             sudo systemctl restart gunicorn &&
 
-            echo 'Building Frontend...' &&
-            cd ../frontend &&
-            npm ci &&
-            npm run build &&
+            echo 'Updating Frontend...' &&
             sudo rm -rf /var/www/frontend/* &&
-            sudo cp -r dist/* /var/www/frontend/ &&
+            sudo cp -r /home/ubuntu/frontend-dist/* /var/www/frontend/ &&
+            sudo rm -rf /home/ubuntu/frontend-dist &&
             sudo systemctl reload nginx &&
 
             echo 'Deployment Complete'
