@@ -21,7 +21,13 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Test SSH Connection
+      - name: Deploy Backend
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo SSH_OK"
-
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd /home/ubuntu/ERP-Software-Application &&
+            git pull origin main &&
+            cd erp-backend &&
+            source venv/bin/activate &&
+            pip install -r requirements.txt &&
+            sudo systemctl restart gunicorn
+          "
