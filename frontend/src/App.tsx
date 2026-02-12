@@ -5,7 +5,7 @@ import Dashboard from "./components/Dashboard";
 export type Page =
   | "dashboard"
   | "profile"
-  | "fee" 
+  | "fee"
   | "fee-type"
   | "class-fee-structure"
   | "assign-special-fee"
@@ -15,6 +15,7 @@ export type Page =
   | "academic"
   | "academics"
   | "setup"
+  | "classes-management"
   | "student-attendance"
   | "student-administration"
   | "concession-master"

@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import MainContent from './MainContent';
-import Profile from './Profile'; 
+import Profile from './Profile';
 import Fee from './Fee';
-import FeeType from './FeeType'; 
+import FeeType from './FeeType';
 import ClassFeeStructure from './ClassFeeStructure';
 import AssignSpecialFee from './AssignSpecialFee';
 import FeeInstallments from './FeeInstallments';
 import TakeFee from './TakeFee';
 import Administration from './Administration';
-import ComingSoon from './ComingSoon';
+import SetupSchool from './SetupSchool';
+import ClassesManagement from './ClassesManagement';
 import AcademicManagement from './AcademicManagement';
 import Academics from './Academics';
 import StudentAttendance from './StudentAttendance';
@@ -67,7 +68,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           {currentPage === 'administration' && <Administration navigateTo={navigateTo} />}
           {currentPage === 'academic' && <AcademicManagement navigateTo={navigateTo} />}
           {currentPage === 'academics' && <Academics />}
-          {currentPage === 'setup' && <ComingSoon pageTitle="Setup Your School" />}
+          {currentPage === 'setup' && <SetupSchool navigateTo={navigateTo} />}
+          {currentPage === 'classes-management' && <ClassesManagement navigateTo={navigateTo} />}
           {currentPage === 'student-attendance' && <StudentAttendance navigateTo={navigateTo} />}
           {currentPage === 'attendance-report' && <StudentAttendance navigateTo={navigateTo} defaultTab="absent-report" />}
           {currentPage === 'student-administration' && <StudentAdministration navigateTo={navigateTo} />}
@@ -81,4 +83,4 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;
