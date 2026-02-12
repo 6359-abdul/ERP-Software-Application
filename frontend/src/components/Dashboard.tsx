@@ -81,4 +81,4 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   );
 };
 
-export default Dashboard;
+export default Dashboard; 
