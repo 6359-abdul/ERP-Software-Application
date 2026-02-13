@@ -336,23 +336,7 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                 />
                             </div>
 
-                            {/* Branch Selection */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Link with e-learning class
-                                </label>
-                                <select
-                                    value={selectedBranch}
-                                    onChange={(e) => setSelectedBranch(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                >
-                                    <option value="">- Select Class -</option>
-                                    <option value="class1">Class 1</option>
-                                    <option value="class2">Class 2</option>
-                                    <option value="class3">Class 3</option>
-                                </select>
-                            </div>
-
+                            
                             {/* Section Management */}
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
@@ -413,6 +397,22 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
+                            {/* Branch Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Assign to the Branch<span className="text-red-500">*</span>   
+                                </label>
+                                <select
+                                    value={selectedBranch}
+                                    onChange={(e) => setSelectedBranch(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                >
+                                    <option value="">- Select-Branch -</option>
+                                    <option value="class1">Murad Nagar</option>
+                                    <option value="class2">Tolichowki</option>
+                                    <option value="class3">Vijay Nagar Colony</option>
+                                </select>
                             </div>
 
                             {/* Action Buttons */}
