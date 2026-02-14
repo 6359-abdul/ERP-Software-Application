@@ -1,13 +1,57 @@
 from extensions import db
 from datetime import datetime
 from sqlalchemy import or_
-
+ 
 class ClassMaster(db.Model):
     __tablename__ = "classes"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     class_name = db.Column(db.String(50), unique=True, nullable=False)
     location = db.Column(db.String(50), default="Hyderabad")
     branch = db.Column(db.String(50), default="All")
+
+
+class ClassSection(db.Model):
+    __tablename__ = "class_sections"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # FK to ClassMaster
+    class_id = db.Column(
+        db.Integer,
+        db.ForeignKey("classes.id", ondelete="RESTRICT"),
+        nullable=False
+    )
+
+    # FK to Branch
+    branch_id = db.Column(
+        db.Integer,
+        db.ForeignKey("branches.id", ondelete="RESTRICT"),
+        nullable=False
+    )
+
+    academic_year = db.Column(db.String(20), nullable=False)
+
+    section_name = db.Column(db.String(10), nullable=False)
+
+    student_strength = db.Column(db.Integer, nullable=False)
+
+    is_active = db.Column(db.Boolean, default=True)
+
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "class_id",
+            "branch_id",
+            "academic_year",
+            "section_name",
+            name="uq_class_branch_year_section"
+        ),
+        # Indexes for frequent lookup
+        db.Index("idx_class_section_branch_year", "branch_id", "academic_year"),
+        db.Index("idx_class_section_class", "class_id"),
+    )
 
 
 
@@ -126,6 +170,10 @@ class Student(db.Model):
     location = db.Column(db.String(50), default="Hyderabad")
     branch = db.Column(db.String(50))
     academic_year = db.Column(db.String(20))
+
+    __table_args__ = (
+        db.Index('idx_student_occupancy', 'class', 'section', 'branch', 'academic_year'),
+    )
 
 
 class FeeType(db.Model):

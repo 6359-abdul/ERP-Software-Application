@@ -1,4 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import api from '../api';
+
+interface Branch {
+    id: number;
+    branch_name: string;
+    branch_code: string;
+}
+
+interface SectionDetail {
+    id: number;
+    name: string;
+    strength: number;
+    branch_id: number;
+}
 
 interface ClassData {
     id: number;
@@ -7,7 +21,7 @@ interface ClassData {
     class_monitor?: string;
     total_students?: number;
     section?: string;
-    sections?: string[];
+    sections?: SectionDetail[];
 }
 
 interface SectionData {
@@ -27,36 +41,91 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
     const [classes, setClasses] = useState<ClassData[]>([]);
     const [newClassName, setNewClassName] = useState('');
     const [selectedBranch, setSelectedBranch] = useState('');
+    const [classSummary, setClassSummary] = useState<ClassData[]>([]); // For Create View Summary
+    const [branches, setBranches] = useState<Branch[]>([]);
+    const [masterClasses, setMasterClasses] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    // Form State
     const [sections, setSections] = useState<SectionData[]>([{ id: 1, name: '', studentStrength: '' }]);
 
     // Mock data for list view
     const mockClasses: ClassData[] = [
-        { id: 1, class_name: '6 HJ 1', class_teacher: '', class_monitor: '', total_students: 3, section: 'A' },
-        { id: 2, class_name: '4 HJ 1', class_teacher: '', class_monitor: '', total_students: 1, section: 'A' },
-        { id: 3, class_name: '5 HJ 1', class_teacher: '', class_monitor: '', total_students: 2, section: 'A' },
-        { id: 4, class_name: '5 HJ 2', class_teacher: '', class_monitor: '', total_students: 2, section: 'B' },
-        { id: 5, class_name: '6 HJ 2', class_teacher: '', class_monitor: '', total_students: 5, section: 'B' },
-        { id: 6, class_name: '7 HJ 2', class_teacher: '', class_monitor: '', total_students: 3, section: 'B' },
-        { id: 7, class_name: '9 HJ 2', class_teacher: '', class_monitor: '', total_students: 1, section: 'B' },
-        { id: 8, class_name: '7 HK 1', class_teacher: '', class_monitor: '', total_students: 9, section: 'A' },
-        { id: 9, class_name: '6 HK 1', class_teacher: '', class_monitor: '', total_students: 1, section: 'A' },
-        { id: 10, class_name: '7 HK 2', class_teacher: '', class_monitor: '', total_students: 1, section: 'B' },
-        { id: 11, class_name: '6 HK 2', class_teacher: '', class_monitor: '', total_students: 10, section: 'B' },
+
     ];
 
-    // Mock data for summary view
-    const mockClassSummary: ClassData[] = [
-        { id: 1, class_name: '7', sections: ['HJ 1', 'HJ 2', 'HK 2'] },
-        { id: 2, class_name: '8', sections: ['HJ 1'] },
-        { id: 3, class_name: '6', sections: ['HJ 1', 'HJ 2', 'HK 1', 'HK 2', 'HL 2', 'HM 1'] },
-        { id: 4, class_name: '4', sections: ['HJ 1'] },
-        { id: 5, class_name: '5', sections: ['HJ 1', 'HJ 2', 'HK 2', 'HM 1', 'HM 2', 'HN 1', 'HN 2'] },
-        { id: 6, class_name: '9', sections: ['HJ 2'] },
-    ];
 
     useEffect(() => {
         setClasses(mockClasses);
+        fetchBranches();
+        fetchMasterClasses();
     }, []);
+
+    // Effect to set default branch from localStorage and fetch summary
+    useEffect(() => {
+        if (branches.length > 0) {
+            const storedBranchName = localStorage.getItem('currentBranch');
+            if (storedBranchName && storedBranchName !== 'All') {
+                const matchingBranch = branches.find(b => b.branch_name === storedBranchName);
+                if (matchingBranch) {
+                    setSelectedBranch(matchingBranch.id.toString());
+                    fetchClassSummary(matchingBranch.id.toString());
+                } else {
+                    fetchClassSummary(); // Fetch all if active branch mapping fails
+                }
+            } else {
+                fetchClassSummary(); // Fetch all
+            }
+        }
+    }, [branches]);
+
+
+    const fetchMasterClasses = async () => {
+        try {
+            const res = await api.get('/classes');
+            if (res.data && res.data.classes) {
+                setMasterClasses(res.data.classes);
+            }
+        } catch (error) {
+            console.error("Failed to fetch master classes", error);
+        }
+    };
+
+    const fetchBranches = async () => {
+        try {
+            const res = await api.get('/branches');
+            if (res.data && res.data.branches) {
+                setBranches(res.data.branches);
+            }
+        } catch (error) {
+            console.error("Failed to fetch branches", error);
+        }
+    };
+
+    const fetchClassSummary = async (branchId?: string) => {
+        try {
+            setLoading(true);
+            const academicYear = localStorage.getItem('academicYear') || "2025-2026";
+            let url = `/classes/summary?academic_year=${academicYear}`;
+
+            // If branchId is passed, use it. Otherwise use state or default.
+            // Note: State might not be updated yet if called from effect, so prefer arg.
+            const bid = branchId || selectedBranch;
+            if (bid) {
+                url += `&branch_id=${bid}`;
+            }
+
+            const res = await api.get(url);
+            if (res.data) {
+                setClassSummary(res.data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch class summary", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
     const filteredClasses = classes.filter(cls => {
         const classMatch = selectedClass === 'all' || cls.class_name.includes(selectedClass);
@@ -85,15 +154,67 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
         ));
     };
 
-    const handleSaveClass = () => {
-        console.log('Saving class:', { newClassName, selectedBranch, sections });
-        handleReset();
+    const handleSaveClass = async () => {
+        if (!newClassName.trim()) {
+            alert("Class Name is required");
+            return;
+        }
+        if (!selectedBranch) {
+            alert("Please select a branch");
+            return;
+        }
+
+        const sectionsPayload = sections.map(s => ({
+            name: s.name,
+            strength: parseInt(s.studentStrength) || 0
+        })).filter(s => s.name && s.strength > 0);
+
+        if (sectionsPayload.length === 0) {
+            alert("Please add at least one valid section with strength");
+            return;
+        }
+
+        const payload = {
+            class_name: newClassName,
+            branch_id: parseInt(selectedBranch),
+            academic_year: localStorage.getItem('academicYear') || "2025-26",
+            sections: sectionsPayload
+        };
+
+        try {
+            await api.post('/classes/create_with_sections', payload);
+            alert("Class saved successfully!");
+            handleReset();
+            // Refresh summary with current selection
+            fetchClassSummary();
+        } catch (error: any) {
+            console.error("Save failed", error);
+            alert(error.response?.data?.error || "Failed to save class");
+        }
     };
 
     const handleReset = () => {
         setNewClassName('');
         setSelectedBranch('');
         setSections([{ id: 1, name: '', studentStrength: '' }]);
+    };
+
+    const handleEditClass = (cls: ClassData) => {
+        setNewClassName(cls.class_name);
+        if (cls.sections && cls.sections.length > 0) {
+            const formSections: SectionData[] = cls.sections.map((s, index) => ({
+                id: index + 1,
+                name: s.name,
+                studentStrength: s.strength.toString()
+            }));
+            setSections(formSections);
+
+            if (cls.sections[0].branch_id) {
+                setSelectedBranch(cls.sections[0].branch_id.toString());
+            }
+        } else {
+            setSections([{ id: 1, name: '', studentStrength: '' }]);
+        }
     };
 
     // List View - First screen
@@ -146,11 +267,7 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 >
                                     <option value="all">All classes</option>
-                                    <option value="4">Class 4</option>
-                                    <option value="5">Class 5</option>
-                                    <option value="6">Class 6</option>
-                                    <option value="7">Class 7</option>
-                                    <option value="9">Class 9</option>
+
                                 </select>
                             </div>
                             <div className="flex-1">
@@ -163,8 +280,7 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 >
                                     <option value="all">Class Group</option>
-                                    <option value="A">Section A</option>
-                                    <option value="B">Section B</option>
+
                                 </select>
                             </div>
                             <div className="flex items-end">
@@ -287,26 +403,47 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
-                                    {mockClassSummary.map((cls) => (
-                                        <tr key={cls.id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 text-sm text-gray-900">{cls.class_name}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{cls.sections?.join(', ')}</td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex gap-2">
-                                                    <button className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                        </svg>
-                                                    </button>
-                                                    <button className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
+                                    {loading ? (
+                                        <tr>
+                                            <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                                                <div className="flex justify-center items-center">
+                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                                                    <span className="ml-2">Loading classes...</span>
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                    ) : classSummary.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                                                No classes found for this branch/year.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        classSummary.map((cls) => (
+                                            <tr key={cls.id} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-900">{cls.class_name}</td>
+                                                <td className="px-4 py-3 text-sm text-gray-700">
+                                                    {cls.sections?.map(s => s.name).join(', ') || '-'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleEditClass(cls)}
+                                                            className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )))}
                                 </tbody>
                             </table>
                         </div>
@@ -329,14 +466,20 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                 </label>
                                 <input
                                     type="text"
+                                    list="master-classes-list"
                                     value={newClassName}
                                     onChange={(e) => setNewClassName(e.target.value)}
                                     placeholder="5"
                                     className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 />
+                                <datalist id="master-classes-list">
+                                    {masterClasses.map((c) => (
+                                        <option key={c.id} value={c.class_name} />
+                                    ))}
+                                </datalist>
                             </div>
 
-                            
+
                             {/* Section Management */}
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
@@ -401,17 +544,24 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                             {/* Branch Selection */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Assign to the Branch<span className="text-red-500">*</span>   
+                                    Assign to the Branch<span className="text-red-500">*</span>
                                 </label>
                                 <select
                                     value={selectedBranch}
-                                    onChange={(e) => setSelectedBranch(e.target.value)}
+                                    onChange={(e) => {
+                                        setSelectedBranch(e.target.value);
+                                        // Optional: Refresh summary when user manually changes branch in form? 
+                                        // Usually create form doesn't affect summary view filter immediately unless we want it to.
+                                        // But the summary view is on the left. So yes, if they change branch, maybe update summary?
+                                        // Let's keep it simple for now and only update on save or load.
+                                        fetchClassSummary(e.target.value);
+                                    }}
                                     className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 >
                                     <option value="">- Select-Branch -</option>
-                                    <option value="class1">Murad Nagar</option>
-                                    <option value="class2">Tolichowki</option>
-                                    <option value="class3">Vijay Nagar Colony</option>
+                                    {branches.map(b => (
+                                        <option key={b.id} value={b.id}>{b.branch_name}</option>
+                                    ))}
                                 </select>
                             </div>
 

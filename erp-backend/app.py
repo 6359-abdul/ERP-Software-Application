@@ -20,6 +20,7 @@ from routes.attendance_routes import bp as attendance_bp
 from routes.report_routes import bp as report_bp
 from routes.org_routes import bp as org_bp
 from routes.academic_routes import bp as academic_bp
+from routes.class_routes import bp as class_bp
 from routes.test_type_routes import test_type_bp
 from routes.class_test_routes import class_test_bp
 from routes.class_test_subject_routes import class_test_subject_bp
@@ -29,7 +30,7 @@ from routes.student_marks_routes import student_marks_bp
 from routes.report_card_routes import report_bp as report_card_bp
 from routes.test_attendance_routes import test_attendance_bp
 
- 
+  
 
 
 # -----------------------------
@@ -94,6 +95,7 @@ def create_app():
     app.register_blueprint(report_bp)
     app.register_blueprint(org_bp)
     app.register_blueprint(academic_bp)
+    app.register_blueprint(class_bp)
     app.register_blueprint(test_type_bp, url_prefix="/api/test-types")
     app.register_blueprint(class_test_bp, url_prefix="/api/class-tests")
     app.register_blueprint(class_test_subject_bp)
@@ -138,9 +140,12 @@ if __name__ == "__main__":
     app = create_app()
 
     # 🔴 RUN ONCE IF TABLES NOT CREATED (DEV ONLY)
-    # from extensions import db
-    # with app.app_context():
-    #     db.create_all()
+    from extensions import db
+    from flask_migrate import upgrade
+    from sqlalchemy import inspect, text
+    with app.app_context():
+        upgrade()
+        print("✅ Database upgraded.")
 
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
