@@ -30,6 +30,8 @@ const PromoteStudents: React.FC<PromoteStudentsProps> = ({ onBack }) => {
     // -------------------------------------------------------------
     const [years, setYears] = useState<string[]>([]);
     const [classes, setClasses] = useState<any[]>([]);
+    const [sourceSections, setSourceSections] = useState<string[]>([]);
+    const [targetSections, setTargetSections] = useState<string[]>([]);
     const [loadingSource, setLoadingSource] = useState(false);
     const [loadingTarget, setLoadingTarget] = useState(false);
     const [processing, setProcessing] = useState(false);
@@ -42,6 +44,42 @@ const PromoteStudents: React.FC<PromoteStudentsProps> = ({ onBack }) => {
             setYears(y);
         });
     }, []);
+
+     useEffect(() => {
+        if (!sourceClass) {
+            setSourceSections([]);
+            setSourceSection('');
+            return;
+        }
+        const branch = localStorage.getItem('currentBranch') || 'All';
+        api.get('/sections', {
+            params: {
+                class: sourceClass,
+                branch,
+                academic_year: sourceYear,
+            }
+        })
+            .then(res => setSourceSections(res.data.sections || []))
+            .catch(() => setSourceSections([]));
+    }, [sourceClass, sourceYear]);
+
+    useEffect(() => {
+        if (!targetClass) {
+            setTargetSections([]);
+            setTargetSection('');
+            return;
+        }
+        const branch = localStorage.getItem('currentBranch') || 'All';
+        api.get('/sections', {
+            params: {
+                class: targetClass,
+                branch,
+                academic_year: targetYear,
+            }
+        })
+            .then(res => setTargetSections(res.data.sections || []))
+            .catch(() => setTargetSections([]));
+    }, [targetClass, targetYear]);
 
     // Fetch Source Students
     useEffect(() => {
@@ -177,9 +215,7 @@ const PromoteStudents: React.FC<PromoteStudentsProps> = ({ onBack }) => {
                             </select>
                             <select value={sourceSection} onChange={e => setSourceSection(e.target.value)} className="border p-1 rounded text-sm w-1/4">
                                 <option value="">All Sec</option>
-                                <option value="A">A</option>
-                                <option value="B">B</option>
-                                <option value="C">C</option>
+                                {sourceSections.map(section => <option key={section} value={section}>{section}</option>)}
                             </select>
                         </div>
                         <input
@@ -246,9 +282,7 @@ const PromoteStudents: React.FC<PromoteStudentsProps> = ({ onBack }) => {
                             </select>
                             <select value={targetSection} onChange={e => setTargetSection(e.target.value)} className="border p-1 rounded text-sm w-1/4">
                                 <option value="">All Sec</option>
-                                <option value="A">A</option>
-                                <option value="B">B</option>
-                                <option value="C">C</option>
+                                {targetSections.map(section => <option key={section} value={section}>{section}</option>)}
                             </select>
                         </div>
                     </div>

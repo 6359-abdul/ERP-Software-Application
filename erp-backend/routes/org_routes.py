@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from extensions import db
-from models import Branch, OrgMaster, User, UserBranchAccess, ClassMaster
+from models import Branch, OrgMaster, User, UserBranchAccess, ClassMaster , ClassSection
 from helpers import token_required, require_academic_year, get_branch_query_filter
 from datetime import date, datetime
 from sqlalchemy import or_ 
@@ -127,8 +127,15 @@ def get_classes():
     
     # Filter by Branch (Query param has precedence over Header)
     h_branch = request.args.get("branch") or request.headers.get("X-Branch")
+    academic_year = request.args.get("academic_year") or request.headers.get("X-Academic-Year")
     
     query = ClassMaster.query
+
+    # Prefer classes that are configured in class_sections for the selected academic year.
+    # If year is not available, still ensure classes come from class_sections.
+    query = query.join(ClassSection, ClassSection.class_id == ClassMaster.id)
+    if academic_year:
+        query = query.filter(ClassSection.academic_year == academic_year)
     
     # Strictly filter by branch and location logic
     if h_branch and h_branch != "All":
@@ -164,6 +171,13 @@ def get_classes():
              and_(ClassMaster.branch == 'All', ClassMaster.location == location_filter),
              and_(ClassMaster.branch == 'All', ClassMaster.location == 'All')
          ))
+
+        # Also apply direct class_sections branch filter so dropdown data always comes
+         # from class_sections table for the selected branch context.
+         if branch_obj:
+             query = query.filter(ClassSection.branch_id == branch_obj.id)
+
+    query = query.distinct(ClassMaster.id)
 
     classes = query.order_by(ClassMaster.id.asc()).all()
     

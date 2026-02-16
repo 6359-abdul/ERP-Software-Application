@@ -106,15 +106,21 @@ const AssignSpecialFee: React.FC = () => {
 
     const fetchSections = async (className: string) => {
         try {
-            const response = await api.get(`/sections?class=${className}`);
+            const response = await api.get('/sections', {
+                params: {
+                    class: className,
+                    branch: selectedBranch,
+                    academic_year: academicYear,
+                }
+            });
             if (response.data && Array.isArray(response.data.sections)) {
                 setSections(response.data.sections);
             } else {
-                setSections(['A', 'B', 'C', 'D']);
+                setSections([]);
             }
         } catch (error) {
             console.error('Error fetching sections:', error);
-            setSections(['A', 'B', 'C', 'D']);
+            setSections([]);
         }
     };
 
