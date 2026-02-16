@@ -4,7 +4,7 @@ from models import ClassMaster, ClassSection, Branch, Student, OrgMaster, User
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 from helpers import token_required
-
+              
 bp = Blueprint("class_routes", __name__)
 
 @bp.route("/api/classes/create_with_sections", methods=["POST"])
