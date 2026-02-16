@@ -128,6 +128,7 @@ const StudentList: React.FC<{ onView: any; onEdit: any; setActiveView: any }> =
         const [searchTerm, setSearchTerm] = useState('');
         const [isAdmin, setIsAdmin] = useState(false);
         const [classOptions, setClassOptions] = useState<ClassItem[]>([]);
+        const [sectionOptions, setSectionOptions] = useState<string[]>([]);
 
         // Delete State
         const [passwordModalOpen, setPasswordModalOpen] = useState(false);
@@ -158,6 +159,27 @@ const StudentList: React.FC<{ onView: any; onEdit: any; setActiveView: any }> =
         useEffect(() => {
             loadStudents();
         }, [selectedClass, selectedSection, searchTerm, showInactive]);
+
+        useEffect(() => {
+            if (!selectedClass) {
+                setSectionOptions([]);
+                setSelectedSection('');
+                return;
+            }
+
+            const branch = localStorage.getItem('currentBranch') || 'All';
+            const academicYear = localStorage.getItem('academicYear') || '';
+
+            api.get('/sections', {
+                params: {
+                    class: selectedClass,
+                    branch,
+                    academic_year: academicYear
+                }
+            })
+                .then(res => setSectionOptions(res.data.sections || []))
+                .catch(() => setSectionOptions([]));
+        }, [selectedClass]);
 
         const loadStudents = () => {
             setLoading(true);
@@ -424,9 +446,9 @@ const StudentList: React.FC<{ onView: any; onEdit: any; setActiveView: any }> =
                         className="border px-3 py-2 rounded-md"
                     >
                         <option value="">-- All Sections --</option>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                        <option value="C">C</option>
+                        {sectionOptions.map(section => (
+                            <option key={section} value={section}>{section}</option>
+                        ))}
                     </select>
 
                     <div className="md:col-span-2 relative">

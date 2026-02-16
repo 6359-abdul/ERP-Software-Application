@@ -309,6 +309,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
     // State for students and filtering
     const [students, setStudents] = useState<FeeStudent[]>([]);
     const [classes, setClasses] = useState<string[]>([]);
+    const [sectionOptions, setSectionOptions] = useState<string[]>([]);
     const [selectedClass, setSelectedClass] = useState('');
     const [selectedSection, setSelectedSection] = useState('');
     const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
@@ -547,7 +548,33 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
         fetchClasses();
     }, []);
 
+    useEffect(() => {
+        const fetchSections = async () => {
+            if (!selectedClass) {
+                setSectionOptions([]);
+                setSelectedSection('');
+                return;
+            }
 
+            try {
+                const branch = localStorage.getItem('currentBranch') || 'All';
+                const academicYear = localStorage.getItem('academicYear') || '';
+                const response = await api.get('/sections', {
+                    params: {
+                        class: selectedClass,
+                        branch,
+                        academic_year: academicYear,
+                    }
+                });
+                setSectionOptions(response.data.sections || []);
+            } catch (error) {
+                console.error('Error fetching sections:', error);
+                setSectionOptions([]);
+            }
+        };
+
+        fetchSections();
+    }, [selectedClass]);
 
     // Fetch students when filters change (Backend Filtering)
     useEffect(() => {
@@ -888,9 +915,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = ({ navigateTo }
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 text-sm"
                                     >
                                         <option value="">-- Select Section --</option>
-                                        <option value="A">A</option>
-                                        <option value="B">B</option>
-                                        <option value="C">C</option>
+                                        {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
                                     </select>
                                     <select
                                         value={selectedFeeType}

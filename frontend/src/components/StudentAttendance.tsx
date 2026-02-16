@@ -98,6 +98,7 @@ const TakeAttendanceForm: React.FC = () => {
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
     const [classOptions, setClassOptions] = useState<{ id: number, class_name: string }[]>([]);
+    const [sectionOptions, setSectionOptions] = useState<string[]>([]);
     const [isUpdateMode, setIsUpdateMode] = useState(false);
     const [updateCount, setUpdateCount] = useState<number>(0);
     const [lastModified, setLastModified] = useState<string | null>(null);
@@ -106,6 +107,30 @@ const TakeAttendanceForm: React.FC = () => {
             .then(res => setClassOptions(res.data.classes || []))
             .catch(err => console.error("Failed to load classes", err));
     }, []);
+
+     useEffect(() => {
+        if (!selectedClass) {
+            setSectionOptions([]);
+            setSelectedSection('');
+            return;
+        }
+
+        const branch = localStorage.getItem('currentBranch') || 'All';
+        const academicYear = localStorage.getItem('academicYear') || '';
+        api.get('/sections', {
+            params: {
+                class: selectedClass,
+                branch,
+                academic_year: academicYear,
+            }
+        })
+            .then(res => setSectionOptions(res.data.sections || []))
+            .catch(err => {
+                console.error("Failed to load sections", err);
+                setSectionOptions([]);
+            });
+    }, [selectedClass]);
+
 
     const handleGetStudents = async () => {
         if (!selectedClass) {
@@ -225,9 +250,7 @@ const TakeAttendanceForm: React.FC = () => {
                                 className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 text-sm"
                             >
                                 <option value="">--All Sections--</option>
-                                <option value="A">A</option>
-                                <option value="B">B</option>
-                                <option value="C">C</option>
+                               {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
                             </select>
                         </div>
                         <button onClick={handleGetStudents} disabled={loading} className="bg-violet-600 text-white px-4 py-2 rounded-md hover:bg-violet-700 text-sm disabled:bg-gray-400">
@@ -319,6 +342,7 @@ const RegisterView: React.FC = () => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [classOptions, setClassOptions] = useState<{ id: number, class_name: string }[]>([]);
+    const [sectionOptions, setSectionOptions] = useState<string[]>([]);
     const [reportData, setReportData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
 
@@ -328,6 +352,29 @@ const RegisterView: React.FC = () => {
             .catch(err => console.error("Failed to load classes", err));
     }, []);
 
+    useEffect(() => {
+        if (!selectedClass) {
+            setSectionOptions([]);
+            setSelectedSection('');
+            return;
+        }
+
+        const branch = localStorage.getItem('currentBranch') || 'All';
+        const academicYear = localStorage.getItem('academicYear') || '';
+        api.get('/sections', {
+            params: {
+                class: selectedClass,
+                branch,
+                academic_year: academicYear,
+            }
+        })
+            .then(res => setSectionOptions(res.data.sections || []))
+            .catch(err => {
+                console.error("Failed to load sections", err);
+                setSectionOptions([]);
+            });
+    }, [selectedClass]);
+    
     const handleGetReport = async () => {
         if (!selectedClass) {
             alert("Please select a class");
@@ -470,9 +517,7 @@ const RegisterView: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-700">Section</label>
                             <select value={selectedSection} onChange={e => setSelectedSection(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
                                 <option value="">--All Sections--</option>
-                                <option value="A">A</option>
-                                <option value="B">B</option>
-                                <option value="C">C</option>
+                                 {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
                             </select>
                         </div>
                         <div>
@@ -590,12 +635,35 @@ const AbsentReport: React.FC = () => {
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [classOptions, setClassOptions] = useState<{ id: number, class_name: string }[]>([]);
+    const [sectionOptions, setSectionOptions] = useState<string[]>([]);
 
     useEffect(() => {
         api.get('/classes')
             .then(res => setClassOptions(res.data.classes || []))
             .catch(err => console.error("Failed to load classes", err));
     }, []);
+     useEffect(() => {
+        if (!selectedClass) {
+            setSectionOptions([]);
+            setSelectedSection('');
+            return;
+        }
+
+        const branch = localStorage.getItem('currentBranch') || 'All';
+        const academicYear = localStorage.getItem('academicYear') || '';
+        api.get('/sections', {
+            params: {
+                class: selectedClass,
+                branch,
+                academic_year: academicYear,
+            }
+        })
+            .then(res => setSectionOptions(res.data.sections || []))
+            .catch(err => {
+                console.error("Failed to load sections", err);
+                setSectionOptions([]);
+            });
+    }, [selectedClass]);
 
     const handleSearchStudent = async () => {
         if (!searchQuery) {
@@ -753,9 +821,7 @@ const AbsentReport: React.FC = () => {
                                                 className="mt-1 w-40 px-3 py-2 border border-gray-300 rounded-md text-sm"
                                             >
                                                 <option value="">--Select--</option>
-                                                <option value="A">A</option>
-                                                <option value="B">B</option>
-                                                <option value="C">C</option>
+                                                {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
                                             </select>
                                         </div>
                                         <button

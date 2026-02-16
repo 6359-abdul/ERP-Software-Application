@@ -518,18 +518,37 @@ def get_sections():
     if not class_name:
         return jsonify({"error": "Class name is required"}), 400
 
-    # Logic: Fetch distinct sections from StudentAcademicRecord or Student table for this class
-    # Checking Student table is usually enough if Current State is desired, 
-    # but for robustness we can check StudentAcademicRecord.
-    
-    # Let's try to get from Student table first as it's the primary source of 'current' sections
-    # or hardcode if standard? No, dynamic.
-    
-    # We'll use Student table to see what sections exist for this class.
-    from models import Student
-    
+    # Pull sections from class_sections table (source of truth for class/section setup).
+    from models import ClassMaster, ClassSection, Branch
+
+    branch_input = request.args.get("branch") or request.headers.get("X-Branch")
+    academic_year = request.args.get("academic_year") or request.headers.get("X-Academic-Year")
+
     try:
         sections = db.session.query(Student.section).filter(Student.clazz == class_name).distinct().all()
+        query = db.session.query(ClassSection.section_name).join(
+            ClassMaster, ClassMaster.id == ClassSection.class_id
+        ).filter(
+            ClassMaster.class_name == class_name,
+            ClassSection.is_active == True
+        )
+
+        if academic_year:
+            query = query.filter(ClassSection.academic_year == academic_year)
+
+        if branch_input and branch_input != "All":
+            branch_obj = None
+            if str(branch_input).isdigit():
+                branch_obj = Branch.query.get(int(branch_input))
+            else:
+                branch_obj = Branch.query.filter_by(branch_name=branch_input).first()
+                if not branch_obj:
+                    branch_obj = Branch.query.filter_by(branch_code=branch_input).first()
+
+            if branch_obj:
+                query = query.filter(ClassSection.branch_id == branch_obj.id)
+
+        sections = query.distinct().all()
         # Flatten list of tuples
         section_list = [s[0] for s in sections if s[0]]
         
@@ -546,7 +565,6 @@ def get_sections():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 # ---------------------------------------------------------
 # Student Subject Assignment (Overrides)
 # ---------------------------------------------------------

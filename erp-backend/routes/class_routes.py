@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from extensions import db
 from models import ClassMaster, ClassSection, Branch, Student, OrgMaster, User
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import func
+from sqlalchemy import func, and_, or_
 from helpers import token_required
 
 bp = Blueprint("class_routes", __name__)
@@ -162,18 +162,55 @@ def create_class_with_sections():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@bp.route("/api/classes", methods=["GET"])
+@bp.route("/api/classes/all", methods=["GET"])
 def get_classes():
     """
-    Get all classes (ClassMaster).
+    Get classes configured in class_sections, with optional branch/year scoping.
+    NOTE: canonical dropdown endpoint is /api/classes (org_routes).
+    This non-conflicting route is kept for internal/admin use.
     """
-    classes = ClassMaster.query.all()
-    # Sort nicely if possible (custom sort/numeric)
-    # Simple sort by ID or Name
-    classes.sort(key=lambda x: x.id) 
-    return jsonify([
-        {"id": c.id, "class_name": c.class_name} for c in classes
-    ])
+    h_branch = request.args.get("branch") or request.headers.get("X-Branch")
+    academic_year = request.args.get("academic_year") or request.headers.get("X-Academic-Year")
+
+    query = ClassMaster.query.join(ClassSection, ClassSection.class_id == ClassMaster.id)
+
+    if academic_year:
+        query = query.filter(ClassSection.academic_year == academic_year)
+
+    if h_branch and h_branch != "All":
+        branch_obj = None
+        location_filter = "Global"
+
+        if str(h_branch).isdigit():
+            branch_obj = Branch.query.get(int(h_branch))
+        else:
+            branch_obj = Branch.query.filter_by(branch_name=h_branch).first()
+            if not branch_obj:
+                branch_obj = Branch.query.filter_by(branch_code=h_branch).first()
+
+        if branch_obj:
+            loc_obj = OrgMaster.query.filter_by(master_type='LOCATION', code=branch_obj.location_code).first()
+            if loc_obj:
+                location_filter = loc_obj.display_name
+
+        branch_specific_cond = (ClassMaster.branch == h_branch)
+        if branch_obj:
+            branch_specific_cond = or_(ClassMaster.branch == str(branch_obj.id), ClassMaster.branch == branch_obj.branch_name)
+
+        query = query.filter(or_(
+            branch_specific_cond,
+            and_(ClassMaster.branch == 'All', ClassMaster.location == location_filter),
+            and_(ClassMaster.branch == 'All', ClassMaster.location == 'All')
+        ))
+
+        if branch_obj:
+            query = query.filter(ClassSection.branch_id == branch_obj.id)
+
+    classes = query.distinct(ClassMaster.id).order_by(ClassMaster.id.asc()).all()
+
+    return jsonify({
+        "classes": [{"id": c.id, "class_name": c.class_name} for c in classes]
+    }), 200
 
 
 @bp.route("/api/classes/summary", methods=["GET"])

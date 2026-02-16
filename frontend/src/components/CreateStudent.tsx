@@ -217,6 +217,7 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
 }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [classList, setClassList] = useState<string[]>([]);
+  const [sectionList, setSectionList] = useState<string[]>([]);
   const [branchOptions, setBranchOptions] = useState<{ branch_name: string, location_code: string }[]>([]);
   const [locationOptions, setLocationOptions] = useState<{ code: string, name: string }[]>([]);
   const [academicYearOptions, setAcademicYearOptions] = useState<{ code: string, name: string }[]>([]);
@@ -435,7 +436,32 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
   useEffect(() => {
     // Intentionally left empty - logic moved to combined useEffect
   }, []);
+  useEffect(() => {
+    const fetchSections = async () => {
+      if (!formData.class) {
+        setSectionList([]);
+        return;
+      }
 
+      try {
+        const branch = formData.branch || localStorage.getItem('currentBranch') || 'All';
+        const academicYear = formData.academic_year || localStorage.getItem('academicYear') || '';
+        const res = await api.get('/sections', {
+          params: {
+            class: formData.class,
+            branch,
+            academic_year: academicYear,
+          }
+        });
+        setSectionList(res.data.sections || []);
+      } catch (err) {
+        console.error('Failed to load sections', err);
+        setSectionList([]);
+      }
+    };
+
+    fetchSections();
+  }, [formData.class, formData.branch, formData.academic_year]);
   useEffect(() => {
     // Fetch Classes
     api
@@ -903,8 +929,11 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               disabled={isViewMode}
             >
               <option value="">-- Select --</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
+               {sectionList.map((section) => (
+                <option key={section} value={section}>
+                  {section}
+                </option>
+              ))}
             </FormField>
 
             <FormField
