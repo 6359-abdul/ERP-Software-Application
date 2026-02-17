@@ -152,6 +152,7 @@ def create_class_with_sections():
 
         return jsonify({"message": "Class and sections saved successfully"}), 201
 
+
     except ValueError as e:
         # Transaction auto-rollbacks on exception exit of context manager? 
         # No, 'with db.session.begin()' commits on exit, rollbacks on error.
@@ -160,6 +161,174 @@ def create_class_with_sections():
     except IntegrityError as e:
         return jsonify({"error": "Database integrity error (duplicate or invalid key)"}), 409
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route("/api/classes/copy_structure", methods=["POST"])
+@token_required
+def copy_class_structure(current_user):
+    """
+    Copies a Class structure (Class Name + Sections) to multiple target branches.
+    Skips if the ClassSection already exists in the target branch.
+    """
+    data = request.json
+    try:
+        class_name_raw = data.get("class_name")
+        target_branch_ids = data.get("target_branch_ids", [])
+        academic_year = data.get("academic_year")
+        sections = data.get("sections", [])  # List of {name, strength}
+
+        if not all([class_name_raw, target_branch_ids, academic_year]):
+            return jsonify({"error": "Missing required fields: class_name, target_branch_ids, academic_year"}), 400
+
+        if not sections:
+            return jsonify({"error": "At least one section is required to copy"}), 400
+
+        class_name = class_name_raw.strip()
+        
+        # We need to make sure the ClassMaster exists (it likely does if we are copying, but handling just in case)
+        # However, ClassMaster is global (no branch_id), so we just find or create it once.
+        # Ideally, we should reuse the existing logic or just query it.
+        
+        with db.session.begin():
+            # 1. Ensure ClassMaster exists
+            class_obj = ClassMaster.query.filter(
+                func.lower(ClassMaster.class_name) == func.lower(class_name)
+            ).first()
+
+            if not class_obj:
+                class_obj = ClassMaster(class_name=class_name)
+                db.session.add(class_obj)
+                db.session.flush() # Get ID
+
+            total_copied = 0
+            skipped_count = 0
+
+            # 2. Iterate over target branches
+            for branch_id in target_branch_ids:
+                # Verify branch exists (optional, but good for data integrity)
+                branch = Branch.query.get(branch_id)
+                if not branch:
+                    print(f"Skipping invalid branch_id: {branch_id}")
+                    continue
+
+                for sec in sections:
+                    sec_name = sec.get("name", "").strip().upper()
+                    strength = int(sec.get("strength", 0))
+
+                    if not sec_name:
+                        continue
+
+                    # Check if exists
+                    existing_sec = ClassSection.query.filter_by(
+                        class_id=class_obj.id,
+                        branch_id=branch_id,
+                        academic_year=academic_year,
+                        section_name=sec_name
+                    ).first()
+
+                    if existing_sec:
+                        skipped_count += 1
+                        continue # Skip existing
+                    
+                    # Create new section for this branch
+                    new_sec = ClassSection(
+                        class_id=class_obj.id,
+                        branch_id=branch_id,
+                        academic_year=academic_year,
+                        section_name=sec_name,
+                        student_strength=strength
+                    )
+                    db.session.add(new_sec)
+                    total_copied += 1
+
+        return jsonify({
+            "message": "Copy operation completed",
+            "copied_sections": total_copied,
+            "skipped_sections": skipped_count
+        }), 201
+
+
+    except Exception as e:
+        print(f"Error copying class structure: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@bp.route("/api/classes/copy_branch_structure", methods=["POST"])
+@token_required
+def copy_branch_structure(current_user):
+    """
+    Copies ALL classes/sections from a Source Branch to multiple Target Branches.
+    """
+    data = request.json
+    try:
+        source_branch_id = data.get("source_branch_id")
+        target_branch_ids = data.get("target_branch_ids", [])
+        academic_year = data.get("academic_year")
+
+        if not all([source_branch_id, target_branch_ids, academic_year]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        if not all([source_branch_id, target_branch_ids, academic_year]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # 1. Fetch Source Sections
+        # We need ClassMaster info too
+        source_sections = db.session.query(ClassSection, ClassMaster).join(
+            ClassMaster, ClassSection.class_id == ClassMaster.id
+        ).filter(
+            ClassSection.branch_id == source_branch_id,
+            ClassSection.academic_year == academic_year
+        ).all()
+
+        if not source_sections:
+            return jsonify({"message": "No classes found in source branch to copy"}), 400
+
+        total_copied = 0
+        skipped_count = 0
+
+        try:
+            # 2. Iterate Targets
+            for target_id in target_branch_ids:
+                if str(target_id) == str(source_branch_id):
+                    continue
+                
+                for section, class_master in source_sections:
+                    # Check if exists in target
+                    existing = ClassSection.query.filter_by(
+                        class_id=section.class_id, # Same ClassMaster ID (Global)
+                        branch_id=target_id,
+                        academic_year=academic_year,
+                        section_name=section.section_name
+                    ).first()
+
+                    if existing:
+                        skipped_count += 1
+                        continue
+                    
+                    # Create Copy
+                    new_sec = ClassSection(
+                        class_id=section.class_id,
+                        branch_id=target_id,
+                        academic_year=academic_year,
+                        section_name=section.section_name,
+                        student_strength=section.student_strength
+                    )
+                    db.session.add(new_sec)
+                    total_copied += 1
+            
+            db.session.commit()
+
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
+        return jsonify({
+            "message": "Branch structure copied successfully",
+            "copied_sections": total_copied,
+            "skipped_sections": skipped_count
+        }), 201
+
+    except Exception as e:
+        print(f"Error copying branch structure: {e}")
         return jsonify({"error": str(e)}), 500
 
 @bp.route("/api/classes", methods=["GET"])
