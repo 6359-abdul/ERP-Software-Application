@@ -8,6 +8,8 @@ import os
 # EXTENSIONS
 # -----------------------------
 from extensions import db
+import models
+
 migrate = Migrate()
 # -----------------------------
 # BLUEPRINTS
@@ -82,6 +84,8 @@ def create_app():
     })
     db.init_app(app)
     migrate.init_app(app, db)
+    
+    
 
 
     # -----------------------------
