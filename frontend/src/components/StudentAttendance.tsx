@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Page } from '../App';
 import { ChevronDownIcon } from './icons';
-import { useSchool } from '../contexts/SchoolContext'; 
+import { useSchool } from '../contexts/SchoolContext';
 import { Student } from '../types';
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -9,7 +9,7 @@ import api from '../api';
 
 
 interface StudentAttendanceProps {
-    navigateTo: (page: Page) => void; 
+    navigateTo: (page: Page) => void;
     defaultTab?: AttendanceTab;
 }
 
@@ -108,7 +108,7 @@ const TakeAttendanceForm: React.FC = () => {
             .catch(err => console.error("Failed to load classes", err));
     }, []);
 
-     useEffect(() => {
+    useEffect(() => {
         if (!selectedClass) {
             setSectionOptions([]);
             setSelectedSection('');
@@ -250,7 +250,7 @@ const TakeAttendanceForm: React.FC = () => {
                                 className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 text-sm"
                             >
                                 <option value="">--All Sections--</option>
-                               {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
+                                {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
                             </select>
                         </div>
                         <button onClick={handleGetStudents} disabled={loading} className="bg-violet-600 text-white px-4 py-2 rounded-md hover:bg-violet-700 text-sm disabled:bg-gray-400">
@@ -336,7 +336,7 @@ const TakeAttendanceForm: React.FC = () => {
     )
 };
 
-const RegisterView: React.FC = () => {
+const RegisterViewTab: React.FC = () => {
     const [selectedClass, setSelectedClass] = useState('');
     const [selectedSection, setSelectedSection] = useState('');
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -374,7 +374,7 @@ const RegisterView: React.FC = () => {
                 setSectionOptions([]);
             });
     }, [selectedClass]);
-    
+
     const handleGetReport = async () => {
         if (!selectedClass) {
             alert("Please select a class");
@@ -421,82 +421,82 @@ const RegisterView: React.FC = () => {
         return status ? status.charAt(0) : '-';
     };
     const handleExportExcel = () => {
-    if (!reportData) return;
+        if (!reportData) return;
 
-    const sheetData: any[] = [];
+        const sheetData: any[] = [];
 
-    // ---- Header Row ----
-    const headerRow = [
-        "Student Name",
-        "Admission No",
-        ...daysArray.map(d => d.toString()),
-        "Present",
-        "Absent",
-        "Total Working Days",
-        "Attendance %"
-    ];
+        // ---- Header Row ----
+        const headerRow = [
+            "Student Name",
+            "Admission No",
+            ...daysArray.map(d => d.toString()),
+            "Present",
+            "Absent",
+            "Total Working Days",
+            "Attendance %"
+        ];
 
-    sheetData.push(headerRow);
+        sheetData.push(headerRow);
 
-    // ---- Student Rows ----
-    reportData.students.forEach((student: any) => {
-        const attendanceMap = reportData.attendance[student.student_id] || {};
+        // ---- Student Rows ----
+        reportData.students.forEach((student: any) => {
+            const attendanceMap = reportData.attendance[student.student_id] || {};
 
-        let presentCount = 0;
-        let absentCount = 0;
+            let presentCount = 0;
+            let absentCount = 0;
 
-        const dayValues = daysArray.map(d => {
-            const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const status = attendanceMap[dateStr];
+            const dayValues = daysArray.map(d => {
+                const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const status = attendanceMap[dateStr];
 
-            if (status === "Present") {
-                presentCount++;
-                return "P";
-            }
-            if (status === "Absent") {
-                absentCount++;
-                return "A";
-            }
-            return "-";
+                if (status === "Present") {
+                    presentCount++;
+                    return "P";
+                }
+                if (status === "Absent") {
+                    absentCount++;
+                    return "A";
+                }
+                return "-";
+            });
+
+            const workingDays = presentCount + absentCount;
+            const percentage = workingDays > 0
+                ? ((presentCount / workingDays) * 100).toFixed(1)
+                : "0.0";
+
+            sheetData.push([
+                student.name,
+                student.admNo,
+                ...dayValues,
+                presentCount,
+                absentCount,
+                workingDays,
+                `${percentage}%`
+            ]);
         });
 
-        const workingDays = presentCount + absentCount;
-        const percentage = workingDays > 0
-            ? ((presentCount / workingDays) * 100).toFixed(1)
-            : "0.0";
+        // ---- Create Workbook ----
+        const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Register");
 
-        sheetData.push([
-            student.name,
-            student.admNo,
-            ...dayValues,
-            presentCount,
-            absentCount,
-            workingDays,
-            `${percentage}%`
-        ]);
-    });
+        // ---- Export ----
+        const excelBuffer = XLSX.write(workbook, {
+            bookType: "xlsx",
+            type: "array"
+        });
 
-    // ---- Create Workbook ----
-    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Register");
+        const blob = new Blob(
+            [excelBuffer],
+            { type: "application/octet-stream" }
+        );
 
-    // ---- Export ----
-    const excelBuffer = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "array"
-    });
-
-    const blob = new Blob(
-        [excelBuffer],
-        { type: "application/octet-stream" }
-    );
-
-    saveAs(
-        blob,
-        `Attendance_${selectedClass}_${selectedMonth}_${selectedYear}.xlsx`
-    );
-};
+        saveAs(
+            blob,
+            `Attendance_${selectedClass}_${selectedMonth}_${selectedYear}.xlsx`
+        );
+    };
 
     return (
         <div className="p-4">
@@ -517,7 +517,7 @@ const RegisterView: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-700">Section</label>
                             <select value={selectedSection} onChange={e => setSelectedSection(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
                                 <option value="">--All Sections--</option>
-                                 {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
+                                {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
                             </select>
                         </div>
                         <div>
@@ -535,37 +535,37 @@ const RegisterView: React.FC = () => {
                         <button onClick={handleGetReport} disabled={loading} className="bg-violet-600 text-white px-4 py-2 rounded-md hover:bg-violet-700 text-sm disabled:bg-gray-400">
                             {loading ? 'Loading...' : 'Get Register'}
                         </button>
-                        
+
                     </div>
 
-                        {reportData && (
-                            <div className="overflow-x-auto border rounded-lg mt-4">
-                                <table className="min-w-full divide-y divide-gray-200 text-xs">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-2 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 z-10 w-48">Student</th>
-                                            {daysArray.map(d => {
-                                                const date = new Date(selectedYear, selectedMonth - 1, d);
-                                                const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-                                                return (
-                                                    <th key={d} className="px-1 py-2 text-center font-medium text-gray-500 w-8 border-l border-gray-100">
-                                                        <div className="flex flex-col items-center justify-center leading-tight">
-                                                            <span>{d}</span>
-                                                            <span className="text-[10px] font-normal text-gray-400">{dayName}</span>
-                                                        </div>
-                                                        
-                                                    </th>
-                                                    
-                                                );
-                                            })}
+                    {reportData && (
+                        <div className="overflow-x-auto border rounded-lg mt-4">
+                            <table className="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-2 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 z-10 w-48">Student</th>
+                                        {daysArray.map(d => {
+                                            const date = new Date(selectedYear, selectedMonth - 1, d);
+                                            const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                                            return (
+                                                <th key={d} className="px-1 py-2 text-center font-medium text-gray-500 w-8 border-l border-gray-100">
+                                                    <div className="flex flex-col items-center justify-center leading-tight">
+                                                        <span>{d}</span>
+                                                        <span className="text-[10px] font-normal text-gray-400">{dayName}</span>
+                                                    </div>
+
+                                                </th>
+
+                                            );
+                                        })}
                                         <th className="px-2 py-2 text-center font-medium text-gray-700 bg-blue-50 border-l border-blue-100">Present</th>
                                         <th className="px-2 py-2 text-center font-medium text-gray-700 bg-blue-50">Absent</th>
                                         <th className="px-2 py-2 text-center font-medium text-gray-700 bg-blue-50">Total Working Days</th>
                                         <th className="px-2 py-2 text-center font-medium text-gray-700 bg-blue-50">Attendance %</th>
                                     </tr>
-                                    
+
                                 </thead>
-                                
+
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {reportData.students.map((student: any) => {
                                         const studentAttendance = reportData.attendance[student.student_id] || {};
@@ -590,7 +590,7 @@ const RegisterView: React.FC = () => {
                                                     <div>{student.name}</div>
                                                     <div className="text-[10px] text-gray-500">{student.admNo}</div>
                                                 </td>
-                                                
+
                                                 {daysArray.map(d => {
                                                     const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                                                     const status = studentAttendance[dateStr];
@@ -600,27 +600,341 @@ const RegisterView: React.FC = () => {
                                                         </td>
                                                     );
                                                 })}
-                                                
+
                                                 <td className="px-2 py-1 text-center font-bold text-green-700 bg-blue-50 border-l border-blue-100">{presentCount}</td>
                                                 <td className="px-2 py-1 text-center font-bold text-red-700 bg-blue-50">{absentCount}</td>
                                                 <td className="px-2 py-1 text-center font-semibold text-gray-700 bg-blue-50">{workingDays}</td>
                                                 <td className="px-2 py-1 text-center font-bold text-blue-700 bg-blue-50">{percentage}%</td>
-                                            
+
                                             </tr>
-                                            
+
                                         );
-                                        
+
                                     })}
-                                       
+
                                 </tbody>
-                                <div className="right p-2 mt-2">
-                                <button onClick={handleExportExcel} disabled={!reportData} className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm disabled:bg-gray-400">
-                                Export Excel</button> </div>
                             </table>
+                            <div className="right p-2 mt-2">
+                                <button onClick={handleExportExcel} disabled={!reportData} className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm disabled:bg-gray-400">
+                                    Export Excel</button> </div>
                         </div>
                     )}
                 </div>
             </div>
+        </div >
+    );
+};
+
+const MonthlyAttendanceEntryTab: React.FC = () => {
+    const [selectedClass, setSelectedClass] = useState('');
+    const [selectedSection, setSelectedSection] = useState('');
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [classOptions, setClassOptions] = useState<{ id: number, class_name: string }[]>([]);
+    const [sectionOptions, setSectionOptions] = useState<string[]>([]);
+    const [students, setStudents] = useState<any[]>([]);
+    const [attendanceData, setAttendanceData] = useState<{ [key: string]: string }>({});
+    const [originalData, setOriginalData] = useState<{ [key: string]: string }>({});
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        api.get('/classes')
+            .then(res => setClassOptions(res.data.classes || []))
+            .catch(err => console.error("Failed to load classes", err));
+    }, []);
+
+    useEffect(() => {
+        if (!selectedClass) {
+            setSectionOptions([]);
+            setSelectedSection('');
+            return;
+        }
+
+        const branch = localStorage.getItem('currentBranch') || 'All';
+        const academicYear = localStorage.getItem('academicYear') || '';
+        api.get('/sections', {
+            params: {
+                class: selectedClass,
+                branch,
+                academic_year: academicYear,
+            }
+        })
+            .then(res => setSectionOptions(res.data.sections || []))
+            .catch(err => {
+                console.error("Failed to load sections", err);
+                setSectionOptions([]);
+            });
+    }, [selectedClass]);
+
+    const handleGetStudents = async () => {
+        if (!selectedClass) {
+            alert("Please select a class");
+            return;
+        }
+        setLoading(true);
+        try {
+            const globalBranch = localStorage.getItem('currentBranch') || 'All';
+            const branchParam = globalBranch === "All Branches" || globalBranch === "All" ? "All" : globalBranch;
+            const res = await api.get('/attendance', {
+                params: {
+                    class: selectedClass,
+                    section: selectedSection,
+                    month: selectedMonth,
+                    year: selectedYear,
+                    branch: branchParam
+                }
+            });
+
+            setStudents(res.data.students || []);
+
+            // Flatten attendance data for easier editing: "studentId-date" -> status
+            const flatAttendance: { [key: string]: string } = {};
+            const fetchedAttendance = res.data.attendance || {};
+
+            Object.keys(fetchedAttendance).forEach(studentId => {
+                const dates = fetchedAttendance[studentId];
+                Object.keys(dates).forEach(date => {
+                    flatAttendance[`${studentId}_${date}`] = dates[date];
+                });
+            });
+
+            setAttendanceData(flatAttendance);
+            setOriginalData({ ...flatAttendance }); // Deep copy for comparison
+
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            alert("Failed to fetch data");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+    const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+    const toggleStatus = (studentId: number, day: number) => {
+        const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const key = `${studentId}_${dateStr}`;
+        const currentStatus = attendanceData[key];
+
+        // STRICT Toggle: Present <-> Absent only (per user request)
+        let newStatus = 'Present';
+        if (currentStatus === 'Present') newStatus = 'Absent';
+        else if (currentStatus === 'Absent') newStatus = 'Present';
+        else newStatus = 'Present'; // Fallback for any other status to Present
+
+        setAttendanceData(prev => ({
+            ...prev,
+            [key]: newStatus
+        }));
+    };
+
+    const handleSave = async () => {
+        if (Object.keys(attendanceData).length === 0) return;
+        setSaving(true);
+        try {
+            // Transform flat map back to API payload
+            // We need to send ALL data or just changes? 
+            // The API supports a list of {student_id, date, status}
+            // We will send all non-empty entries to be safe/simple
+
+            const attendanceList = Object.entries(attendanceData)
+                .filter(([key, status]) => {
+                    // Only include if status CHANGED from original
+                    return status !== originalData[key];
+                })
+                .map(([key, status]) => {
+                    // Key format: "123_2023-10-01"
+                    const parts = key.split('_');
+                    if (parts.length !== 2) return null; // Should not happen
+
+                    const sId = parts[0];
+                    const dStr = parts[1];
+
+                    return {
+                        student_id: parseInt(sId),
+                        date: dStr,
+                        status: status
+                    };
+                })
+                .filter(item => item !== null);
+
+            // Fallback: If attendanceList is empty, do nothing
+            if (attendanceList.length === 0) {
+                alert("No changes allowed to save.");
+                setSaving(false);
+                return;
+            }
+
+            // Use the date from the first item as a default fallback date 
+            // to satisfy backend checks if they are strict or running old code
+            const sampleDate = attendanceList[0]?.date || new Date().toISOString().split('T')[0];
+
+            const res = await api.post('/attendance', {
+                date: sampleDate, // Added global date as fallback
+                attendance: attendanceList
+            });
+
+            if (res.data && res.data.stats) {
+                let msg = `Attendance saved! Added: ${res.data.stats.added}, Updated: ${res.data.stats.updated}, Skipped: ${res.data.stats.skipped}`;
+                if (res.data.stats.skipped > 0 && res.data.stats.skip_details) {
+                    msg += `\nReasons: ${res.data.stats.skip_details.join(", ")}`;
+                }
+                alert(msg);
+            } else {
+                alert("Monthly attendance saved successfully!");
+            }
+
+            handleGetStudents(); // Refresh data
+
+        } catch (error: any) {
+            console.error("Error saving attendance:", error);
+            if (error.response && error.response.data) {
+                alert(`Failed to save attendance: ${JSON.stringify(error.response.data)}`);
+            } else {
+                alert(`Failed to save attendance: ${error.message}`);
+            }
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'Present': return 'bg-green-100 text-green-800 hover:bg-green-200';
+            case 'Absent': return 'bg-red-100 text-red-800 hover:bg-red-200';
+            case 'Leave': return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
+            case 'Holiday': return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
+            case 'Sunday': return 'bg-pink-100 text-pink-800 hover:bg-pink-200';
+            default: return 'bg-gray-50 text-gray-400 hover:bg-gray-200';
+        }
+    };
+
+    return (
+        <div className="p-4">
+            <div className="bg-white rounded-lg shadow-md border">
+                <div className="bg-sky-600 text-white font-semibold p-3 rounded-t-lg">
+                    MONTHLY ATTENDANCE ENTRY
+                </div>
+                <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Class</label>
+                            <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                <option value="">--Select Class--</option>
+                                {classOptions.map(c => <option key={c.id} value={c.class_name}>{c.class_name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Section</label>
+                            <select value={selectedSection} onChange={e => setSelectedSection(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                <option value="">--All Sections--</option>
+                                {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Month</label>
+                            <select value={selectedMonth} onChange={e => setSelectedMonth(parseInt(e.target.value))} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                    <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('default', { month: 'long' })}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Year</label>
+                            <input type="number" value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                        </div>
+                        <button onClick={handleGetStudents} disabled={loading} className="bg-violet-600 text-white px-4 py-2 rounded-md hover:bg-violet-700 text-sm disabled:bg-gray-400">
+                            {loading ? 'Loading...' : 'Get Register'}
+                        </button>
+                    </div>
+
+                    {students.length > 0 && (
+                        <div className="mt-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm text-gray-500">Click on a cell to toggle Present/Absent</span>
+                                <button onClick={handleSave} disabled={saving} className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 text-sm font-semibold disabled:bg-gray-400">
+                                    {saving ? 'Saving...' : 'Save All Changes'}
+                                </button>
+                            </div>
+                            <div className="overflow-x-auto border rounded-lg max-h-[70vh]">
+                                <table className="min-w-full divide-y divide-gray-200 text-xs relative">
+                                    <thead className="bg-gray-50 sticky top-0 z-20">
+                                        <tr>
+                                            <th className="px-2 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 z-30 w-48 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">Student</th>
+                                            {daysArray.map(d => {
+                                                const date = new Date(selectedYear, selectedMonth - 1, d);
+                                                const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                                                const isSunday = date.getDay() === 0;
+                                                return (
+                                                    <th key={d} className={`px-1 py-1 text-center font-medium w-8 border-l border-gray-100 ${isSunday ? 'bg-red-50 text-red-600' : 'text-gray-500'}`}>
+                                                        <div className="flex flex-col items-center justify-center leading-tight">
+                                                            <span>{d}</span>
+                                                            <span className="text-[10px] font-normal">{dayName}</span>
+                                                        </div>
+                                                    </th>
+                                                );
+                                            })}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {students.map((student: any) => (
+                                            <tr key={student.student_id} className="hover:bg-gray-50">
+                                                <td className="px-2 py-1 whitespace-nowrap font-medium text-gray-900 sticky left-0 bg-white z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                                    <div>{student.name}</div>
+                                                    <div className="text-[10px] text-gray-500">{student.admNo}</div>
+                                                </td>
+                                                {daysArray.map(d => {
+                                                    const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                                    const status = attendanceData[`${student.student_id}_${dateStr}`];
+                                                    return (
+                                                        <td
+                                                            key={d}
+                                                            onClick={() => toggleStatus(student.student_id, d)}
+                                                            className={`px-1 py-1 text-center border-l border-gray-100 cursor-pointer ${getStatusColor(status)}`}
+                                                        >
+                                                            {status ? status.charAt(0) : '-'}
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const RegisterView: React.FC = () => {
+    const [subTab, setSubTab] = useState<'view' | 'entry'>('view');
+
+    return (
+        <div className="space-y-4">
+            {/* Sub Tabs */}
+            <div className="flex justify-center bg-gray-100 p-2 rounded-lg mx-4 mt-2">
+                <div className="bg-white p-1 rounded-md shadow-sm flex space-x-1">
+                    <button
+                        onClick={() => setSubTab('view')}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${subTab === 'view' ? 'bg-sky-100 text-sky-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        Attendance Register Query
+                    </button>
+                    <button
+                        onClick={() => setSubTab('entry')}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${subTab === 'entry' ? 'bg-sky-100 text-sky-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        Monthly Attendance Entry
+                    </button>
+                </div>
+            </div>
+
+            {subTab === 'view' ? <RegisterViewTab /> : <MonthlyAttendanceEntryTab />}
         </div>
     );
 };
@@ -642,7 +956,7 @@ const AbsentReport: React.FC = () => {
             .then(res => setClassOptions(res.data.classes || []))
             .catch(err => console.error("Failed to load classes", err));
     }, []);
-     useEffect(() => {
+    useEffect(() => {
         if (!selectedClass) {
             setSectionOptions([]);
             setSelectedSection('');
