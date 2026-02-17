@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../api';
 
 interface Branch {
     id: number;
     branch_name: string;
     branch_code: string;
+    location_name?: string;
 }
 
 interface SectionDetail {
@@ -48,6 +49,25 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
 
     // Form State
     const [sections, setSections] = useState<SectionData[]>([{ id: 1, name: '', studentStrength: '' }]);
+
+    // Copy Feature State
+    const [copyTargets, setCopyTargets] = useState<Set<string>>(new Set());
+    const [isCopyDropdownOpen, setIsCopyDropdownOpen] = useState(false);
+    const copyDropdownRef = useRef<HTMLDivElement>(null);
+    const [copying, setCopying] = useState(false);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (copyDropdownRef.current && !copyDropdownRef.current.contains(event.target as Node)) {
+                setIsCopyDropdownOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     // Mock data for list view
     const mockClasses: ClassData[] = [
@@ -217,6 +237,65 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
         }
     };
 
+    // Copy Targets Logic
+    const toggleCopyTarget = (branchId: string) => {
+        const newTargets = new Set(copyTargets);
+        if (newTargets.has(branchId)) {
+            newTargets.delete(branchId);
+        } else {
+            newTargets.add(branchId);
+        }
+        setCopyTargets(newTargets);
+    };
+
+    const handleCopyBranchStructure = async () => {
+        if (!selectedBranch || selectedBranch === 'all' || selectedBranch === '') {
+            alert("Please select a specific Source Branch first (not 'All').");
+            return;
+        }
+
+        if (copyTargets.size === 0) {
+            alert("Please select at least one target branch.");
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to copy ALL classes and sections from the current branch to ${copyTargets.size} other branches?`)) {
+            return;
+        }
+
+        setCopying(true);
+        try {
+            const payload = {
+                source_branch_id: selectedBranch,
+                target_branch_ids: Array.from(copyTargets),
+                academic_year: localStorage.getItem('academicYear') || "2025-2026"
+            };
+
+            const res = await api.post('/classes/copy_branch_structure', payload);
+            alert(`Copy Successful!\nCopied Sections: ${res.data.copied_sections}\nSkipped (Existing): ${res.data.skipped_sections}`);
+            setCopyTargets(new Set());
+            setIsCopyDropdownOpen(false);
+            // Refresh to show changes if we copied to a branch we might switch to? 
+            // Doesn't affect current view much unless we switch.
+        } catch (error: any) {
+            console.error("Copy failed", error);
+            alert(error.response?.data?.error || "Failed to copy branch structure");
+        } finally {
+            setCopying(false);
+        }
+    };
+
+    // Group Branches for Copy Dropdown
+    const availableBranches = branches.filter(b => String(b.id) !== selectedBranch && String(b.id) !== 'All'); // Exclude current and 'All'
+    const branchesByLocation: { [key: string]: Branch[] } = {};
+    availableBranches.forEach(b => {
+        const loc = b.location_name || "Other";
+        if (!branchesByLocation[loc]) {
+            branchesByLocation[loc] = [];
+        }
+        branchesByLocation[loc].push(b);
+    });
+
     // List View - First screen
     if (viewMode === 'list') {
         return (
@@ -385,12 +464,68 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                 </svg>
                                 <h2 className="font-semibold text-gray-800">Class Summary</h2>
                             </div>
-                            <button className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors flex items-center gap-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                Create New Class
-                            </button>
+                            <div className="flex items-center gap-2">
+                               
+                                {/* Copy Structure Button (Header) */}
+                                <div className="relative" ref={copyDropdownRef}>
+                                    <button
+                                        onClick={() => setIsCopyDropdownOpen(!isCopyDropdownOpen)}
+                                        className="px-4 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors flex items-center gap-1"
+                                        title="Copy all classes to other branches"
+                                    >
+                                        <span>Copy Structure</span>
+                                        <svg className={`w-4 h-4 transition-transform ${isCopyDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+
+                                    {isCopyDropdownOpen && (
+                                        <div className="absolute right-0 top-full mt-2 w-72 bg-white border shadow-xl rounded z-50 max-h-80 overflow-y-auto">
+                                            <div className="sticky top-0 bg-gray-50 px-3 py-2 border-b text-xs font-semibold text-gray-700 uppercase">
+                                                Target Branches
+                                            </div>
+
+                                            {Object.keys(branchesByLocation).length === 0 ? (
+                                                <div className="p-3 text-center text-sm text-gray-500">
+                                                    {(selectedBranch === 'all' || !selectedBranch)
+                                                        ? "Please select a source branch first."
+                                                        : "No other branches available"}
+                                                </div>
+                                            ) : (
+                                                Object.keys(branchesByLocation).map(loc => (
+                                                    <div key={loc}>
+                                                        <div className="px-3 py-1 bg-gray-100 text-xs font-bold text-gray-600">
+                                                            {loc}
+                                                        </div>
+                                                        {branchesByLocation[loc].map(b => (
+                                                            <label key={b.id} className="flex items-center gap-2 px-4 py-2 hover:bg-purple-50 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={copyTargets.has(String(b.id))}
+                                                                    onChange={() => toggleCopyTarget(String(b.id))}
+                                                                    className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                                                                />
+                                                                <span className="text-sm text-gray-700">{b.branch_name}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                ))
+                                            )}
+
+                                            <div className="sticky bottom-0 bg-white border-t p-2 flex justify-between items-center">
+                                                <span className="text-xs text-gray-500">{copyTargets.size} selected</span>
+                                                <button
+                                                    onClick={handleCopyBranchStructure}
+                                                    disabled={copying || copyTargets.size === 0}
+                                                    className={`px-3 py-1 text-xs text-white rounded ${copying || copyTargets.size === 0 ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}
+                                                >
+                                                    {copying ? "Copying..." : "Confirm Copy"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="overflow-x-auto">
@@ -435,11 +570,7 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                             </svg>
                                                         </button>
-                                                        <button className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                        </button>
+                                                        
                                                     </div>
                                                 </td>
                                             </tr>
@@ -492,6 +623,7 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
                                         </svg>
                                     </button>
+
                                 </div>
 
                                 <div className="border rounded overflow-hidden">
@@ -580,6 +712,8 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                     Save
                                 </button>
                             </div>
+
+                            {/* Copy logic moved to Header */}
                         </div>
                     </div>
                 </div>
