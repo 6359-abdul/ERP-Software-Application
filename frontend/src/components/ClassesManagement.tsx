@@ -296,6 +296,28 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
         branchesByLocation[loc].push(b);
     });
 
+
+    // Check Role Access
+    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role;
+    if (userRole !== 'Admin') {
+        return (
+            <div className="flex flex-col items-center justify-center h-[80vh]">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h2>
+                    <p className="text-gray-600 mb-6">Only Administrators can access Classes Management.</p>
+                    {navigateTo && (
+                        <button
+                            onClick={() => navigateTo('dashboard')}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            Go to Dashboard
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     // List View - First screen
     if (viewMode === 'list') {
         return (
@@ -465,7 +487,7 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                 <h2 className="font-semibold text-gray-800">Class Summary</h2>
                             </div>
                             <div className="flex items-center gap-2">
-                               
+
                                 {/* Copy Structure Button (Header) */}
                                 <div className="relative" ref={copyDropdownRef}>
                                     <button
@@ -570,7 +592,7 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                             </svg>
                                                         </button>
-                                                        
+
                                                     </div>
                                                 </td>
                                             </tr>

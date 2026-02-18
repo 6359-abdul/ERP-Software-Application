@@ -94,8 +94,7 @@ def get_attendance(current_user):
             target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
             records = Attendance.query.filter(
                 Attendance.student_id.in_(student_ids),
-                Attendance.date == target_date,
-                Attendance.academic_year == h_year
+                Attendance.date == target_date
             ).all()
             
             # Map student_id -> status
@@ -107,8 +106,7 @@ def get_attendance(current_user):
             records = Attendance.query.filter(
                 Attendance.student_id.in_(student_ids),
                 db.extract('year', Attendance.date) == int(year_str),
-                db.extract('month', Attendance.date) == int(month_str),
-                Attendance.academic_year == h_year
+                db.extract('month', Attendance.date) == int(month_str)
             ).all()
             
             # Map student_id -> { date: status }
@@ -154,52 +152,94 @@ def get_attendance(current_user):
 def save_attendance(current_user):
     try:
         data = request.json
-        date_str = data.get("date")
-        attendance_list = data.get("attendance") # List of {student_id, status}
+        attendance_list = data.get("attendance") or [] # List of {student_id, date, status}
         
-        # Header Filtering for saving context
+        print(f"DEBUG: Save Attendance Bulk. Count={len(attendance_list)}")
+
+        if not attendance_list:
+             return jsonify({"message": "No data to save"}), 200
+
+        # Header Filtering for context
         h_branch = request.headers.get("X-Branch") or "Main"
-        
         h_year, err, code = require_academic_year()
-        if err:
-            return err, code
+        if err: return err, code
         
-        # STRICT BRANCH ENFORCEMENT
         if current_user.role != 'Admin':
              h_branch = current_user.branch
-        
-        if not date_str or not attendance_list:
-            return jsonify({"error": "Date and attendance data required"}), 400
-            
-        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        
-        for item in attendance_list:
-            student_id = item.get("student_id")
-            status = item.get("status")
-            
-            if not student_id or not status:
-                continue
-                
-            # Verify Student belongs to branch (Security Check)
-            if current_user.role != 'Admin':
-                student_check = Student.query.get(student_id)
-                if not student_check or student_check.branch != current_user.branch:
-                    continue 
 
-            # Check if record exists
-            record = Attendance.query.filter_by(
-                student_id=student_id,
-                date=target_date
-            ).first()
+        # 1. Collect IDs and Dates for Bulk Fetch
+        student_ids = set()
+        dates = set()
+        
+        # Validation & Pre-processing
+        valid_items = []
+        skipped_count = 0
+        skip_details = []
+
+        for item in attendance_list:
+            s_id = item.get("student_id")
+            d_str = item.get("date")
+            status = item.get("status")
+
+            if not s_id or not d_str or not status:
+                skipped_count += 1
+                skip_details.append(f"Invalid Item: {item}")
+                continue
             
-            if record:
-                record.status = status
-                record.update_count = (record.update_count or 0) + 1
-                record.updated_at = datetime.now()
+            try:
+                d_obj = datetime.strptime(d_str, '%Y-%m-%d').date()
+                valid_items.append({
+                    "student_id": s_id,
+                    "date": d_obj,
+                    "status": status
+                })
+                student_ids.add(s_id)
+                dates.add(d_obj)
+            except ValueError:
+                skipped_count += 1
+                skip_details.append(f"Invalid Date Format: {d_str}")
+        
+        if not valid_items:
+            return jsonify({
+                "message": "No valid items to process",
+                "skipped": skipped_count,
+                 "details": skip_details
+            }), 400
+
+        # 2. Bulk Fetch Existing Records
+        # We need records matching (student_id, date) pairs. 
+        # Doing a simple IN clause on both might fetch extra combinations (s1-d2, s2-d1) but it's okay, we filter in memory.
+        # CRITICAL FIX: Do NOT filter by academic_year here. 
+        # The UniqueConstraint is on (student_id, date). Use that to find records.
+        existing_records = Attendance.query.filter(
+            Attendance.student_id.in_(student_ids),
+            Attendance.date.in_(dates)
+        ).all()
+
+        # Map existing: (student_id, date) -> record
+        record_map = {(r.student_id, r.date): r for r in existing_records}
+
+        added_count = 0
+        updated_count = 0
+
+        # 3. Process Batch
+        for item in valid_items:
+            key = (item["student_id"], item["date"])
+            status = item["status"]
+
+            if key in record_map:
+                # Update
+                record = record_map[key]
+                if record.status != status:
+                    record.status = status
+                    record.update_count = (record.update_count or 0) + 1
+                    record.updated_at = datetime.now()
+                    updated_count += 1
             else:
+                # Insert
                 new_record = Attendance(
-                    student_id=student_id,
-                    date=target_date,
+                    student_id=item["student_id"],
+                    date=item["date"],
                     status=status,
                     update_count=0,
                     updated_at=datetime.now(),
@@ -208,11 +248,247 @@ def save_attendance(current_user):
                     location=current_user.location if current_user.location else get_default_location()
                 )
                 db.session.add(new_record)
+                added_count += 1
         
         db.session.commit()
-        return jsonify({"message": "Attendance saved successfully"}), 200
+        print(f"Bulk Save Logic: Added={added_count}, Updated={updated_count}, Skipped={skipped_count}")
         
+        return jsonify({
+            "message": "Attendance saved successfully",
+            "stats": {
+                "added": added_count,
+                "updated": updated_count,
+                "skipped": skipped_count,
+                "skip_details": skip_details[:5]
+            }
+        }), 200
+
     except Exception as e:
         db.session.rollback()
         print(f"Save Attendance Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@bp.route("/api/attendance/template", methods=["GET"])
+@token_required
+def generate_template(current_user):
+    try:
+        import pandas as pd
+        from io import BytesIO
+        
+        class_name = request.args.get("class")
+        section = request.args.get("section")
+        month = int(request.args.get("month"))
+        year = int(request.args.get("year"))
+        
+        if not class_name:
+             return jsonify({"error": "Class is required"}), 400
+             
+        # Reuse logic to fetch students
+        h_branch = request.headers.get("X-Branch") or "Main"
+        h_year, err, code = require_academic_year()
+        if err: return err, code
+        
+        if current_user.role != 'Admin':
+             h_branch = current_user.branch
+
+        q = db.session.query(Student, StudentAcademicRecord).join(
+            StudentAcademicRecord,Student.student_id == StudentAcademicRecord.student_id
+        ).filter(
+            StudentAcademicRecord.academic_year == h_year,
+            Student.status == "Active",
+            StudentAcademicRecord.class_name == class_name
+        )
+        
+        if section:
+            q = q.filter(StudentAcademicRecord.section == section)
+            
+        # Branch Logic
+        if current_user.role != 'Admin' or (h_branch and h_branch != "All"):
+             q = q.filter(Student.branch == h_branch)
+        
+        results = q.order_by(StudentAcademicRecord.roll_number).all()
+        
+        # Create Data Structure
+        # Columns: Student ID, Name, Roll No, 1, 2, 3 ... 31
+        data = []
+        
+        # Days in month
+        import calendar
+        num_days = calendar.monthrange(year, month)[1]
+        day_columns = [str(d) for d in range(1, num_days + 1)]
+        
+        columns = ["Admission No", "Student Name", "Roll No"] + day_columns
+        
+        for s, rec in results:
+             row = {
+                 "Admission No": s.admission_no,
+                 "Student Name": f"{s.first_name} {s.last_name}",
+                 "Roll No": rec.roll_number or ""
+             }
+             # Init days as empty
+             for d in day_columns:
+                 row[d] = ""
+             data.append(row)
+             
+        df = pd.DataFrame(data, columns=columns)
+        
+        # Output to Excel
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Attendance')
+            
+        output.seek(0)
+        
+        from flask import send_file
+        filename = f"Attendance_Template_{class_name}_{month}_{year}.xlsx"
+        return send_file(output, as_attachment=True, download_name=filename, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    except Exception as e:
+        print(f"Template Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@bp.route("/api/attendance/upload", methods=["POST"])
+@token_required
+def upload_attendance(current_user):
+    try:
+        import pandas as pd
+        
+        if 'file' not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
+            
+        file = request.files['file']
+        year = request.form.get("year")
+        month = request.form.get("month")
+        
+        if not year or not month:
+             return jsonify({"error": "Month and Year context required"}), 400
+             
+        year = int(year)
+        month = int(month)
+        
+        df = pd.read_excel(file)
+        
+        # Validate Columns
+        if "Admission No" not in df.columns:
+             return jsonify({"error": "Invalid Template: 'Admission No' column missing"}), 400
+             
+        # Transform to Attendance List for save_attendance logic
+        attendance_list = []
+        
+        # Get Day Columns (1, 2, 3...) that exist in df
+        day_cols = [c for c in df.columns if str(c).isdigit()]
+
+        # 0. Pre-fetch Students by Admission No to map to IDs
+        # We need a map: Admission No -> Student ID
+        
+        # Extract all admission numbers from file
+        uploaded_adm_nos = df["Admission No"].dropna().astype(str).tolist()
+        
+        if not uploaded_adm_nos:
+             return jsonify({"error": "No admission numbers found in file"}), 400
+
+        # Fetch students matching these admission numbers
+        # Implicitly filter by branch if needed, but admission_no should be unique anyway or we trust the file context
+        # Better to filter by branch/active status if strict
+        
+        from models import Student
+        students = Student.query.filter(Student.admission_no.in_(uploaded_adm_nos)).all()
+        adm_map = {str(s.admission_no): s.student_id for s in students}
+        
+        for _, row in df.iterrows():
+            adm_no = row["Admission No"]
+            if pd.isna(adm_no): continue
+            
+            adm_no_str = str(adm_no)
+            if adm_no_str not in adm_map:
+                 # Student not found or not in allowed scope
+                 continue
+                 
+            student_id = adm_map[adm_no_str]
+            
+            for day in day_cols:
+                status = row[day] # P, A, H, etc.
+                if pd.isna(status) or str(status).strip() == "": continue
+                
+                # Convert status code if needed (e.g. 'P' -> 'Present')
+                # Assuming user types full status or we map properly
+                status_str = str(status).strip().capitalize()
+                
+                # Map shorthand
+                shorthand = {'P': 'Present', 'A': 'Absent', 'H': 'Holiday', 'S': 'Sunday', 'L': 'Leave'}
+                if status_str in shorthand:
+                    status_str = shorthand[status_str]
+                
+                date_obj = date(year, month, int(day))
+                
+                attendance_list.append({
+                    "student_id": int(student_id),
+                    "date": date_obj.isoformat(),
+                    "status": status_str
+                })
+        
+        if not attendance_list:
+             return jsonify({"message": "No valid attendance data found in file"}), 200
+             
+        # reuse internal logic or mocking request for save_attendance is cleaner?
+        # Let's call the logic directly to avoid route overhead/auth issues
+        # But save_attendance relies on request.json. 
+        # Easier to construct a fake request context or extract logic.
+        # Extracted logic involves: Bulk Fetch -> Bulk Insert/Update.
+        # Let's just do it here to save time refactoring.
+        
+        h_year, err, code = require_academic_year()
+        if err: return err, code
+        h_branch = request.headers.get("X-Branch") or "Main"
+        if current_user.role != 'Admin': h_branch = current_user.branch
+
+        # 1. Collect IDs and Dates
+        student_ids = set([x['student_id'] for x in attendance_list])
+        dates = set([datetime.strptime(x['date'], '%Y-%m-%d').date() for x in attendance_list])
+        
+        # 2. Bulk Fetch
+        existing_records = Attendance.query.filter(
+            Attendance.student_id.in_(student_ids),
+            Attendance.date.in_(dates)
+        ).all()
+        
+        record_map = {(r.student_id, r.date): r for r in existing_records}
+        
+        added = 0
+        updated = 0
+        
+        for item in attendance_list:
+             d_obj = datetime.strptime(item['date'], '%Y-%m-%d').date()
+             s_id = item['student_id']
+             status = item['status']
+             
+             key = (s_id, d_obj)
+             if key in record_map:
+                 r = record_map[key]
+                 if r.status != status:
+                     r.status = status
+                     r.update_count = (r.update_count or 0) + 1
+                     updated += 1
+             else:
+                 new_r = Attendance(
+                    student_id=s_id,
+                    date=d_obj,
+                    status=status,
+                    branch=h_branch,
+                    academic_year=h_year,
+                    location=current_user.location or "Hyderabad"
+                 )
+                 db.session.add(new_r)
+                 added += 1
+        
+        db.session.commit()
+        return jsonify({"message": "Upload Successful", "added": added, "updated": updated}), 200
+        
+    except Exception as e:
+        print(f"Upload Error: {e}")
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
