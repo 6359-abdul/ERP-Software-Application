@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Page } from '../App';
 import { ChevronDownIcon } from './icons';
-import { useSchool } from '../contexts/SchoolContext';
 import { Student } from '../types';
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -429,6 +428,7 @@ const RegisterViewTab: React.FC = () => {
         const headerRow = [
             "Student Name",
             "Admission No",
+            "Roll No",
             ...daysArray.map(d => d.toString()),
             "Present",
             "Absent",
@@ -468,6 +468,7 @@ const RegisterViewTab: React.FC = () => {
             sheetData.push([
                 student.name,
                 student.admNo,
+                student.rollNo || "",
                 ...dayValues,
                 presentCount,
                 absentCount,
@@ -544,6 +545,7 @@ const RegisterViewTab: React.FC = () => {
                                 <thead className="bg-gray-50">
                                     <tr>
                                         <th className="px-2 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 z-10 w-48">Student</th>
+                                        <th className="px-2 py-2 text-center font-medium text-gray-500 bg-gray-50 border-1 border-gray-100">Roll No</th>
                                         {daysArray.map(d => {
                                             const date = new Date(selectedYear, selectedMonth - 1, d);
                                             const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
@@ -589,6 +591,9 @@ const RegisterViewTab: React.FC = () => {
                                                 <td className="px-2 py-1 whitespace-nowrap font-medium text-gray-900 sticky left-0 bg-white z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                                                     <div>{student.name}</div>
                                                     <div className="text-[10px] text-gray-500">{student.admNo}</div>
+                                                </td>
+                                                <td className="px-2 py-1 text-center font-medium text-gray-700 bg-white border-l border-gray-100">
+                                                    {student.rollNo || "-"}
                                                 </td>
 
                                                 {daysArray.map(d => {
@@ -730,6 +735,75 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
         }));
     };
 
+    const handleReset = () => {
+        if (window.confirm("Are you sure you want to discard all unsaved changes?")) {
+            setAttendanceData({ ...originalData });
+        }
+    };
+
+    const handleDownloadTemplate = async () => {
+        if (!selectedClass) return alert("Select a class first");
+
+        try {
+            const globalBranch = localStorage.getItem('currentBranch') || 'All';
+            const branchParam = globalBranch === "All Branches" || globalBranch === "All" ? "All" : globalBranch;
+            const academicYear = localStorage.getItem('academicYear') || '';
+
+            // We can download directly using window.open but that might lack Auth headers
+            // Better to use axios with blob response type
+            const res = await api.get('/attendance/template', {
+                params: {
+                    class: selectedClass,
+                    section: selectedSection,
+                    month: selectedMonth,
+                    year: selectedYear,
+                    branch: branchParam,
+                    academic_year: academicYear
+                },
+                responseType: 'blob'
+            });
+
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Attendance_Template_${selectedClass}_${selectedMonth}_${selectedYear}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+        } catch (error) {
+            console.error("Download failed", error);
+            alert("Failed to download template");
+        }
+    };
+
+    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+
+        const file = e.target.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('month', selectedMonth.toString());
+        formData.append('year', selectedYear.toString());
+
+        setLoading(true);
+        try {
+            await api.post('/attendance/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            alert("Upload Successful!");
+            handleGetStudents(); // Refresh data
+        } catch (error: any) {
+            console.error("Upload failed", error);
+            alert(`Upload failed: ${error.response?.data?.error || error.message}`);
+        } finally {
+            setLoading(false);
+            // Reset input
+            e.target.value = '';
+        }
+    };
+
     const handleSave = async () => {
         if (Object.keys(attendanceData).length === 0) return;
         setSaving(true);
@@ -849,20 +923,63 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
                             {loading ? 'Loading...' : 'Get Register'}
                         </button>
                     </div>
-
+                    {/*
+                    <div className="flex justify-end gap-2">
+                        <button
+                            onClick={handleDownloadTemplate}
+                            disabled={loading || students.length === 0}
+                            className="bg-gray-100 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-200 text-sm flex items-center gap-2"
+                        >
+                            <span>Download Template</span>
+                        </button>
+                        <div className="relative">
+                            <input
+                                type="file"
+                                accept=".xlsx, .xls"
+                                onChange={handleUpload}
+                                className="hidden"
+                                id="excel-upload"
+                                disabled={loading}
+                            />
+                            <label
+                                htmlFor="excel-upload"
+                                className={`cursor-pointer bg-blue-100 text-blue-700 border border-blue-300 px-3 py-1.5 rounded-md hover:bg-blue-200 text-sm flex items-center gap-2 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <span>Upload Excel</span>
+                            </label>
+                        </div>
+                    </div>
+                    */}
                     {students.length > 0 && (
                         <div className="mt-4">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-sm text-gray-500">Click on a cell to toggle Present/Absent</span>
-                                <button onClick={handleSave} disabled={saving} className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 text-sm font-semibold disabled:bg-gray-400">
-                                    {saving ? 'Saving...' : 'Save All Changes'}
-                                </button>
+                                <div className="flex flex-col items-end gap-1">
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleReset}
+                                            disabled={loading || Object.keys(attendanceData).length === 0}
+                                            className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-sm font-semibold disabled:bg-gray-400"
+                                        >
+                                            Reset Changes
+                                        </button>
+                                        <button
+                                            onClick={handleSave}
+                                            disabled={loading}
+                                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md text-sm font-semibold disabled:bg-gray-400"
+                                        >
+                                            {saving ? "Saving..." : "Save All Changes"}
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <div className="overflow-x-auto border rounded-lg max-h-[70vh]">
                                 <table className="min-w-full divide-y divide-gray-200 text-xs relative">
                                     <thead className="bg-gray-50 sticky top-0 z-20">
                                         <tr>
-                                            <th className="px-2 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 z-30 w-48 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">Student</th>
+                                            <th className="px-2 py-2 text-center font-medium text-gray-500 sticky left-0 bg-gray-50 z-30 w-16 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">Roll No</th>
+                                            <th className="px-2 py-2 text-center font-medium text-gray-500 sticky left-16 bg-gray-50 z-30 w-24 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">Adm No</th>
+                                            <th className="px-2 py-2 text-left font-medium text-gray-500 sticky left-40 bg-gray-50 z-30 w-48 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">Student Name</th>
                                             {daysArray.map(d => {
                                                 const date = new Date(selectedYear, selectedMonth - 1, d);
                                                 const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
@@ -881,9 +998,14 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {students.map((student: any) => (
                                             <tr key={student.student_id} className="hover:bg-gray-50">
-                                                <td className="px-2 py-1 whitespace-nowrap font-medium text-gray-900 sticky left-0 bg-white z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                                                    <div>{student.name}</div>
-                                                    <div className="text-[10px] text-gray-500">{student.admNo}</div>
+                                                <td className="px-2 py-1 text-center whitespace-nowrap text-gray-700 sticky left-0 bg-white z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                                    {student.rollNo || "-"}
+                                                </td>
+                                                <td className="px-2 py-1 text-center whitespace-nowrap text-gray-500 sticky left-16 bg-white z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                                    {student.admNo}
+                                                </td>
+                                                <td className="px-2 py-1 whitespace-nowrap font-medium text-gray-900 sticky left-40 bg-white z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                                    {student.name}
                                                 </td>
                                                 {daysArray.map(d => {
                                                     const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -1116,10 +1238,7 @@ const AbsentReport: React.FC = () => {
                                                 onChange={e => {
                                                     setSelectedClass(e.target.value);
                                                     // Trigger search if section is already selected or just fetch all class students
-                                                    if (e.target.value) {
-                                                        // Optional: auto-fetch students for this class
-                                                        // For now, let's wait for explicit "Get Students" or just use the existing search logic adapted
-                                                    }
+                                                    // For now, let's wait for explicit "Get Students" or just use the existing search logic adapted
                                                 }}
                                                 className="mt-1 w-40 px-3 py-2 border border-gray-300 rounded-md text-sm"
                                             >
@@ -1381,7 +1500,7 @@ const AbsentReport: React.FC = () => {
     );
 };
 
-const StudentAttendance: React.FC<StudentAttendanceProps> = ({ navigateTo, defaultTab = 'take' }) => {
+const StudentAttendance: React.FC<StudentAttendanceProps> = ({ defaultTab = 'take' }) => {
     const [activeTab, setActiveTab] = useState<AttendanceTab>(defaultTab);
 
     // Handle dropdown actions
