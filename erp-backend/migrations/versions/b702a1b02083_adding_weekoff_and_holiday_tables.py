@@ -63,5 +63,4 @@ def downgrade():
     op.drop_table('weekly_off_rule')
     op.drop_table('holiday_calendar')
     # Drop the PostgreSQL enum type created in upgrade
-    op.execute('DROP TYPE IF EXISTS holiday_scope')
     # ### end Alembic commands ###
