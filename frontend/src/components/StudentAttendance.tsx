@@ -101,6 +101,7 @@ const TakeAttendanceForm: React.FC = () => {
     const [isUpdateMode, setIsUpdateMode] = useState(false);
     const [updateCount, setUpdateCount] = useState<number>(0);
     const [lastModified, setLastModified] = useState<string | null>(null);
+    const [dateBlocked, setDateBlocked] = useState<{ blocked: boolean; reason: string }>({ blocked: false, reason: '' });
     useEffect(() => {
         api.get('/classes')
             .then(res => setClassOptions(res.data.classes || []))
@@ -137,9 +138,29 @@ const TakeAttendanceForm: React.FC = () => {
             return;
         }
         setLoading(true);
+        setDateBlocked({ blocked: false, reason: '' });
         try {
             const globalBranch = localStorage.getItem('currentBranch') || 'All';
             const branchParam = globalBranch === "All Branches" || globalBranch === "All" ? "All" : globalBranch;
+
+            // Pre-check: Is this date a holiday or weekoff?
+            try {
+                const checkRes = await api.post('/config/check-date', {
+                    date: attendanceDate,
+                    branch_name: branchParam,
+                    class_name: selectedClass,
+                });
+                if (checkRes.data?.is_holiday || checkRes.data?.is_weekoff) {
+                    setDateBlocked({ blocked: true, reason: checkRes.data.reason || 'Holiday / Weekoff' });
+                    setStudents([]);
+                    setAttendance({});
+                    setLoading(false);
+                    return;
+                }
+            } catch (checkErr) {
+                console.error('Date check failed, proceeding:', checkErr);
+            }
+
             const res = await api.get('/attendance', {
                 params: {
                     class: selectedClass,
@@ -257,12 +278,21 @@ const TakeAttendanceForm: React.FC = () => {
                         </button>
                     </div>
 
+                    {dateBlocked.blocked && (
+                        <div className="mt-4 p-4 bg-red-50 border border-red-300 rounded-lg flex items-center gap-3">
+                            <span className="text-red-600 text-2xl">🚫</span>
+                            <div>
+                                <p className="font-semibold text-red-700">Attendance Blocked</p>
+                                <p className="text-red-600 text-sm">{dateBlocked.reason} — Attendance cannot be taken on this date.</p>
+                            </div>
+                        </div>
+                    )}
+
                     {students.length > 0 && (
                         <div className="overflow-x-auto border rounded-lg">
                             <div className="p-2 bg-gray-50 border-b flex gap-2">
                                 <button onClick={() => markAll('Present')} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded border border-green-200 hover:bg-green-200">Mark All Present</button>
-                                <button onClick={() => markAll('Holiday')} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded border border-gray-200 hover:bg-gray-200">Mark All Holiday</button>
-                                <button onClick={() => markAll('Sunday')} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded border border-red-200 hover:bg-red-200">Mark All Sunday</button>
+                                <button onClick={() => markAll('Absent')} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded border border-red-200 hover:bg-red-200">Mark All Absent</button>
                             </div>
                             <table className="min-w-full divide-y divide-gray-200 text-m">
                                 <thead className="bg-gray-50">
@@ -288,8 +318,6 @@ const TakeAttendanceForm: React.FC = () => {
                                                     {[
                                                         { val: 'Present', label: 'P', color: 'green' },
                                                         { val: 'Absent', label: 'A', color: 'red' },
-                                                        { val: 'Holiday', label: 'H', color: 'gray' },
-                                                        { val: 'Sunday', label: 'S', color: 'pink' },
                                                     ].map(opt => (
                                                         <label key={opt.val} className="flex items-center cursor-pointer">
                                                             <input
@@ -343,6 +371,7 @@ const RegisterViewTab: React.FC = () => {
     const [classOptions, setClassOptions] = useState<{ id: number, class_name: string }[]>([]);
     const [sectionOptions, setSectionOptions] = useState<string[]>([]);
     const [reportData, setReportData] = useState<any>(null);
+    const [blockedDates, setBlockedDates] = useState<{ [date: string]: string }>({});
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -393,6 +422,20 @@ const RegisterViewTab: React.FC = () => {
                 }
             });
             setReportData(res.data);
+
+            // Fetch blocked dates for this month
+            try {
+                const blockRes = await api.post('/config/check-month', {
+                    month: selectedMonth,
+                    year: selectedYear,
+                    branch_name: branchParam,
+                    class_name: selectedClass,
+                });
+                setBlockedDates(blockRes.data?.blocked_dates || {});
+            } catch (blockErr) {
+                console.error('Failed to fetch blocked dates:', blockErr);
+                setBlockedDates({});
+            }
         } catch (error) {
             console.error("Error fetching report:", error);
             alert("Failed to fetch report");
@@ -447,6 +490,12 @@ const RegisterViewTab: React.FC = () => {
 
             const dayValues = daysArray.map(d => {
                 const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+                // Check if date is blocked
+                if (blockedDates[dateStr]) {
+                    return "H";
+                }
+
                 const status = attendanceMap[dateStr];
 
                 if (status === "Present") {
@@ -460,7 +509,8 @@ const RegisterViewTab: React.FC = () => {
                 return "-";
             });
 
-            const workingDays = presentCount + absentCount;
+            const blockedCount = Object.keys(blockedDates).length;
+            const workingDays = daysInMonth - blockedCount;
             const percentage = workingDays > 0
                 ? ((presentCount / workingDays) * 100).toFixed(1)
                 : "0.0";
@@ -549,11 +599,15 @@ const RegisterViewTab: React.FC = () => {
                                         {daysArray.map(d => {
                                             const date = new Date(selectedYear, selectedMonth - 1, d);
                                             const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                                            const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                            const isBlocked = !!blockedDates[dateStr];
                                             return (
-                                                <th key={d} className="px-1 py-2 text-center font-medium text-gray-500 w-8 border-l border-gray-100">
+                                                <th key={d} className={`px-1 py-2 text-center font-medium w-8 border-l border-gray-100 ${isBlocked ? 'bg-gray-300 text-gray-600' : 'text-gray-500'}`}
+                                                    title={isBlocked ? blockedDates[dateStr] : undefined}
+                                                >
                                                     <div className="flex flex-col items-center justify-center leading-tight">
                                                         <span>{d}</span>
-                                                        <span className="text-[10px] font-normal text-gray-400">{dayName}</span>
+                                                        <span className="text-[10px] font-normal">{isBlocked ? 'H' : dayName}</span>
                                                     </div>
 
                                                 </th>
@@ -578,12 +632,14 @@ const RegisterViewTab: React.FC = () => {
 
                                         daysArray.forEach(d => {
                                             const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                            if (blockedDates[dateStr]) return; // Skip blocked dates
                                             const status = studentAttendance[dateStr];
                                             if (status === 'Present') presentCount++;
                                             if (status === 'Absent') absentCount++;
                                         });
 
-                                        const workingDays = presentCount + absentCount;
+                                        const blockedCount = Object.keys(blockedDates).length;
+                                        const workingDays = daysInMonth - blockedCount;
                                         const percentage = workingDays > 0 ? ((presentCount / workingDays) * 100).toFixed(1) : '0.0';
 
                                         return (
@@ -598,6 +654,18 @@ const RegisterViewTab: React.FC = () => {
 
                                                 {daysArray.map(d => {
                                                     const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                                    const isBlocked = !!blockedDates[dateStr];
+
+                                                    if (isBlocked) {
+                                                        return (
+                                                            <td key={d} className="px-1 py-1 text-center border-l border-gray-100 bg-gray-200 text-gray-500"
+                                                                title={blockedDates[dateStr]}
+                                                            >
+                                                                H
+                                                            </td>
+                                                        );
+                                                    }
+
                                                     const status = studentAttendance[dateStr];
                                                     return (
                                                         <td key={d} className={`px-1 py-1 text-center border-l border-gray-100 ${getStatusColor(status)}`}>
@@ -640,6 +708,7 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
     const [students, setStudents] = useState<any[]>([]);
     const [attendanceData, setAttendanceData] = useState<{ [key: string]: string }>({});
     const [originalData, setOriginalData] = useState<{ [key: string]: string }>({});
+    const [blockedDates, setBlockedDates] = useState<{ [date: string]: string }>({});
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -707,6 +776,20 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
             setAttendanceData(flatAttendance);
             setOriginalData({ ...flatAttendance }); // Deep copy for comparison
 
+            // Fetch blocked dates for this month
+            try {
+                const blockRes = await api.post('/config/check-month', {
+                    month: selectedMonth,
+                    year: selectedYear,
+                    branch_name: branchParam,
+                    class_name: selectedClass,
+                });
+                setBlockedDates(blockRes.data?.blocked_dates || {});
+            } catch (blockErr) {
+                console.error('Failed to fetch blocked dates:', blockErr);
+                setBlockedDates({});
+            }
+
         } catch (error) {
             console.error("Error fetching data:", error);
             alert("Failed to fetch data");
@@ -720,6 +803,13 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
 
     const toggleStatus = (studentId: number, day: number) => {
         const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        // Block toggling on holiday/weekoff dates
+        if (blockedDates[dateStr]) {
+            alert(`Cannot mark attendance: ${blockedDates[dateStr]}`);
+            return;
+        }
+
         const key = `${studentId}_${dateStr}`;
         const currentStatus = attendanceData[key];
 
@@ -1009,7 +1099,21 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
                                                 </td>
                                                 {daysArray.map(d => {
                                                     const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                                    const isBlocked = !!blockedDates[dateStr];
                                                     const status = attendanceData[`${student.student_id}_${dateStr}`];
+
+                                                    if (isBlocked) {
+                                                        return (
+                                                            <td
+                                                                key={d}
+                                                                title={blockedDates[dateStr]}
+                                                                className="px-1 py-1 text-center border-l border-gray-100 bg-gray-200 text-gray-500 cursor-not-allowed"
+                                                            >
+                                                                H
+                                                            </td>
+                                                        );
+                                                    }
+
                                                     return (
                                                         <td
                                                             key={d}
