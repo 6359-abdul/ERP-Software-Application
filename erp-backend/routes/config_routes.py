@@ -92,7 +92,9 @@ def get_weekoffs(current_user):
 @token_required
 def create_weekoff(current_user):
     try:
-        data = request.json
+        data = request.get_json(silent=True)
+        if data is None:
+            return jsonify({"error": "Invalid or missing JSON in request body"}), 400
         h_year, err, code = require_academic_year()
         if err:
             return err, code
@@ -110,9 +112,11 @@ def create_weekoff(current_user):
         if week_number is not None and not (1 <= week_number <= 5):
             return jsonify({"error": "week_number must be 1-5 or null"}), 400
 
-        # Check duplicate
+        # Check duplicate (include class_id in the filter)
+        class_id = data.get("class_id")
         existing = WeeklyOffRule.query.filter_by(
             branch_id=branch_id,
+            class_id=class_id,
             weekday=weekday,
             week_number=week_number,
             academic_year=h_year,
@@ -124,7 +128,7 @@ def create_weekoff(current_user):
 
         rule = WeeklyOffRule(
             branch_id=branch_id,
-            class_id=data.get("class_id"),
+            class_id=class_id,
             weekday=weekday,
             week_number=week_number,
             academic_year=h_year,
@@ -243,10 +247,27 @@ def update_holiday(current_user, id):
 
         if "title" in data:
             holiday.title = data["title"]
-        if "start_date" in data:
-            holiday.start_date = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
-        if "end_date" in data:
-            holiday.end_date = datetime.strptime(data["end_date"], "%Y-%m-%d").date()
+        
+        # Parse and validate dates with try/except for each field
+        try:
+            if "start_date" in data:
+                holiday.start_date = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "Invalid start_date format. Use YYYY-MM-DD"}), 400
+        
+        try:
+            if "end_date" in data:
+                holiday.end_date = datetime.strptime(data["end_date"], "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "Invalid end_date format. Use YYYY-MM-DD"}), 400
+        
+        # Validate date range: end_date >= start_date
+        # Use provided values if available, otherwise use existing values
+        start = holiday.start_date
+        end = holiday.end_date
+        if end < start:
+            return jsonify({"error": "end_date cannot be before start_date"}), 400
+        
         if "holiday_for" in data:
             holiday.holiday_for = data["holiday_for"]
         if "description" in data:

@@ -432,8 +432,8 @@ class WeeklyOffRule(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
-    branch_id = db.Column(db.Integer, nullable=False)
-    class_id = db.Column(db.Integer, nullable=True)  # NULL = applies to all classes
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id', ondelete='RESTRICT'), nullable=False)
+    class_id = db.Column(db.Integer, db.ForeignKey('classes.id', ondelete='RESTRICT'), nullable=True)  # NULL = applies to all classes
 
     weekday = db.Column(db.Integer, nullable=False)      # 0=Monday … 6=Sunday
     week_number = db.Column(db.Integer, nullable=True)   # NULL=Every, 1-5=specific week of month
@@ -446,6 +446,8 @@ class WeeklyOffRule(db.Model):
     __table_args__ = (
         db.UniqueConstraint('branch_id', 'class_id', 'weekday', 'week_number', 'academic_year',
                             name='uq_weekoff_rule'),
+        db.CheckConstraint('weekday >= 0 AND weekday <= 6', name='chk_weekoff_weekday'),
+        db.CheckConstraint('week_number IS NULL OR (week_number >= 1 AND week_number <= 5)', name='chk_weekoff_week_number'),
     )
 
 
@@ -454,8 +456,8 @@ class HolidayCalendar(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
-    branch_id = db.Column(db.Integer, nullable=False)
-    class_id = db.Column(db.Integer, nullable=True)  # NULL = applies to all classes
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id', ondelete='RESTRICT'), nullable=False)
+    class_id = db.Column(db.Integer, db.ForeignKey('classes.id', ondelete='RESTRICT'), nullable=True)  # NULL = applies to all classes
 
     title = db.Column(db.String(150), nullable=False)
 
@@ -475,6 +477,11 @@ class HolidayCalendar(db.Model):
 
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
+
+    __table_args__ = (
+        db.CheckConstraint('start_date <= end_date', name='chk_holiday_date_range'),
+        db.Index('idx_holiday_dates', 'branch_id', 'start_date', 'end_date'),
+    )
 
 
 # ----------------------------------------------------------

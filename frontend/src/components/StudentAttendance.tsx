@@ -509,8 +509,15 @@ const RegisterViewTab: React.FC = () => {
                 return "-";
             });
 
-            const blockedCount = Object.keys(blockedDates).length;
-            const workingDays = daysInMonth - blockedCount;
+            // Filter blocked dates to only include those in the current month
+            const blockedDatesInMonth = Object.keys(blockedDates).filter(dateStr => {
+                const dateParts = dateStr.split('-');
+                const dateYear = parseInt(dateParts[0], 10);
+                const dateMonth = parseInt(dateParts[1], 10);
+                return dateYear === selectedYear && dateMonth === selectedMonth;
+            }).length;
+            
+            const workingDays = daysInMonth - blockedDatesInMonth;
             const percentage = workingDays > 0
                 ? ((presentCount / workingDays) * 100).toFixed(1)
                 : "0.0";

@@ -526,7 +526,12 @@ const HolidayPolicy: React.FC<{ branches: BranchOption[] }> = ({ branches }) => 
 
     const formatDate = (dateStr: string) => {
         if (!dateStr) return '';
-        const d = new Date(dateStr);
+        // Parse YYYY-MM-DD string into local time to avoid UTC shift
+        const parts = dateStr.split('-');
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const day = parseInt(parts[2], 10);
+        const d = new Date(year, month - 1, day);
         return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     };
 

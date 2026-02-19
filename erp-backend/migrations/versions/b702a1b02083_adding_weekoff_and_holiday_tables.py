@@ -31,7 +31,10 @@ def upgrade():
     sa.Column('academic_year', sa.String(length=20), nullable=False),
     sa.Column('active', sa.Boolean(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.ForeignKeyConstraint(['branch_id'], ['branches.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['class_id'], ['classes.id'], ondelete='RESTRICT'),
+    sa.CheckConstraint('start_date <= end_date', name='chk_holiday_date_range')
     )
     op.create_table('weekly_off_rule',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -43,7 +46,11 @@ def upgrade():
     sa.Column('active', sa.Boolean(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('branch_id', 'class_id', 'weekday', 'week_number', 'academic_year', name='uq_weekoff_rule')
+    sa.ForeignKeyConstraint(['branch_id'], ['branches.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['class_id'], ['classes.id'], ondelete='RESTRICT'),
+    sa.UniqueConstraint('branch_id', 'class_id', 'weekday', 'week_number', 'academic_year', name='uq_weekoff_rule'),
+    sa.CheckConstraint('weekday >= 0 AND weekday <= 6', name='chk_weekoff_weekday'),
+    sa.CheckConstraint('week_number IS NULL OR (week_number >= 1 AND week_number <= 5)', name='chk_weekoff_week_number')
     )
     
 
@@ -55,4 +62,6 @@ def downgrade():
 
     op.drop_table('weekly_off_rule')
     op.drop_table('holiday_calendar')
+    # Drop the PostgreSQL enum type created in upgrade
+    op.execute('DROP TYPE IF EXISTS holiday_scope')
     # ### end Alembic commands ###
