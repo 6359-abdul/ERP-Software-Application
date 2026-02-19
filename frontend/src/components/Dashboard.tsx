@@ -20,6 +20,7 @@ import ConcessionMaster from './ConcessionMaster';
 import StudentConcession from './StudentConcession';
 import UpdateStudentFeeStructure from './UpdateStudentFeeStructure';
 import FeeReports from './FeeReports';
+import Configuration from './Configuration';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
 
 
@@ -77,6 +78,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           {currentPage === 'student-concession' && <StudentConcession />}
           {currentPage === 'update-student-fee-structure' && <UpdateStudentFeeStructure />}
           {currentPage === 'fee-reports' && <FeeReports />}
+          {currentPage === 'configuration' && <Configuration navigateTo={navigateTo} />}
         </main>
       </div>
     </div>

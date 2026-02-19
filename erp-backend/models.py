@@ -407,7 +407,7 @@ class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey("students.student_id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.Enum("Present", "Absent", "Leave", "Holiday", "Sunday", "Weekoff"), default="Present")
+    status = db.Column(db.Enum("Present", "Absent", name="attendance_status"), default="Present")
     remarks = db.Column(db.String(255))
     update_count = db.Column(db.Integer, default=0)
     updated_at = db.Column(db.DateTime, default=datetime.now)
@@ -421,6 +421,68 @@ class Attendance(db.Model):
     academic_year = db.Column(db.String(20))
 
     __table_args__ = (db.UniqueConstraint('student_id', 'date', name='_student_date_uc'),)
+
+
+# ----------------------------------------------------------
+# WEEKLY OFF & HOLIDAY CALENDAR
+# ----------------------------------------------------------
+
+class WeeklyOffRule(db.Model):
+    __tablename__ = "weekly_off_rule"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id', ondelete='RESTRICT'), nullable=False)
+    class_id = db.Column(db.Integer, db.ForeignKey('classes.id', ondelete='RESTRICT'), nullable=True)  # NULL = applies to all classes
+
+    weekday = db.Column(db.Integer, nullable=False)      # 0=Monday … 6=Sunday
+    week_number = db.Column(db.Integer, nullable=True)   # NULL=Every, 1-5=specific week of month
+
+    academic_year = db.Column(db.String(20), nullable=False)
+
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    __table_args__ = (
+        db.UniqueConstraint('branch_id', 'class_id', 'weekday', 'week_number', 'academic_year',
+                            name='uq_weekoff_rule'),
+        db.CheckConstraint('weekday >= 0 AND weekday <= 6', name='chk_weekoff_weekday'),
+        db.CheckConstraint('week_number IS NULL OR (week_number >= 1 AND week_number <= 5)', name='chk_weekoff_week_number'),
+    )
+
+
+class HolidayCalendar(db.Model):
+    __tablename__ = "holiday_calendar"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id', ondelete='RESTRICT'), nullable=False)
+    class_id = db.Column(db.Integer, db.ForeignKey('classes.id', ondelete='RESTRICT'), nullable=True)  # NULL = applies to all classes
+
+    title = db.Column(db.String(150), nullable=False)
+
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+
+    holiday_for = db.Column(
+        db.Enum("StudentOnly", "StaffOnly", "All", name="holiday_scope"),
+        nullable=False,
+        default="All"
+    )
+
+    description = db.Column(db.Text)
+    display_order = db.Column(db.Integer)
+
+    academic_year = db.Column(db.String(20), nullable=False)
+
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    __table_args__ = (
+        db.CheckConstraint('start_date <= end_date', name='chk_holiday_date_range'),
+        db.Index('idx_holiday_dates', 'branch_id', 'start_date', 'end_date'),
+    )
+
 
 # ----------------------------------------------------------
 #  Subject Master Model

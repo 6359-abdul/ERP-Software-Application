@@ -4,6 +4,7 @@ from models import Student, Attendance, Branch, UserBranchAccess, StudentAcademi
 from helpers import token_required, require_academic_year, student_to_dict, get_default_location
 from datetime import datetime, date
 from sqlalchemy import or_
+from routes.config_routes import is_weekoff_or_holiday
 bp = Blueprint('attendance_routes', __name__)
 
 @bp.route("/api/attendance", methods=["GET"])
@@ -222,10 +223,25 @@ def save_attendance(current_user):
         added_count = 0
         updated_count = 0
 
+        # 2.5 Resolve branch to ID for weekoff/holiday check
+        branch_obj = Branch.query.filter_by(branch_name=h_branch).first()
+        if not branch_obj:
+            # Log warning and abort if branch is not found
+            return jsonify({"error": f"Branch '{h_branch}' not found. Cannot validate attendance against weekoff/holiday rules."}), 400
+        
+        check_branch_id = branch_obj.id
+
         # 3. Process Batch
         for item in valid_items:
             key = (item["student_id"], item["date"])
             status = item["status"]
+
+            # 3a. Check weekoff / holiday
+            date_check = is_weekoff_or_holiday(item["date"], check_branch_id, h_year)
+            if date_check["is_weekoff"] or date_check["is_holiday"]:
+                skipped_count += 1
+                skip_details.append(f"Date {item['date']} blocked: {date_check['reason']}")
+                continue
 
             if key in record_map:
                 # Update
@@ -419,7 +435,7 @@ def upload_attendance(current_user):
                 status_str = str(status).strip().capitalize()
                 
                 # Map shorthand
-                shorthand = {'P': 'Present', 'A': 'Absent', 'H': 'Holiday', 'S': 'Sunday', 'L': 'Leave'}
+                shorthand = {'P': 'Present', 'A': 'Absent'}
                 if status_str in shorthand:
                     status_str = shorthand[status_str]
                 

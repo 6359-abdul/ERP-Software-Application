@@ -55,8 +55,7 @@ const SetupSchool: React.FC<SetupSchoolProps> = ({ navigateTo }) => {
             bgColor: 'bg-purple-50',
             hoverColor: 'hover:shadow-purple-200',
             onClick: () => {
-                // Navigate to configuration page
-                console.log('Navigate to Configuration');
+                navigateTo?.('configuration');
             }
         }
     ];

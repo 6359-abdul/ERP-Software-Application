@@ -8,8 +8,6 @@ import os
 # EXTENSIONS
 # -----------------------------
 from extensions import db
-import models
-
 migrate = Migrate()
 # -----------------------------
 # BLUEPRINTS
@@ -31,6 +29,7 @@ from routes.grade_scale_routes import grade_scale_bp
 from routes.student_marks_routes import student_marks_bp
 from routes.report_card_routes import report_bp as report_card_bp
 from routes.test_attendance_routes import test_attendance_bp
+from routes.config_routes import bp as config_bp
 
   
 
@@ -84,8 +83,6 @@ def create_app():
     })
     db.init_app(app)
     migrate.init_app(app, db)
-    
-    
 
 
     # -----------------------------
@@ -108,6 +105,7 @@ def create_app():
     app.register_blueprint(student_marks_bp)
     app.register_blueprint(report_card_bp)
     app.register_blueprint(test_attendance_bp)
+    app.register_blueprint(config_bp)
 
     # -----------------------------
     # SERVE UPLOADS
