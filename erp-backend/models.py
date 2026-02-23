@@ -209,6 +209,9 @@ class StudentFee(db.Model):
     concession = db.Column(db.Numeric(10, 2), default=0)
     status = db.Column(db.Enum("Pending", "Partial", "Paid"), default="Pending")
     due_date = db.Column(db.Date, nullable=True)  # Added to match DB schema
+    is_active = db.Column(db.Boolean, nullable=False, default= True)
+    deleted_at = db.Column(db.DateTime, nullable = True)
+    deleted_by = db.Column(db.Integer,nullable = True)
     fee_type = db.relationship("FeeType")
     student = db.relationship("Student")
 

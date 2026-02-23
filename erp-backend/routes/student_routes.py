@@ -358,7 +358,7 @@ def update_student(current_user, student_id):
         # -------- STATUS CHANGE VALIDATION --------
         # If incorrectly setting to Inactive, check fee
         if data.get("status") == "Inactive" and student.status != "Inactive":
-            total_due = db.session.query(func.sum(StudentFee.due_amount)).filter_by(student_id=student_id).scalar() or 0
+            total_due = db.session.query(func.sum(StudentFee.due_amount)).filter_by(student_id=student_id, is_active=True).scalar() or 0
             if total_due > 0:
                 print(f"Blocking inactivation for student {student_id} due to pending fee: {total_due}")
                 return jsonify({"error": "student has fee to pay unable to deactivate"}), 400 # User requested exact message
@@ -626,7 +626,7 @@ def delete_student(student_id):
         # Soft Delete Implementation
         
         # Check for outstanding fees before inactivating
-        total_due = db.session.query(func.sum(StudentFee.due_amount)).filter_by(student_id=student_id).scalar() or 0
+        total_due = db.session.query(func.sum(StudentFee.due_amount)).filter_by(student_id=student_id, is_active=True).scalar() or 0
         if total_due > 0:
              return jsonify({"error": "student has fee to pay unable to deactivate"}), 400
 

@@ -42,7 +42,7 @@ def get_fee_students(current_user):
         func.sum(StudentFee.due_amount).label("due"),
         func.sum(StudentFee.concession).label("concession"),
     ).join(StudentAcademicRecord, Student.student_id == StudentAcademicRecord.student_id)\
-     .outerjoin(StudentFee, (Student.student_id == StudentFee.student_id) & (StudentFee.academic_year == h_year)) # Filter fees by year in join itself? 
+     .outerjoin(StudentFee, (Student.student_id == StudentFee.student_id) & (StudentFee.academic_year == h_year) & (StudentFee.is_active == True)) # Filter fees by year in join itself? 
      # Actually StudentFee has academic_year. joining on year ensures we sum fees for THAT year.
      # BUT we used to use WHERE clause for that.
      
@@ -148,7 +148,7 @@ def get_student_fees_detail(current_user, student_id):
                 return jsonify({"error": "Unauthorized access to student data"}), 403
         
         # Use join to filter by Student's branch
-        q = StudentFee.query.join(Student).filter(StudentFee.student_id == student_id)
+        q = StudentFee.query.join(Student).filter(StudentFee.student_id == student_id, StudentFee.is_active == True)
         
         if h_year:
             q = q.filter(StudentFee.academic_year == h_year)
@@ -314,7 +314,7 @@ def record_fee_payment(current_user):
                 continue
 
             sf = StudentFee.query.get(sf_id)
-            if not sf:
+            if not sf or not sf.is_active:
                 continue
 
             # Update StudentFee Record (The Plan)
@@ -529,7 +529,8 @@ def delete_fee_payment(current_user, payment_id):
         sf_query = StudentFee.query.join(FeeType).filter(
             StudentFee.student_id == payment.student_id,
             StudentFee.academic_year == payment.academic_year,
-            FeeType.feetype == payment.fee_type
+            FeeType.feetype == payment.fee_type,
+            StudentFee.is_active == True
         )
         
         if payment.installment_name == "One-Time":
@@ -628,7 +629,8 @@ def assign_special_fee(current_user):
                 existing_fee = StudentFee.query.filter_by(
                     student_id=s_id,
                     fee_type_id=fee_type_id,
-                    academic_year=academic_year
+                    academic_year=academic_year,
+                    is_active=True
                 ).first()
 
                 if existing_fee:
@@ -721,7 +723,7 @@ def update_student_fee(current_user, fee_id):
         
     try:
         sf = StudentFee.query.get(fee_id)
-        if not sf:
+        if not sf or not sf.is_active:
              return jsonify({"error": "Fee record not found"}), 404
              
         # Check permissions
@@ -775,7 +777,10 @@ def delete_student_fee(current_user, fee_id):
         if sf.paid_amount and sf.paid_amount > 0:
             return jsonify({"error": "Cannot delete fee that has payments collected. Please delete payments first."}), 400
             
-        db.session.delete(sf)
+        sf.is_active = False
+        sf.deleted_at = datetime.now()
+        sf.deleted_by = current_user.user_id
+
         db.session.commit()
         return jsonify({"message": "Fee deleted successfully"}), 200
         
@@ -837,7 +842,7 @@ def assign_concession(current_user):
         
         for fee_id in installments:
             sf = StudentFee.query.get(fee_id)
-            if not sf: 
+            if not sf or not sf.is_active: 
                 continue
                 
             # Integrity check
@@ -909,7 +914,8 @@ def assign_fee_type(current_user):
         exists = StudentFee.query.filter_by(
             student_id=student_id,
             fee_type_id=fee_type_id,
-            academic_year=student.academic_year
+            academic_year=student.academic_year,
+            is_active=True
         ).count()
         
         if exists > 0:

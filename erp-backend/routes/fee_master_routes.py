@@ -131,7 +131,7 @@ def delete_fee_type(fee_type_id):
     fee_type = FeeType.query.get_or_404(fee_type_id)
     
     # 1. CRITICAL CHECK: Is it used in FINANCE (StudentFee)?
-    student_fees_count = StudentFee.query.filter_by(fee_type_id=fee_type_id).count()
+    student_fees_count = StudentFee.query.filter_by(fee_type_id=fee_type_id, is_active = True).count()
     if student_fees_count > 0:
         return jsonify({
             "error": f"Cannot delete this fee type. It is currently assigned to {student_fees_count} student(s) as 'Student Fees'. "
@@ -354,6 +354,7 @@ def delete_class_fee_structure(id):
         assigned_count = StudentFee.query.join(Student).filter(
             StudentFee.fee_type_id == fs.feetypeid,
             StudentFee.academic_year == fs.academic_year, 
+            StudentFee.is_active == True,
             Student.clazz == fs.clazz,
             Student.branch == fs.branch if fs.branch != 'All' else True 
         ).count()
@@ -768,6 +769,7 @@ def delete_installment(id):
         assigned_count = StudentFee.query.join(Student).filter(
             StudentFee.academic_year == inst.academic_year,
             StudentFee.month == inst.title,
+            StudentFee.is_active == True,
         ).count()
         
         if assigned_count > 0:
