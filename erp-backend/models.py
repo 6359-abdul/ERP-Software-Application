@@ -161,7 +161,9 @@ class Student(db.Model):
     GroupUniqueId = db.Column(db.String(50))
     serviceNumber = db.Column(db.String(50))
     EmploymentservingStatus = db.Column(db.String(50))
-    StudentStatus = db.Column(db.String(50))
+    inactivated_date = db.Column(db.DateTime, nullable=True)
+    inactivate_reason = db.Column(db.String(255), nullable=True)
+    inactivated_by = db.Column(db.Integer, nullable=True)
     ApaarId = db.Column(db.String(50))
     Stream = db.Column(db.String(50))
     EmploymentCategory = db.Column(db.String(50))
@@ -209,6 +211,9 @@ class StudentFee(db.Model):
     concession = db.Column(db.Numeric(10, 2), default=0)
     status = db.Column(db.Enum("Pending", "Partial", "Paid"), default="Pending")
     due_date = db.Column(db.Date, nullable=True)  # Added to match DB schema
+    is_active = db.Column(db.Boolean, nullable=False, default= True)
+    deleted_at = db.Column(db.DateTime, nullable = True)
+    deleted_by = db.Column(db.Integer,nullable = True)
     fee_type = db.relationship("FeeType")
     student = db.relationship("Student")
 

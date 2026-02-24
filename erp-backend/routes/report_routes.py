@@ -320,7 +320,8 @@ def report_fee_class_wise(current_user):
                 func.sum(StudentFee.due_amount)
             ).filter(
                 StudentFee.student_id.in_(student_ids),
-                StudentFee.academic_year == h_year
+                StudentFee.academic_year == h_year,
+                StudentFee.is_active == True
             ).first()
             
             total_fee = float(sf_stats[0] or 0)
@@ -393,7 +394,8 @@ def report_fee_installment_wise(current_user):
             func.count(StudentFee.id) # Total students assigned
         ).join(Student).filter(
             StudentFee.month == installment,
-            StudentFee.academic_year == h_year
+            StudentFee.academic_year == h_year,
+            StudentFee.is_active == True
         )
         
         if target_branch and target_branch != "All":
@@ -408,7 +410,8 @@ def report_fee_installment_wise(current_user):
         paid_count = db.session.query(func.count(StudentFee.id)).join(Student).filter(
             StudentFee.month == installment,
             StudentFee.academic_year == h_year,
-            StudentFee.status == 'Paid'
+            StudentFee.status == 'Paid',
+            StudentFee.is_active == True
         )
         if target_branch and target_branch != "All":
             paid_count = paid_count.filter(Student.branch == target_branch)
@@ -459,7 +462,8 @@ def report_fee_due(current_user):
             func.sum(StudentFee.total_fee).label("total_fee")
         ).join(StudentFee).filter(
             StudentFee.academic_year == h_year,
-            Student.academic_year == h_year
+            Student.academic_year == h_year,
+            StudentFee.is_active == True
         )
         
         if target_branch and target_branch not in ['All', 'AllBranches']:
