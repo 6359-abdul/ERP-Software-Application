@@ -116,9 +116,7 @@ def student_to_dict(s):
         "Caste": s.Caste,
         "StudentType": s.StudentType,
         "House": s.House,
-        "AdmissionCategory": s.AdmissionCategory,
         "AdmissionClass": s.AdmissionClass,
-        "StudentStatus": s.status, # Map status to StudentStatus
         "Fatherfirstname": s.Fatherfirstname,
         "FatherMiddleName": s.FatherMiddleName,
         "FatherLastName": s.FatherLastName,
@@ -175,7 +173,9 @@ def student_to_dict(s):
         "GroupUniqueId": s.GroupUniqueId,
         "serviceNumber": s.serviceNumber,
         "EmploymentservingStatus": s.EmploymentservingStatus,
-        "StudentStatus": s.status, # Map to s.status as this is what the form updates
+        "inactivated_date": s.inactivated_date.isoformat() if s.inactivated_date else None,
+        "inactivate_reason": s.inactivate_reason,
+        "inactivated_by": s.inactivated_by,
         "ApaarId": s.ApaarId,
         "Stream": s.Stream,
         "EmploymentCategory": s.EmploymentCategory,

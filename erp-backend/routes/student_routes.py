@@ -106,8 +106,7 @@ def get_students(current_user):
                 (Student.admission_no.like(like)) |
                 (Student.Fatherfirstname.like(like)) |
                 (Student.phone.like(like)) |
-                (Student.FatherPhone.like(like)) |
-                (Student.StudentStatus.like(like))
+                (Student.FatherPhone.like(like))
             )
         
         # Status Filtering
@@ -261,7 +260,6 @@ def update_student(current_user, student_id):
             'GroupUniqueId': 'GroupUniqueId',
             'serviceNumber': 'serviceNumber',
             'EmploymentservingStatus': 'EmploymentservingStatus',
-            'StudentStatus': 'StudentStatus',
             'ApaarId': 'ApaarId',
             'Stream': 'Stream',
             'EmploymentCategory': 'EmploymentCategory',
@@ -355,13 +353,34 @@ def update_student(current_user, student_id):
         if data.get("presentAddress"):
             student.address = data["presentAddress"]
 
-        # -------- STATUS CHANGE VALIDATION --------
-        # If incorrectly setting to Inactive, check fee
-        if data.get("status") == "Inactive" and student.status != "Inactive":
+        # -------- STATUS CHANGE VALIDATION & PROCESSING --------
+        # If updating status to Inactive, check fee
+        if data.get("status") == "Inactive":
+            # Only do the fee check if they might be trying to bypass the UI constraint (or if backend needs strict enforcement)
+            # We can skip the `student.status != "Inactive"` check because `setattr` already updated it.
+            # However, if we want to be safe, we just check pending fees:
             total_due = db.session.query(func.sum(StudentFee.due_amount)).filter_by(student_id=student_id, is_active=True).scalar() or 0
             if total_due > 0:
                 print(f"Blocking inactivation for student {student_id} due to pending fee: {total_due}")
-                return jsonify({"error": "student has fee to pay unable to deactivate"}), 400 # User requested exact message
+                return jsonify({"error": "student has fee to pay unable to deactivate"}), 400
+                
+            # Save inactivation details
+            if data.get("inactivation_date"):
+                try:
+                    student.inactivated_date = datetime.strptime(data["inactivation_date"], "%Y-%m-%d")
+                except:
+                    pass
+            
+            if "inactivation_reason" in data:
+                student.inactivate_reason = data.get("inactivation_reason")
+            
+            student.inactivated_by = current_user.user_id
+        
+        elif data.get("status") == "Active":
+            # If reactivated, clear the fields
+            student.inactivated_date = None
+            student.inactivate_reason = None
+            student.inactivated_by = None
 
 
         # -------- PHOTO HANDLING --------
@@ -581,7 +600,6 @@ def create_student():
         s.GroupUniqueId = data.get("GroupUniqueId")
         s.serviceNumber = data.get("serviceNumber")
         s.EmploymentservingStatus = data.get("EmploymentservingStatus")
-        s.StudentStatus = data.get("StudentStatus")
         s.ApaarId = data.get("ApaarId")
         s.Stream = data.get("Stream")
         s.EmploymentCategory = data.get("EmploymentCategory")
@@ -631,6 +649,9 @@ def delete_student(student_id):
              return jsonify({"error": "student has fee to pay unable to deactivate"}), 400
 
         student.status = "Inactive"
+        student.inactivated_date = datetime.now()
+        student.inactivate_reason = "Deleted via API"
+        # student.inactivated_by = current_user.user_id # Add if endpoint gets @token_required
         db.session.commit()
         return jsonify({"message": "Student marked as Inactive successfully"}), 200
     except Exception as e:
@@ -802,7 +823,6 @@ def upload_students_csv():
                     GroupUniqueId=row.get('GroupUniqueId'),
                     serviceNumber=row.get('serviceNumber'),
                     EmploymentservingStatus=row.get('EmploymentservingStatus'),
-                    StudentStatus=row.get('StudentStatus'),
                     ApaarId=row.get('ApaarId'),
                     Stream=row.get('Stream'),
                     EmploymentCategory=row.get('EmploymentCategory')

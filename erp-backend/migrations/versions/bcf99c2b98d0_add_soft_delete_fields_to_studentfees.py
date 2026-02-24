@@ -32,5 +32,5 @@ def downgrade():
         batch_op.drop_column('deleted_by')
         batch_op.drop_column('deleted_at')
         batch_op.drop_column('is_active')
-A
+
     # ### end Alembic commands ###

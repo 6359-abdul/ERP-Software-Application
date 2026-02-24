@@ -8,6 +8,7 @@ import ImportStudentData from './ImportStudentData';
 import CreateStudent from './CreateStudent';
 import PromoteStudents from './PromoteStudents';
 import ClassSummary from './ClassSummary';
+import MakeStudentInactive from './MakeStudentInactive';
 import { Student } from '../types';
 import api from '../api';
 
@@ -21,7 +22,8 @@ interface StudentAdministrationProps {
 // Page view types
 type StudentAdminView =
     'students' | 'search' | 'summary' | 'reports' | 'certificates' | 'upgrade'
-    | 'import' | 'addStudent' | 'viewStudent' | 'editStudent';
+    | 'import' | 'addStudent' | 'viewStudent' | 'editStudent'
+    | 'inactive' | 'inactiveReport';
 
 // ---------------------------------------------------------------------------
 // Dropdown Component
@@ -91,6 +93,19 @@ const StudentAdminHeader: React.FC<{ activeView: StudentAdminView; setActiveView
                         <Dropdown title="Certificates" isOpen={open === 'certs'} onToggle={() => toggle('certs')}>
                             <DropdownItem>Student Certificate</DropdownItem>
                             <DropdownItem>Teacher Certificate</DropdownItem>
+                        </Dropdown>
+
+                        <Dropdown
+                            title="Inactive"
+                            isOpen={open === 'inactive'}
+                            onToggle={() => toggle('inactive')}
+                        >
+                            <DropdownItem onClick={() => { setActiveView('inactive'); setOpen(null); }}>
+                                Make Student Inactive
+                            </DropdownItem>
+                            <DropdownItem onClick={() => { setActiveView('inactiveReport'); setOpen(null); }}>
+                                Inactive Student Report
+                            </DropdownItem>
                         </Dropdown>
 
                         <button className={btn('upgrade')} onClick={() => setActiveView('upgrade')}>Upgrade</button>
@@ -554,6 +569,12 @@ const StudentAdministration: React.FC<StudentAdministrationProps> = ({ navigateT
 
             case 'summary':
                 return <ClassSummary onBack={() => setActiveView('students')} />;
+
+            case 'inactive':
+                return <MakeStudentInactive />;
+
+            case 'inactiveReport':
+                return <ComingSoon pageTitle="Inactive Student Report" />;
 
             default:
                 return <ComingSoon pageTitle="Coming Soon" />;

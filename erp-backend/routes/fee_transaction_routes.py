@@ -969,3 +969,50 @@ def assign_fee_type(current_user):
         db.session.rollback()
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Nullify Fee Structure for a Student (zero out unpaid installments)
+# ---------------------------------------------------------------------------
+@bp.route("/api/fees/nullify/<int:student_id>", methods=["POST"])
+@token_required
+def nullify_student_fees(current_user, student_id):
+    """Zero out all unpaid (paid_amount == 0) fee installments for a student."""
+    try:
+        h_year, err, code = require_academic_year()
+        if err:
+            return err, code
+
+        # Permission check
+        student = Student.query.get(student_id)
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
+
+        if current_user.role != 'Admin' and current_user.branch != 'All' and student.branch != current_user.branch:
+            return jsonify({"error": "Unauthorized"}), 403
+
+        # Fetch all active, unpaid installments for this student in this academic year
+        unpaid_fees = StudentFee.query.filter(
+            StudentFee.student_id == student_id,
+            StudentFee.academic_year == h_year,
+            StudentFee.is_active == True,
+            StudentFee.paid_amount == 0
+        ).all()
+
+        if not unpaid_fees:
+            return jsonify({"message": "No unpaid fee installments found to nullify", "nullified": 0}), 200
+
+        count = 0
+        for sf in unpaid_fees:
+            sf.is_active = False
+            sf.deleted_at = datetime.now()
+            sf.deleted_by = current_user.user_id
+            count += 1
+
+        db.session.commit()
+        return jsonify({"message": f"Fee structure nullified successfully. {count} installment(s) zeroed out.", "nullified": count}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
