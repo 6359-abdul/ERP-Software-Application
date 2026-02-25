@@ -51,3 +51,8 @@ erp-backend/uploads/*
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Media / Uploads
+Media/
+media/
+uploads/
