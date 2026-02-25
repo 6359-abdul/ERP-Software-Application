@@ -30,6 +30,8 @@ from routes.student_marks_routes import student_marks_bp
 from routes.report_card_routes import report_bp as report_card_bp
 from routes.test_attendance_routes import test_attendance_bp
 from routes.config_routes import bp as config_bp
+from routes.document_routes import document_routes
+
 
   
 
@@ -74,7 +76,7 @@ def create_app():
                 r"https://.*\.vercel\.app",
                 "http://localhost:5173",
                 "http://localhost:3000",
-            
+                r"http://192\.168\.[0-9]+\.[0-9]+:[0-9]+"
             ],
             "supports_credentials": True,
             "allow_headers": ["Content-Type", "Authorization", "X-Branch", "X-Location", "X-Academic-Year", "X-Requested-With"],
@@ -106,13 +108,25 @@ def create_app():
     app.register_blueprint(report_card_bp)
     app.register_blueprint(test_attendance_bp)
     app.register_blueprint(config_bp)
+    app.register_blueprint(document_routes, url_prefix="/api/documents")
 
     # -----------------------------
-    # SERVE UPLOADS
+    # SERVE UPLOADS (legacy - kept for backward compatibility)
     # -----------------------------
     @app.route('/uploads/<path:filename>')
     def serve_uploads(filename):
         return send_from_directory(os.path.join(app.root_path, 'uploads'), filename)
+
+    # -----------------------------
+    # SERVE MEDIA (student photos + documents)
+    # Stored at: HifzErpSoftwareApplication/Media/
+    # URL:        /Media/student_document/<admission_no>/profile.jpg
+    # -----------------------------
+    media_folder = os.path.abspath(os.path.join(app.root_path, '..', 'Media'))
+
+    @app.route('/Media/<path:filename>')
+    def serve_media(filename):
+        return send_from_directory(media_folder, filename)
 
     # -----------------------------
     # FAVICON FIX

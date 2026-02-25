@@ -715,3 +715,42 @@ class StudentMarks(db.Model):
         db.Index('idx_student_marks_student', 'student_id'),
     )
 
+
+class DocumentType(db.Model):
+    __tablename__ = "document_types"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class StudentDocument(db.Model):
+    __tablename__ = "student_documents"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.student_id', ondelete='CASCADE'), nullable=False)
+    document_type_id = db.Column(db.Integer, db.ForeignKey('document_types.id', ondelete='RESTRICT'), nullable=False)
+    document_no = db.Column(db.String(100))
+    issued_by = db.Column(db.String(100))
+    issue_date = db.Column(db.Date)
+    notes = db.Column(db.Text)
+    file_name = db.Column(db.String(255))
+    file_path = db.Column(db.String(500))
+    file_size = db.Column(db.Integer)
+    mime_type = db.Column(db.String(100))
+    uploaded_at = db.Column(db.DateTime, default=datetime.now)
+    uploaded_by = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='SET NULL'))
+    is_verified = db.Column(db.Boolean, default=False)
+    verified_by = db.Column(db.Integer)
+    verified_at = db.Column(db.DateTime)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    document_type = db.relationship("DocumentType")
+    student = db.relationship("Student")
+    uploader = db.relationship("User", foreign_keys=[uploaded_by])
+
+    __table_args__ = (
+        db.UniqueConstraint('student_id', 'document_type_id', name='uq_student_doc_type'),
+    )

@@ -18,33 +18,44 @@ def save_student_photo(student, photo_data):
     try:
         if not student.admission_no:
             return
-            
-        # Expect format: data:image/jpeg;base64,...
-        if "base64," in photo_data:
-            header, encoded = photo_data.split(",", 1)
+
+        # Expect base64 data URI: data:image/jpeg;base64,...
+        if "base64," not in photo_data:
+            return
+
+        header, encoded = photo_data.split(",", 1)
+        ext = "jpg"
+        if "image/png" in header:
+            ext = "png"
+        elif "image/jpeg" in header or "image/jpg" in header:
             ext = "jpg"
-            if "image/png" in header:
-                ext = "png"
-            elif "image/jpeg" in header:
-                ext = "jpg"
-            
-            data_bytes = base64.b64decode(encoded)
-            
-            # Ensure directory exists: uploads/Studentphotos
-            upload_dir = os.path.join("uploads", "Studentphotos")
-            if not os.path.exists(upload_dir):
-                os.makedirs(upload_dir)
-            
-            filename = f"{student.admission_no}.{ext}"
-            file_path = os.path.join(upload_dir, filename)
-            
-            with open(file_path, "wb") as f:
-                f.write(data_bytes)
-            
-            # Save path as uploads/Studentphotos/filename (URL friendly, force forward slashes)
-            student.photopath = f"uploads/Studentphotos/{filename}"
+        elif "image/webp" in header:
+            ext = "webp"
+
+        data_bytes = base64.b64decode(encoded)
+
+        # ── New path: HifzErpSoftwareApplication/Media/student_document/<admission_no>/ ──
+        # __file__ = .../erp-backend/routes/student_routes.py
+        # project root = two levels up from routes/
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        student_dir = os.path.join(project_root, 'Media', 'student_document', student.admission_no)
+
+        if not os.path.exists(student_dir):
+            os.makedirs(student_dir)
+
+        # Always name the file profile.<ext> — easy to find, one photo per student
+        filename = f"profile.{ext}"
+        file_path = os.path.join(student_dir, filename)
+
+        with open(file_path, "wb") as f:
+            f.write(data_bytes)
+
+        # Store relative path from project root, forward slashes for URL compatibility
+        student.photopath = f"Media/student_document/{student.admission_no}/{filename}"
+
     except Exception as e:
         print(f"Error saving photo: {e}")
+
 
 @bp.route("/api/students", methods=["GET"])
 @token_required
