@@ -34,11 +34,23 @@ jobs:
           source venv/bin/activate
           python -m compileall erp-backend
 
-      - name: Validate Alembic migration scripts
+      - name: Validate Alembic migration scripts compile
         run: |
           source venv/bin/activate
           cd erp-backend
           python -m compileall migrations
+
+      - name: Validate migration heads (no conflicts)
+        run: |
+          source venv/bin/activate
+          cd erp-backend
+          flask --app app:create_app db heads
+
+      - name: Check for pending migrations
+        run: |
+          source venv/bin/activate
+          cd erp-backend
+          flask --app app:create_app db migrate --check
 
   frontend:
     name: Frontend Validation
