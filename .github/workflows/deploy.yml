@@ -31,6 +31,8 @@ jobs:
         run: |
           npm ci
           npm run build
+        env:
+          VITE_API_URL: /api
 
       - name: Copy Frontend to EC2
         run: |
