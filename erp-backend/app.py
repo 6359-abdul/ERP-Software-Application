@@ -51,6 +51,7 @@ def create_app():
     # CONFIG
     # -----------------------------
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
 
     DB_USER = os.getenv("DB_USER")
     DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -148,6 +149,10 @@ def create_app():
         if path and os.path.exists(file_path):
             return send_from_directory(app.static_folder, path)
         return send_from_directory(app.static_folder, "index.html")
+
+    @app.errorhandler(413)
+    def request_entity_too_large(error):
+        return jsonify({'message': 'File too large. Maximum size is 16 MB.'}), 413
 
     return app
 

@@ -120,6 +120,16 @@ def upload_student_document(current_user):
         if 'file' not in request.files:
             return jsonify({'message': 'No file part in the request'}), 400
 
+        max_content_length = current_app.config.get('MAX_CONTENT_LENGTH')
+        content_length = request.content_length
+
+        if (
+            max_content_length is not None
+            and content_length is not None
+            and content_length > max_content_length
+        ):
+            return jsonify({'message': 'File too large. Maximum size is 16 MB.'}), 413
+
         file = request.files['file']
         if file.filename == '':
             return jsonify({'message': 'No selected file'}), 400
@@ -170,14 +180,13 @@ def upload_student_document(current_user):
 
         file.save(file_path)
 
-        # Soft-delete previous active doc of same type for this student
+        # Delete previous doc of same type for this student
         existing_doc = StudentDocument.query.filter_by(
             student_id=student.student_id,
-            document_type_id=doc_type.id,
-            is_active=True
+            document_type_id=doc_type.id
         ).first()
         if existing_doc:
-            existing_doc.is_active = False
+            db.session.delete(existing_doc)
 
         new_doc = StudentDocument(
             student_id=student.student_id,
@@ -217,8 +226,7 @@ def upload_student_document(current_user):
 def get_student_documents(current_user, student_id):
     try:
         documents = StudentDocument.query.filter_by(
-            student_id=student_id,
-            is_active=True
+            student_id=student_id
         ).all()
 
         result = []
@@ -252,8 +260,8 @@ def get_student_documents(current_user, student_id):
 def download_document(current_user, doc_id):
     try:
         doc = StudentDocument.query.get(doc_id)
-        if not doc or not doc.is_active:
-            return jsonify({'message': 'Document not found or inactive'}), 404
+        if not doc:
+            return jsonify({'message': 'Document not found'}), 404
 
         project_root = get_project_root()
         abs_path = os.path.abspath(os.path.join(project_root, doc.file_path))
@@ -276,23 +284,3 @@ def download_document(current_user, doc_id):
         return jsonify({'message': str(e)}), 500
 
 
-# ==========================================
-# STUDENT DOCUMENTS — DELETE (soft)
-# ==========================================
-
-@document_routes.route('/<int:doc_id>', methods=['DELETE'])
-@token_required
-def delete_document(current_user, doc_id):
-    try:
-        doc = StudentDocument.query.get(doc_id)
-        if not doc:
-            return jsonify({'message': 'Document not found'}), 404
-
-        # Soft delete — physical file is kept on disk
-        doc.is_active = False
-        db.session.commit()
-
-        return jsonify({'message': 'Document deleted successfully'}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': str(e)}), 500

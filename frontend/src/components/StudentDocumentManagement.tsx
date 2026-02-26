@@ -4,7 +4,6 @@ import {
     UserIcon,
     DocumentReportIcon,
     DownloadIcon,
-    TrashIcon,
     CheckCircleIcon,
     RefreshIcon
 } from './icons';
@@ -234,18 +233,6 @@ const StudentDocumentManagement: React.FC = () => {
         }
     };
 
-    const handleDeleteDocument = async (docId: number, docName: string) => {
-        if (!window.confirm(`Are you sure you want to delete "${docName}"?`)) return;
-        try {
-            const token = localStorage.getItem('token');
-            await axios.delete(`${API_URL}/documents/${docId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (selectedStudent) loadStudentDocuments(selectedStudent.student_id || 0);
-        } catch (error: any) {
-            alert(error.response?.data?.message || 'Failed to delete document.');
-        }
-    };
 
     const formatDate = (dateStr: string) => {
         if (!dateStr) return '-';
@@ -656,13 +643,6 @@ const StudentDocumentManagement: React.FC = () => {
                                                                         title="View / Download"
                                                                     >
                                                                         <DownloadIcon className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleDeleteDocument(doc.id, doc.document_type_name)}
-                                                                        className="text-red-500 hover:text-red-700 bg-red-50 p-1.5 rounded-md hover:bg-red-100 transition-colors"
-                                                                        title="Delete"
-                                                                    >
-                                                                        <TrashIcon className="w-3.5 h-3.5" />
                                                                     </button>
                                                                 </div>
                                                             </td>

@@ -17,6 +17,7 @@ const DocumentAdministration: React.FC = () => {
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
     // ── Access control ────────────────────────────────────────────
     const isAdminAllBranches = useMemo(() => {
@@ -103,10 +104,20 @@ const DocumentAdministration: React.FC = () => {
         }
     };
 
-    const filteredTypes = documentTypes.filter(t =>
+    const filteredTypes = documentTypes.filter((t) => {
+    const matchesSearch =
         t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.code.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+        t.code.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+        statusFilter === 'all'
+            ? true
+            : statusFilter === 'active'
+                ? t.is_active
+                : !t.is_active;
+
+    return matchesSearch && matchesStatus;
+    });
 
     return (
         <div className="min-h-screen bg-slate-50 p-6">
@@ -256,8 +267,14 @@ const DocumentAdministration: React.FC = () => {
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-40"
                                     />
-                                    <select className="border border-slate-300 rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
-                                        <option value="">All Type</option>
+                                    <select
+                                        value={statusFilter}
+                                        onChange={(e) =>
+                                            setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')
+                                        }
+                                        className="border border-slate-300 rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                                    >
+                                        <option value="all">All Type</option>
                                         <option value="active">Active</option>
                                         <option value="inactive">Inactive</option>
                                     </select>

@@ -745,8 +745,6 @@ class StudentDocument(db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     verified_by = db.Column(db.Integer)
     verified_at = db.Column(db.DateTime)
-    is_active = db.Column(db.Boolean, default=True)
-    
     document_type = db.relationship("DocumentType")
     student = db.relationship("Student")
     uploader = db.relationship("User", foreign_keys=[uploaded_by])
