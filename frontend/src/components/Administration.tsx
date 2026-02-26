@@ -7,7 +7,7 @@ import {
     SearchIcon,
     HomeIcon,
     UserIcon,
-    ChartBarIcon, 
+    ChartBarIcon,
     DashboardIcon,
     SetupIcon,
     HeadphoneIcon,
@@ -43,7 +43,8 @@ const Administration: React.FC<AdministrationProps> = ({ navigateTo }) => {
             icon: <DocumentReportIcon className="w-8 h-8" />,
             iconBg: 'bg-slate-50',
             iconColor: 'text-slate-600',
-            comingSoon: true
+            comingSoon: false,
+            page: 'document-management'
         },
         {
             id: 'download',
@@ -207,8 +208,8 @@ const Administration: React.FC<AdministrationProps> = ({ navigateTo }) => {
                             onClick={() => handleModuleClick(module)}
                             disabled={module.comingSoon}
                             className={`group relative bg-white rounded-xl p-6 border border-slate-200 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 ${module.comingSoon
-                                    ? 'opacity-60 cursor-not-allowed'
-                                    : 'hover:border-blue-300 hover:shadow-lg cursor-pointer'
+                                ? 'opacity-60 cursor-not-allowed'
+                                : 'hover:border-blue-300 hover:shadow-lg cursor-pointer'
                                 }`}
                         >
                             {/* Icon */}

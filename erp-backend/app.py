@@ -30,6 +30,8 @@ from routes.student_marks_routes import student_marks_bp
 from routes.report_card_routes import report_bp as report_card_bp
 from routes.test_attendance_routes import test_attendance_bp
 from routes.config_routes import bp as config_bp
+from routes.document_routes import document_routes
+
 
   
 
@@ -49,6 +51,7 @@ def create_app():
     # CONFIG
     # -----------------------------
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
 
     DB_USER = os.getenv("DB_USER")
     DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -74,7 +77,7 @@ def create_app():
                 r"https://.*\.vercel\.app",
                 "http://localhost:5173",
                 "http://localhost:3000",
-            
+                r"http://192\.168\.[0-9]+\.[0-9]+:[0-9]+"
             ],
             "supports_credentials": True,
             "allow_headers": ["Content-Type", "Authorization", "X-Branch", "X-Location", "X-Academic-Year", "X-Requested-With"],
@@ -106,13 +109,25 @@ def create_app():
     app.register_blueprint(report_card_bp)
     app.register_blueprint(test_attendance_bp)
     app.register_blueprint(config_bp)
+    app.register_blueprint(document_routes, url_prefix="/api/documents")
 
     # -----------------------------
-    # SERVE UPLOADS
+    # SERVE UPLOADS (legacy - kept for backward compatibility)
     # -----------------------------
     @app.route('/uploads/<path:filename>')
     def serve_uploads(filename):
         return send_from_directory(os.path.join(app.root_path, 'uploads'), filename)
+
+    # -----------------------------
+    # SERVE MEDIA (student photos + documents)
+    # Stored at: HifzErpSoftwareApplication/Media/
+    # URL:        /Media/student_document/<admission_no>/profile.jpg
+    # -----------------------------
+    media_folder = os.path.abspath(os.path.join(app.root_path, '..', 'Media'))
+
+    @app.route('/Media/<path:filename>')
+    def serve_media(filename):
+        return send_from_directory(media_folder, filename)
 
     # -----------------------------
     # FAVICON FIX
@@ -134,6 +149,10 @@ def create_app():
         if path and os.path.exists(file_path):
             return send_from_directory(app.static_folder, path)
         return send_from_directory(app.static_folder, "index.html")
+
+    @app.errorhandler(413)
+    def request_entity_too_large(error):
+        return jsonify({'message': 'File too large. Maximum size is 16 MB.'}), 413
 
     return app
 

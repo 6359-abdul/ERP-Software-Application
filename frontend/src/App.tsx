@@ -25,7 +25,10 @@ export type Page =
   | "import-student-data"
   | "fee-reports"
   | "attendance-report"
-  | "configuration";
+  | "configuration"
+  | "document-administration"
+  | "student-document-management"
+  | "document-management";
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
