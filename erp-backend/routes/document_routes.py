@@ -60,6 +60,8 @@ def get_document_types(current_user):
 @document_routes.route('/types', methods=['POST'])
 @token_required
 def create_document_type(current_user):
+    if current_user.role != 'Admin':
+        return jsonify({"message": "Access denied. Only Admins can manage document categories."}), 403
     try:
         data = request.json
 
@@ -85,6 +87,8 @@ def create_document_type(current_user):
 @document_routes.route('/types/<int:id>', methods=['PUT'])
 @token_required
 def update_document_type(current_user, id):
+    if current_user.role != 'Admin':
+        return jsonify({"message": "Access denied. Only Admins can manage document categories."}), 403
     try:
         data = request.json
         doc_type = DocumentType.query.get(id)

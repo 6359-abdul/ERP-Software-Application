@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { PencilIcon, TrashIcon } from './icons';
 import { SetupIcon } from './icons';
@@ -17,6 +17,15 @@ const DocumentAdministration: React.FC = () => {
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // ── Access control ────────────────────────────────────────────
+    const isAdminAllBranches = useMemo(() => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const currentBranch = (localStorage.getItem('currentBranch') || '').trim();
+        const isAdmin = user?.role === 'Admin';
+        const isAllBranches = currentBranch === '' || currentBranch === 'All' || currentBranch === 'All Branches';
+        return isAdmin && isAllBranches;
+    }, []);
 
     const [editingDocType, setEditingDocType] = useState<DocumentType | null>(null);
     const [formData, setFormData] = useState({
@@ -117,104 +126,116 @@ const DocumentAdministration: React.FC = () => {
                 {/* Main Content: Two Columns */}
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-                    {/* LEFT: Add / Edit Form */}
+                    {/* LEFT: Add / Edit Form — Admin @ All Branches only */}
                     <div className="lg:col-span-2">
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-                            <div className="px-5 py-4 border-b border-slate-200 bg-slate-50 rounded-t-xl">
-                                <h2 className="text-sm font-semibold text-slate-700">
-                                    {editingDocType ? '✏️ Edit Document Category' : '➕ Add Document Category'}
-                                </h2>
-                            </div>
-
-                            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-
-                                {error && (
-                                    <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-md text-sm">
-                                        {error}
-                                    </div>
-                                )}
-                                {successMessage && (
-                                    <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-md text-sm">
-                                        {successMessage}
-                                    </div>
-                                )}
-
-                                {/* Document Name */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Document Name <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        placeholder="e.g. Aadhaar Card"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    />
+                        {isAdminAllBranches ? (
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+                                <div className="px-5 py-4 border-b border-slate-200 bg-slate-50 rounded-t-xl">
+                                    <h2 className="text-sm font-semibold text-slate-700">
+                                        {editingDocType ? '✏️ Edit Document Category' : '➕ Add Document Category'}
+                                    </h2>
                                 </div>
 
-                                {/* Document Code */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Document Code <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="flex items-center gap-3">
+                                <form onSubmit={handleSubmit} className="p-5 space-y-4">
+
+                                    {error && (
+                                        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-md text-sm">
+                                            {error}
+                                        </div>
+                                    )}
+                                    {successMessage && (
+                                        <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-md text-sm">
+                                            {successMessage}
+                                        </div>
+                                    )}
+
+                                    {/* Document Name */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            Document Name <span className="text-red-500">*</span>
+                                        </label>
                                         <input
                                             type="text"
                                             required
-                                            disabled={!!editingDocType}
-                                            className={`flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none ${editingDocType ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
-                                            placeholder="e.g. AADHAAR"
-                                            value={formData.code}
-                                            onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                                            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                            placeholder="e.g. Aadhaar Card"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         />
-                                        <label className="flex items-center gap-2 text-sm text-slate-700 whitespace-nowrap cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                                checked={formData.is_active}
-                                                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                                            />
-                                            Is Active
-                                        </label>
                                     </div>
-                                    {!editingDocType && (
-                                        <p className="text-xs text-slate-400 mt-1">Unique code. Cannot be changed later. E.g. AADHAAR, TC</p>
-                                    )}
-                                </div>
 
-                                {/* Description */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                                    <textarea
-                                        rows={3}
-                                        className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                                        placeholder="Document Description"
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    />
-                                </div>
+                                    {/* Document Code */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            Document Code <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="text"
+                                                required
+                                                disabled={!!editingDocType}
+                                                className={`flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none ${editingDocType ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                placeholder="e.g. AADHAAR"
+                                                value={formData.code}
+                                                onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                                            />
+                                            <label className="flex items-center gap-2 text-sm text-slate-700 whitespace-nowrap cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                    checked={formData.is_active}
+                                                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                                                />
+                                                Is Active
+                                            </label>
+                                        </div>
+                                        {!editingDocType && (
+                                            <p className="text-xs text-slate-400 mt-1">Unique code. Cannot be changed later. E.g. AADHAAR, TC</p>
+                                        )}
+                                    </div>
 
-                                {/* Buttons */}
-                                <div className="flex gap-3 pt-2">
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-md shadow-sm transition-colors"
-                                    >
-                                        {loading ? 'Saving...' : 'Save'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleReset}
-                                        className="bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium px-5 py-2 rounded-md border border-slate-300 shadow-sm transition-colors"
-                                    >
-                                        Reset
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+                                    {/* Description */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                                        <textarea
+                                            rows={3}
+                                            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                                            placeholder="Document Description"
+                                            value={formData.description}
+                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                        />
+                                    </div>
+
+                                    {/* Buttons */}
+                                    <div className="flex gap-3 pt-2">
+                                        <button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-md shadow-sm transition-colors"
+                                        >
+                                            {loading ? 'Saving...' : 'Save'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleReset}
+                                            className="bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium px-5 py-2 rounded-md border border-slate-300 shadow-sm transition-colors"
+                                        >
+                                            Reset
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-xl shadow-sm border border-amber-200 flex flex-col items-center justify-center p-8 text-center h-full min-h-[200px]">
+                                <div className="text-3xl mb-3">🔒</div>
+                                <h3 className="text-sm font-semibold text-slate-700 mb-1">Access Restricted</h3>
+                                <p className="text-xs text-slate-500">
+                                    Only <span className="font-medium text-amber-600">Admins</span> at{' '}
+                                    <span className="font-medium text-amber-600">All Branches</span> level can
+                                    add or edit document categories.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* RIGHT: Document Categories Table */}
@@ -306,23 +327,29 @@ const DocumentAdministration: React.FC = () => {
                                                         )}
                                                     </td>
                                                     <td className="px-5 py-3 text-right">
-                                                        <button
-                                                            onClick={() => handleEdit(type)}
-                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 p-1.5 rounded-md transition-colors mr-1"
-                                                            title="Edit"
-                                                        >
-                                                            <PencilIcon className="w-3.5 h-3.5" />
-                                                        </button>
-                                                        <button
-                                                            className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-md transition-colors"
-                                                            title="Delete (Deactivate)"
-                                                            onClick={() => {
-                                                                handleEdit(type);
-                                                                setFormData(prev => ({ ...prev, is_active: false }));
-                                                            }}
-                                                        >
-                                                            <TrashIcon className="w-3.5 h-3.5" />
-                                                        </button>
+                                                        {isAdminAllBranches ? (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => handleEdit(type)}
+                                                                    className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 p-1.5 rounded-md transition-colors mr-1"
+                                                                    title="Edit"
+                                                                >
+                                                                    <PencilIcon className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                <button
+                                                                    className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-md transition-colors"
+                                                                    title="Delete (Deactivate)"
+                                                                    onClick={() => {
+                                                                        handleEdit(type);
+                                                                        setFormData(prev => ({ ...prev, is_active: false }));
+                                                                    }}
+                                                                >
+                                                                    <TrashIcon className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-xs text-slate-400 italic">View only</span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))
