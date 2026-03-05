@@ -157,7 +157,11 @@ def get_grade_scales():
                 "academic_year": s.academic_year,
                 "branch": s.branch,
                 "location": s.location,
-                "total_marks": s.total_marks
+                "total_marks": s.total_marks,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+                "created_by": s.created_by,
+                "updated_by": s.updated_by
             })
             
         return jsonify(result), 200

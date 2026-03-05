@@ -50,7 +50,11 @@ def get_document_types(current_user):
                 "code": t.code,
                 "name": t.name,
                 "description": t.description,
-                "is_active": t.is_active
+                "is_active": t.is_active,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+                "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+                "created_by": t.created_by,
+                "updated_by": t.updated_by
             } for t in types
         ]), 200
     except Exception as e:

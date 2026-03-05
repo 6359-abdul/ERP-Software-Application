@@ -186,7 +186,11 @@ def student_to_dict(s):
         "EmploymentCategory": s.EmploymentCategory,
         "branch": s.branch,
         "location": s.location,
-        "academic_year": s.academic_year
+        "academic_year": s.academic_year,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+        "created_by": s.created_by,
+        "updated_by": s.updated_by
     }
 
 def fee_type_to_dict(ft):
@@ -201,7 +205,11 @@ def fee_type_to_dict(ft):
         "description": ft.description,
         "branch": ft.branch,
         "academic_year": ft.academic_year,
-        "location": ft.location
+        "location": ft.location,
+        "created_at": ft.created_at.isoformat() if ft.created_at else None,
+        "updated_at": ft.updated_at.isoformat() if ft.updated_at else None,
+        "created_by": ft.created_by,
+        "updated_by": ft.updated_by
     }
 
 def assign_fee_to_student(student_id, fee_structure, is_student_new=False):

@@ -349,7 +349,14 @@ def get_classes():
     # Simple sort by ID or Name
     classes.sort(key=lambda x: x.id) 
     return jsonify([
-        {"id": c.id, "class_name": c.class_name} for c in classes
+        {
+            "id": c.id,
+            "class_name": c.class_name,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            "created_by": c.created_by,
+            "updated_by": c.updated_by
+        } for c in classes
     ])
 
 

@@ -36,6 +36,9 @@ def weekoff_to_dict(rule):
         "academic_year": rule.academic_year,
         "active": rule.active,
         "created_at": rule.created_at.isoformat() if rule.created_at else None,
+        "updated_at": rule.updated_at.isoformat() if rule.updated_at else None,
+        "created_by": rule.created_by,
+        "updated_by": rule.updated_by
     }
 
 
@@ -57,6 +60,9 @@ def holiday_to_dict(h):
         "academic_year": h.academic_year,
         "active": h.active,
         "created_at": h.created_at.isoformat() if h.created_at else None,
+        "updated_at": h.updated_at.isoformat() if h.updated_at else None,
+        "created_by": h.created_by,
+        "updated_by": h.updated_by
     }
 
 

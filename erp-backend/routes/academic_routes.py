@@ -85,7 +85,11 @@ def list_subjects():
                 "subject_name": s.subject_name,
                 "subject_type": s.subject_type,
                 "academic_year": s.academic_year,
-                "is_active": s.is_active
+                "is_active": s.is_active,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+                "created_by": s.created_by,
+                "updated_by": s.updated_by
             }
             for s in subjects
         ])
@@ -274,9 +278,11 @@ def get_assigned_subjects():
                 "class_id": assign.class_id,
                 "subject_name": subject.subject_name,
                 "subject_type": subject.subject_type,
-                "branch_name": assign.branch_name, # Stored Name
-                # "branch_id": assign.branch # sending name as id? frontend might expect ID?
-                # Frontend expects "branch_id" if it uses it for logic. But here it's mostly for display/matrix.
+                "branch_name": assign.branch_name,
+                "created_at": assign.created_at.isoformat() if assign.created_at else None,
+                "updated_at": assign.updated_at.isoformat() if assign.updated_at else None,
+                "created_by": assign.created_by,
+                "updated_by": assign.updated_by
             })
             
         return jsonify(output)
