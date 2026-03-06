@@ -917,7 +917,11 @@ def receive_before_flush(session, flush_context, instances):
         old_data = {}
         new_data = {}
 
-        for attr in state.attrs:
+        for col in obj.__table__.columns:
+            attr = state.attrs.get(col.key)
+            if not attr:
+                continue
+
             hist = attr.history
 
             if not hist.has_changes():
@@ -926,8 +930,8 @@ def receive_before_flush(session, flush_context, instances):
             old_value = hist.deleted[0] if hist.deleted else None
             new_value = hist.added[0] if hist.added else None
 
-            old_data[attr.key] = _make_serializable(old_value)
-            new_data[attr.key] = _make_serializable(new_value)
+            old_data[col.key] = _make_serializable(old_value)
+            new_data[col.key] = _make_serializable(new_value)
 
         if old_data:
             module = getattr(obj, "__audit_module__", "GENERAL")

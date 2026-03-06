@@ -242,6 +242,10 @@ def get_student_documents(current_user, student_id):
             student_id=student_id
         ).all()
 
+        user_ids = {doc.created_by for doc in documents if doc.created_by}
+        users = User.query.filter(User.user_id.in_(user_ids)).all() if user_ids else []
+        user_map = {u.user_id: u.username for u in users}
+
         result = []
         for doc in documents:
             result.append({
@@ -256,7 +260,7 @@ def get_student_documents(current_user, student_id):
                 'file_name': doc.file_name,
                 'uploaded_at': doc.created_at.strftime('%Y-%m-%d %H:%M:%S') if doc.created_at else None,
                 'is_verified': doc.is_verified,
-                'upload_by_name': User.query.get(doc.created_by).username if (doc.created_by and User.query.get(doc.created_by)) else 'System'
+                'upload_by_name': user_map.get(doc.created_by, 'System')
             })
 
         return jsonify(result), 200
