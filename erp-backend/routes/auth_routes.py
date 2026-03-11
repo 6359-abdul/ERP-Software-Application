@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request, current_app
 from extensions import db
+from extensions import limiter
 from models import User, Branch, UserBranchAccess
 from datetime import date, datetime, timedelta
 import jwt

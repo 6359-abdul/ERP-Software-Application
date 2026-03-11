@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory # Force Reload
 from flask_cors import CORS
 from dotenv import load_dotenv
 from flask_migrate import Migrate 
+from extensions import db, limiter, cache
 import os
 
 # -----------------------------
@@ -66,7 +67,11 @@ def create_app():
     else:
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///erp.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
+    app.config["SQLALCHEMY_POOL_SIZE"] = 20  
+    app.config["SQLALCHEMY_MAX_OVERFLOW"] = 20  
+    app.config["SQLALCHEMY_POOL_RECYCLE"] = 300  
+    app.config["SQLALCHEMY_POOL_TIMEOUT"] = 30  
+    app.config["SQLALCHEMY_POOL_PRE_PING"] = True 
     # -----------------------------
     # INIT EXTENSIONS
     # -----------------------------
@@ -86,6 +91,9 @@ def create_app():
     })
     db.init_app(app)
     migrate.init_app(app, db)
+
+    limiter.init_app(app)  
+    cache.init_app(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 300})
 
 
     # -----------------------------
