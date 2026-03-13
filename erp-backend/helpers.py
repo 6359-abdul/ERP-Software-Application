@@ -12,6 +12,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import smtplib
 from email.message import EmailMessage
 from flask import current_app
+import logging
+
+logger = logging.getLogger(__name__)
 
 MONTHS = [
     "May", "June", "July", "August", "September", "October",
