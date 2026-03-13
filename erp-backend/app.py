@@ -76,14 +76,27 @@ def create_app():
     # INIT EXTENSIONS
     # -----------------------------
     # Allow specific origins with credentials
+   # CORS: strict allowlist in production via CORS_ALLOWED_ORIGINS (comma-separated)
+    env_name = os.getenv("ENV", "development").lower()
+    if env_name == "production":
+        allowed_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+        if not allowed_origins:
+            raise RuntimeError(
+                "CORS_ALLOWED_ORIGINS environment variable is required in production "
+                "and must contain at least one origin (comma-separated). "
+                f"Current env_name={env_name!r}, allowed_origins={allowed_origins!r}. "
+                "Set CORS_ALLOWED_ORIGINS (e.g. 'https://myapp.com') or change ENV to 'development'."
+            )
+    else:
+        allowed_origins = [
+            r"https://.*\.vercel\.app",
+            "http://localhost:5173",
+            "http://localhost:3000",
+            r"http://192\.168\.[0-9]+\.[0-9]+:[0-9]+"
+        ]
     CORS(app, resources={
         r"/*": {
-            "origins": [
-                r"https://.*\.vercel\.app",
-                "http://localhost:5173",
-                "http://localhost:3000",
-                r"http://192\.168\.[0-9]+\.[0-9]+:[0-9]+"
-            ],
+            "origins": allowed_origins,
             "supports_credentials": True,
             "allow_headers": ["Content-Type", "Authorization", "X-Branch", "X-Location", "X-Academic-Year", "X-Requested-With"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
