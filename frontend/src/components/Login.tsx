@@ -80,8 +80,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const requestOtp = async () => {
     resetMessages();
     setLoading(true);
 
@@ -94,6 +93,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await requestOtp();
   };
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
@@ -292,7 +296,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => handleForgotPassword(e)}
+                  onClick={() => requestOtp()}
                   disabled={loading}
                   className="text-blue-600 hover:text-blue-800 hover:underline disabled:text-blue-300"
                 >

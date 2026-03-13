@@ -122,8 +122,8 @@ def create_user(current_user):
         branches = data.get("branches", [])
         legacy_branch = data.get("branch", "North") # Default fallback
 
-        if not username or not password:
-            return jsonify({"error": "Username and Password are required"}), 400
+        if not username or not password or not useremail:
+            return jsonify({"error": "Username, Password, and Email are required"}), 400
 
         if User.query.filter_by(username=username).first():
             return jsonify({"error": "Username already exists"}), 400
@@ -278,12 +278,12 @@ def verify_otp():
     if not otp_record:
         return jsonify({"error": "Invalid OTP"}), 400
         
-    if otp_record.attempts >= 5:
+    if (otp_record.attempts or 0) >= 5:
         return jsonify({"error": "Maximum OTP attempts exceeded. Please request a new OTP."}), 400
     
     submitted_hash = hashlib.sha256(otp.encode()).hexdigest()
     if not secrets.compare_digest(otp_record.otp_hash, submitted_hash):
-        otp_record.attempts += 1
+        otp_record.attempts = (otp_record.attempts or 0) + 1
         db.session.commit()
         return jsonify({"error": "Invalid OTP"}), 400
         
@@ -315,12 +315,12 @@ def reset_password():
     if not otp_record:
         return jsonify({"error": "Invalid or expired OTP"}), 400
         
-    if otp_record.attempts >= 5:
+    if (otp_record.attempts or 0) >= 5:
         return jsonify({"error": "Maximum OTP attempts exceeded. Please request a new OTP."}), 400
     
     submitted_hash = hashlib.sha256(otp.encode()).hexdigest()
     if not secrets.compare_digest(otp_record.otp_hash, submitted_hash):
-        otp_record.attempts += 1
+        otp_record.attempts = (otp_record.attempts or 0) + 1
         db.session.commit()
         return jsonify({"error": "Invalid OTP"}), 400
         

@@ -125,8 +125,8 @@ const Profile: React.FC = () => {
         e.preventDefault();
         setAddUserStatus({ type: '', msg: '' });
 
-        if (!newUserUsername || !newUserPassword) {
-            setAddUserStatus({ type: 'error', msg: 'Username and Password are required.' });
+        if (!newUserUsername || !newUserPassword || !newUserEmail) {
+            setAddUserStatus({ type: 'error', msg: 'Username, Password, and User Email are required.' });
             return;
         }
 
@@ -346,6 +346,7 @@ const Profile: React.FC = () => {
                                         onChange={(e) => setNewUserEmail(e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                         placeholder="Enter user email"
+                                        required
                                     />
                                 </div>
                                 <div>
