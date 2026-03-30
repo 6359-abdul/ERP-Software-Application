@@ -8,6 +8,8 @@ from sqlalchemy import and_
 import traceback
 from datetime import datetime
 from helpers import token_required
+import logging
+logger = logging.getLogger(__name__)
 
 student_marks_bp = Blueprint('student_marks_bp', __name__)
 
@@ -170,8 +172,8 @@ def get_marks_entry_grid():
         }), 200
 
     except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @student_marks_bp.route('/api/marks/entry/subject', methods=['POST'])
@@ -260,5 +262,5 @@ def save_marks_entry(current_user):
 
     except Exception as e:
         db.session.rollback()
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

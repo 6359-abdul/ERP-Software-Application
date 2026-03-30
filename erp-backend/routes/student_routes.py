@@ -57,7 +57,7 @@ def save_student_photo(student, photo_data):
         student.photopath = f"Media/student_document/{student.admission_no}/{filename}"
 
     except Exception as e:
-        print(f"Error saving photo: {e}")
+        logger.error(f"Error saving photo: {e}")
 
 
 @bp.route("/api/students", methods=["GET"])
@@ -204,7 +204,7 @@ def get_students(current_user):
                     
                 results.append(s_dict)
             except Exception as inner_e:
-                print(f"Error processing student row: {inner_e}")
+                logger.error(f"Error processing student row: {inner_e}")
                 continue # Skip bad rows to avoid crashing the whole list
 
         return jsonify({"students": results}), 200
@@ -221,7 +221,8 @@ def get_students(current_user):
             str(e),
             exc_info=True,
         )
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/students/<int:student_id>", methods=["PUT"])
 @token_required
@@ -383,7 +384,7 @@ def update_student(current_user, student_id):
             # However, if we want to be safe, we just check pending fees:
             total_due = db.session.query(func.sum(StudentFee.due_amount)).filter_by(student_id=student_id, is_active=True).scalar() or 0
             if total_due > 0:
-                print(f"Blocking inactivation for student {student_id} due to pending fee: {total_due}")
+                logger.error(f"Blocking inactivation for student {student_id} due to pending fee: {total_due}")
                 return jsonify({"error": "student has fee to pay unable to deactivate"}), 400
                 
             # Save inactivation details
@@ -451,9 +452,9 @@ def update_student(current_user, student_id):
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error updating student: {e}")
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error updating student: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 @bp.route("/api/students", methods=["POST"])
 @token_required
 def create_student(current_user):
@@ -641,19 +642,20 @@ def create_student(current_user):
             )
             db.session.add(init_record)
         except Exception as e:
-            print(f"Error creating initial academic record: {e}")
+            logger.error(f"Error creating initial academic record: {e}")
 
         try:
             auto_enroll_student_fee(s.student_id, s.clazz)
         except Exception as e:
-            print(f"Fee enrollment error: {str(e)}") # Non-blocking
+            logger.error(f"Fee enrollment error: {str(e)}") # Non-blocking
         
         db.session.commit()
         
         return jsonify({"message": "Student created", "student_id": s.student_id}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/students/<int:student_id>", methods=["DELETE"])
 @token_required
@@ -678,7 +680,8 @@ def delete_student(current_user, student_id):
         return jsonify({"message": "Student marked as Inactive successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/students/upload_csv", methods=["POST"])
 @token_required
@@ -878,8 +881,8 @@ def upload_students_csv(current_user):
         
     except Exception as e:
         db.session.rollback()
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/students/<int:student_id>/history", methods=["GET"])
 @token_required
@@ -909,7 +912,8 @@ def get_student_history(current_user, student_id):
         
         return jsonify({"history": history}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/students/promote-bulk", methods=["POST"])
 @token_required
@@ -1045,7 +1049,8 @@ def promote_students_bulk(current_user):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/students/summary", methods=["GET"])
 @token_required
@@ -1173,7 +1178,8 @@ def get_student_summary(current_user):
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 

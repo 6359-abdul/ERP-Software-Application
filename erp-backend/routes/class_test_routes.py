@@ -4,6 +4,8 @@ from models import ClassTest, ClassMaster, TestType, OrgMaster, Branch, User, Cl
 import sqlalchemy
 from datetime import datetime
 from helpers import token_required
+import logging
+logger = logging.getLogger(__name__)
  
 class_test_bp = Blueprint('class_test_bp', __name__)
 
@@ -45,7 +47,8 @@ def get_matrix():
             } for a in assignments]
         }), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @class_test_bp.route('/assign', methods=['POST'])
 @token_required
@@ -120,7 +123,8 @@ def assign_test(current_user):
         return jsonify({'error': 'Duplicate order or assignment constraint violation'}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @class_test_bp.route('/copy', methods=['POST'])
 @token_required
@@ -175,7 +179,8 @@ def copy_assignments(current_user):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 @class_test_bp.route('/list', methods=['GET'])
 def list_class_tests():
     try:
@@ -229,4 +234,5 @@ def list_class_tests():
         return jsonify(results), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

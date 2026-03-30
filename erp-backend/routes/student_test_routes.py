@@ -104,7 +104,8 @@ def get_assignments():
 
     except Exception as e:
         logger.error(f"Error fetching student test assignments: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @student_test_bp.route('/student-test-assignments', methods=['POST'])
 def save_assignments():
@@ -149,4 +150,5 @@ def save_assignments():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error saving student test assignments: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

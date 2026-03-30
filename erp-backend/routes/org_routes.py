@@ -4,6 +4,8 @@ from models import Branch, OrgMaster, User, UserBranchAccess, ClassMaster , Clas
 from helpers import token_required, require_academic_year, get_branch_query_filter
 from datetime import date, datetime
 from sqlalchemy import or_ 
+import logging
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('org_routes', __name__)
 
@@ -27,10 +29,12 @@ def get_all_branches(current_user):
             } for b in branches]
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/org/locations", methods=["GET"])
-def get_all_locations():
+@token_required
+def get_all_locations(current_user):
     """Fetch all available locations from OrgMaster"""
     try:
         locations = OrgMaster.query.filter_by(master_type='LOCATION', is_active=True).all()
@@ -41,10 +45,12 @@ def get_all_locations():
             } for loc in locations]
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/org/academic-years", methods=["GET"])
-def get_all_academic_years():
+@token_required
+def get_all_academic_years(current_user):
     """Fetch all available academic years from OrgMaster"""
     try:
         years = OrgMaster.query.filter_by(master_type='ACADEMIC_YEAR', is_active=True).all()
@@ -57,10 +63,14 @@ def get_all_academic_years():
             } for y in years]
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/setup/seed-branches", methods=["POST"])
-def seed_branches():
+@token_required
+def seed_branches(current_user):
+    if current_user.role != 'Admin':
+        return jsonify({"error": "Admin access required"}), 403
     # ... (table creation and seeing logic) ...
     # Simplified for brevity as per instructions, but full logic should be here if needed for setup
     # Since this is a setup route, maybe keep it simple or remove if not needed for daily ops?
@@ -122,7 +132,8 @@ def seed_branches():
     }), 201
 
 @bp.route("/api/classes", methods=["GET"])
-def get_classes():
+@token_required
+def get_classes(current_user):
     from sqlalchemy import and_
     
     # Filter by Branch (Query param has precedence over Header)

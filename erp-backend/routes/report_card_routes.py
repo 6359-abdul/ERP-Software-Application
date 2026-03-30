@@ -3,6 +3,8 @@ from datetime import datetime
 import mysql.connector
 from mysql.connector import Error 
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 report_bp = Blueprint('report', __name__)
 
@@ -67,7 +69,8 @@ def get_students():
         return jsonify({'students': students})
         
     except Error as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
     finally:
         if cursor:
             cursor.close()
@@ -551,11 +554,13 @@ def get_student_report():
         return jsonify(response)
         
     except Error as e:
-        print(f"Database error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Database error: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
     except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
     finally:
         if cursor:
             cursor.close()
@@ -729,7 +734,8 @@ def get_student_history():
         return jsonify(response)
         
     except Error as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
     finally:
         if cursor:
             cursor.close()
@@ -949,7 +955,8 @@ def get_student_report_by_year():
         return jsonify(response)
         
     except Error as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
     finally:
         if cursor:
             cursor.close()

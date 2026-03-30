@@ -6,6 +6,8 @@ from helpers import token_required, require_academic_year, generate_installments
 from datetime import datetime
 from sqlalchemy import or_, and_, select
 import traceback
+import logging
+logger = logging.getLogger(__name__)
 
 
 bp = Blueprint('fee_master_routes', __name__)
@@ -93,7 +95,8 @@ def create_fee_type(current_user):
         return jsonify({"message": "Fee Type created", "id": new_ft.id}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/fee-types/<int:id>", methods=["PUT"])
 @token_required
@@ -123,7 +126,8 @@ def update_fee_type(current_user, id):
         return jsonify({"message": "Fee type updated successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/fee-types/<int:fee_type_id>", methods=["DELETE"])
 @token_required
@@ -157,7 +161,8 @@ def delete_fee_type(current_user, fee_type_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Error deleting fee type: {str(e)}"}), 500
+        logger.exception("Error deleting fee type")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/class-fee-structure", methods=["GET"])
 @token_required 
@@ -249,7 +254,8 @@ def migrate_class_fee_structures(current_user):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/class-fee-structure", methods=["POST"])
 @token_required
@@ -332,7 +338,7 @@ def create_class_fee_structure(current_user):
                     students_query = students_query.filter_by(academic_year=fs.academic_year)
                 
                 students = students_query.all()
-                print(f"DEBUG: Found {len(students)} students in Class {fs.clazz} (Branch: {fs.branch}) for auto-assignment.")
+                logger.debug(f"Found {len(students)} students in Class {fs.clazz} (Branch: {fs.branch}) for auto-assignment.")
                 
                 for s in students:
                     if fs.branch and fs.branch != "All" and s.branch != fs.branch:
@@ -376,7 +382,8 @@ def delete_class_fee_structure(current_user, id):
         return jsonify({"message": "Fee structure deleted successfully"}), 200
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/concessions", methods=["GET"])
 @token_required
@@ -473,7 +480,8 @@ def create_concession(current_user):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/concessions/<string:title>/<string:year>", methods=["DELETE"])
 @token_required
@@ -496,7 +504,8 @@ def delete_concession(current_user, title, year):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/concessions/<string:original_title>/<string:original_year>", methods=["PUT"])
@@ -558,7 +567,8 @@ def update_concession(current_user, original_title, original_year):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/installment-schedule", methods=["GET"])
 @token_required
@@ -634,7 +644,8 @@ def get_installments(current_user):
             } for i in installments]
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/installment-schedule", methods=["POST"])
 @token_required
@@ -711,7 +722,8 @@ def create_installment(current_user):
         return jsonify({"message": "Installment created successfully", "id": new_inst.id}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/installment-schedule/<int:id>", methods=["PUT"])
 @token_required
@@ -764,7 +776,8 @@ def update_installment(current_user, id):
         return jsonify({"message": "Installment updated successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/installment-schedule/<int:id>", methods=["DELETE"])
 @token_required
@@ -802,7 +815,8 @@ def delete_installment(current_user, id):
         return jsonify({"message": "Installment deleted and schedule reordered successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 @bp.route("/api/fees/copy-class-fee-structure", methods=["POST"])
 @token_required
 def copy_class_fee_structure(current_user):
@@ -880,7 +894,7 @@ def copy_class_fee_structure(current_user):
                      else:
                          # VALIDATION FAILED: Target missing required fee type
                          skipped_validation_count += 1
-                         print(f"[SKIP] Target {t_branch_name} missing fee type '{src_ft.feetype}'")
+                         logger.debug(f"Target {t_branch_name} missing fee type '{src_ft.feetype}'")
                          continue
 
                 # --- VALIDATION 2: Installment Count Match ---
@@ -900,7 +914,7 @@ def copy_class_fee_structure(current_user):
                     if t_inst_count != src_fee.installments_count:
                          # VALIDATION FAILED: Mismatch in installments
                          skipped_validation_count += 1
-                         print(f"[SKIP] Target {t_branch_name} installment mismatch for '{src_ft.feetype}'. Source: {src_fee.installments_count}, Target: {t_inst_count}")
+                         logger.debug(f"Target {t_branch_name} installment mismatch for '{src_ft.feetype}'. Source: {src_fee.installments_count}, Target: {t_inst_count}")
                          continue
 
                 # Check Existing (Merge Mode)
@@ -947,8 +961,9 @@ def copy_class_fee_structure(current_user):
 
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR] Copy Fee Structure Failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Copy Fee Structure Failed: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/fees/copy-fee-types", methods=["POST"])
 @token_required
@@ -1025,8 +1040,9 @@ def copy_fee_types(current_user):
 
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR] Copy Fee Types: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Copy Fee Types: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/fees/copy-installments", methods=["POST"])
@@ -1140,8 +1156,9 @@ def copy_installments(current_user):
 
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR] Copy Installments: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Copy Installments: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/fees/copy-concessions", methods=["POST"])
 @token_required
@@ -1272,5 +1289,6 @@ def copy_concessions(current_user):
 
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR] Copy Concessions: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Copy Concessions: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

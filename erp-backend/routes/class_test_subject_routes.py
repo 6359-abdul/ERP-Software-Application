@@ -13,6 +13,8 @@ from models import (
     OrgMaster
 )
 from helpers import token_required
+import logging
+logger = logging.getLogger(__name__)
 # -------------------------------------------------
 # Blueprint
 # -------------------------------------------------
@@ -126,7 +128,8 @@ def get_matrix():
         }), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 # -------------------------------------------------
 # POST : Save Assignments
@@ -247,7 +250,8 @@ def save_assignments(current_user):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 # -------------------------------------------------
 # POST : Copy Assignments
@@ -353,4 +357,5 @@ def copy_assignments(current_user):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

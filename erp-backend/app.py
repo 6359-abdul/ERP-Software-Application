@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 from extensions import db, limiter, cache
 import os
 import logging
+from werkzeug.exceptions import HTTPException
 
 # -----------------------------
 # EXTENSIONS
@@ -190,6 +191,29 @@ def create_app():
     @app.errorhandler(413)
     def request_entity_too_large(error):
         return jsonify({'message': 'File too large. Maximum size is 16 MB.'}), 413
+
+    # -----------------------------
+    # GLOBAL ERROR HANDLER
+    # -----------------------------
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        if isinstance(e, HTTPException):
+            return jsonify({"error": e.description}), e.code
+        app.logger.exception("Unhandled exception")
+        return jsonify({"error": "An internal error occurred"}), 500
+
+    # -----------------------------
+    # SECURITY HEADERS
+    # -----------------------------
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        if env_name == 'production':
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        return response
 
     return app
 

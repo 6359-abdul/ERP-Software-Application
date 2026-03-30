@@ -3,6 +3,8 @@ from extensions import db
 from models import GradeScale, GradeScaleDetails
 from sqlalchemy.exc import IntegrityError
 from helpers import token_required
+import logging
+logger = logging.getLogger(__name__)
 
 grade_scale_bp = Blueprint("grade_scale", __name__)
 
@@ -110,7 +112,8 @@ def create_grade_scale(current_user):
         return jsonify({"error": "Duplicate entry or Invalid Data (Integrity Error)"}), 409
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @grade_scale_bp.route("/api/grade-scales", methods=["GET"])
 def get_grade_scales():
@@ -168,7 +171,8 @@ def get_grade_scales():
             
         return jsonify(result), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @grade_scale_bp.route("/api/grade-scales/<int:id>", methods=["GET"])
 def get_grade_scale_details_route(id):
@@ -198,7 +202,8 @@ def get_grade_scale_details_route(id):
             "details": details_list
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @grade_scale_bp.route("/api/grade-scales/<int:id>", methods=["PUT"])
 @token_required
@@ -271,7 +276,8 @@ def update_grade_scale(current_user, id):
         return jsonify({"error": "Duplicate entry or range conflict"}), 409
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @grade_scale_bp.route("/api/grade-scales/<int:id>", methods=["DELETE"])
 @token_required
@@ -294,4 +300,5 @@ def delete_grade_scale(current_user, id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

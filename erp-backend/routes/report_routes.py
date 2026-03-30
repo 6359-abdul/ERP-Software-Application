@@ -5,6 +5,8 @@ from helpers import token_required, require_academic_year
 from datetime import date, datetime
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
+import logging
+logger = logging.getLogger(__name__)
 
 def consolidate_receipts(payments):
     """
@@ -98,7 +100,8 @@ def report_fee_today(current_user):
             "receipts": receipts_list
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/reports/fees/daily", methods=["GET"])
 @bp.route("/api/reports/fees/daily", methods=["GET"])
@@ -206,7 +209,8 @@ def report_fee_daily(current_user):
     except ValueError:
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/reports/fees/monthly", methods=["GET"])
 @token_required
@@ -267,7 +271,8 @@ def report_fee_monthly(current_user):
              "receipts": receipts_list
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/reports/fees/class-wise", methods=["GET"])
@@ -344,7 +349,8 @@ def report_fee_class_wise(current_user):
             "receipts": receipts_list
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/reports/fees/installment-wise", methods=["GET"])
@@ -433,7 +439,8 @@ def report_fee_installment_wise(current_user):
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/reports/fees/due", methods=["GET"])
@@ -490,7 +497,8 @@ def report_fee_due(current_user):
             
         return jsonify(output), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/reports/fees/receipt/<string:receipt_no>", methods=["GET"])
@@ -574,4 +582,5 @@ def get_receipt_data(current_user, receipt_no):
         }), 200
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

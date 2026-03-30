@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from extensions import db
 from models import TestAttendanceMonth
 import datetime
+import logging
+logger = logging.getLogger(__name__)
 
 test_attendance_bp = Blueprint('test_attendance_bp', __name__)
 
@@ -66,4 +68,5 @@ def save_test_attendance():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

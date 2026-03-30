@@ -6,6 +6,8 @@ from datetime import datetime
 import os
 import uuid
 from werkzeug.utils import secure_filename
+import logging
+logger = logging.getLogger(__name__)
 
 document_routes = Blueprint('document_routes', __name__)
 
@@ -79,7 +81,8 @@ def get_document_types(current_user):
             } for t in types
         ]), 200
     except Exception as e:
-        return jsonify({"message": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @document_routes.route('/types', methods=['POST'])
@@ -106,7 +109,8 @@ def create_document_type(current_user):
         return jsonify({"message": "Document type created successfully", "id": new_type.id}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @document_routes.route('/types/<int:id>', methods=['PUT'])
@@ -131,7 +135,8 @@ def update_document_type(current_user, id):
         return jsonify({"message": "Document type updated successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 # ==========================================
@@ -250,7 +255,8 @@ def upload_student_document(current_user):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': f'Error uploading document: {str(e)}'}), 500
+        logger.exception("Error uploading document")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 # ==========================================
@@ -294,7 +300,8 @@ def get_student_documents(current_user, student_id):
 
         return jsonify(result), 200
     except Exception as e:
-        return jsonify({'message': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 # ==========================================
@@ -329,6 +336,7 @@ def download_document(current_user, doc_id):
             mimetype=doc.mime_type
         )
     except Exception as e:
-        return jsonify({'message': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 

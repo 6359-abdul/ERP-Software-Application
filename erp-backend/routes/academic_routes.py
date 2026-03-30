@@ -4,6 +4,8 @@ from models import SubjectMaster, Branch, OrgMaster, ClassSubjectAssignment
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import exists
 from helpers import token_required
+import logging
+logger = logging.getLogger(__name__)
 
 bp = Blueprint("academic", __name__)
 @bp.route("/api/academic/subjects", methods=["POST"])
@@ -11,10 +13,10 @@ bp = Blueprint("academic", __name__)
 def create_subject(current_user):
     try: 
         data = request.json
-        print(f"[DEBUG] Received request to create subject: {data}")
+        logger.debug(f"Received request to create subject: {data}")
 
         if not data or not data.get("subject_name"):
-            print("[ERROR] subject_name is missing from request")
+            logger.error("subject_name is missing from request")
             return jsonify({"error": "subject_name is required"}), 400
 
         subject_name = data["subject_name"].strip()
@@ -33,7 +35,7 @@ def create_subject(current_user):
         ).first()
 
         if existing:
-            print("[ERROR] Duplicate subject detected")
+            logger.error("Duplicate subject detected")
             return jsonify({
                 "error": f"Subject '{subject_name}' already exists in {subject_type} group for year {academic_year}."
             }), 409
@@ -48,23 +50,24 @@ def create_subject(current_user):
         db.session.add(subject)
         db.session.commit()
 
-        print(f"[SUCCESS] Subject created with ID: {subject.id}")
+        logger.info(f"Subject created with ID: {subject.id}")
         return jsonify({
             "message": "Subject created successfully",
             "id": subject.id
         }), 201
 
     except IntegrityError as e:
-        print(f"[ERROR] IntegrityError: {str(e)}")
+        logger.error(f"IntegrityError: {str(e)}")
         db.session.rollback()
         return jsonify({
             "error": "Duplicate subject is not allowed."
         }), 409
 
     except Exception as e:
-        print(f"[ERROR] Failed to create subject: {str(e)}")
+        logger.error(f"Failed to create subject: {str(e)}")
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/academic/subjects", methods=["GET"])
@@ -96,7 +99,8 @@ def list_subjects():
             for s in subjects
         ])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/academic/subjects/<int:subject_id>", methods=["PUT"])
 @token_required
@@ -125,7 +129,8 @@ def update_subject(current_user, subject_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/academic/subjects/<int:subject_id>", methods=["DELETE"])
 @token_required
@@ -154,7 +159,8 @@ def delete_subject(current_user, subject_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 # ---------------------------------------------------------
@@ -167,7 +173,7 @@ from models import ClassSubjectAssignment, Branch, ClassMaster, OrgMaster, Stude
 def assign_subjects(current_user):
     try:
         data = request.json
-        print(f"[DEBUG] Assign Request: {data}")
+        logger.debug(f"Assign Request: {data}")
         
         class_id = data.get("class_id")
         subject_id = data.get("subject_id")
@@ -233,8 +239,9 @@ def assign_subjects(current_user):
 
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR] Assign failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Assign failed: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/academic/assigned-subjects", methods=["GET"])
 def get_assigned_subjects():
@@ -293,8 +300,9 @@ def get_assigned_subjects():
         return jsonify(output)
 
     except Exception as e:
-        print(f"[ERROR] List assigned failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"List assigned failed: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/academic/assigned-subjects/<int:id>", methods=["DELETE"])
 @token_required
@@ -339,7 +347,8 @@ def delete_assignment(current_user, id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/academic/manage-subject-assignment/bulk", methods=["POST"])
 @token_required
@@ -400,7 +409,7 @@ def manage_subject_assignment_bulk(current_user):
             # Resolve class name for historical check
             current_class_name = classes_map.get(class_id)
             if not current_class_name:
-                print(f"[WARN] Skipping update for invalid class_id: {class_id}")
+                logger.warning(f"Skipping update for invalid class_id: {class_id}")
                 errors_found.append(f"Invalid class ID encountered: {class_id}")
                 continue
                 
@@ -457,8 +466,9 @@ def manage_subject_assignment_bulk(current_user):
 
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR] Bulk Assign failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Bulk Assign failed: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/academic/manage-subject-assignment", methods=["POST"])
 @token_required
@@ -519,7 +529,8 @@ def manage_subject_assignment(current_user):
         db.session.commit()
         return jsonify({"message": f"Processed {processed}"}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/sections", methods=["GET"])
 def get_sections():
@@ -578,7 +589,8 @@ def get_sections():
         return jsonify({"sections": section_list}), 200
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 # ---------------------------------------------------------
 # Student Subject Assignment (Overrides)
 # ---------------------------------------------------------
@@ -729,7 +741,7 @@ def get_assignment_data():
         import sys
         
         err_msg = traceback.format_exc()
-        print(f"[ERROR] Assignment Data Traceback:\n{err_msg}", file=sys.stderr)
+        logger.error(f"Assignment Data Traceback:\n{err_msg}")
         
         try:
             with open("backend_error.log", "w") as f:
@@ -737,7 +749,8 @@ def get_assignment_data():
         except:
              pass
 
-        return jsonify({"error": str(e), "traceback": err_msg}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/academics/save-student-subjects", methods=["POST"])
 @token_required
@@ -785,8 +798,9 @@ def save_student_subjects(current_user):
         
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR] Save Student Subjects: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Save Student Subjects: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/academic/copy-subject-assignments", methods=["POST"])
 @token_required
@@ -888,5 +902,6 @@ def copy_subject_assignments(current_user):
         
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR] Copy Assignment Failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Copy Assignment Failed: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify, current_app
 from extensions import db
 from models import TestType, User
 import jwt
+import logging
+logger = logging.getLogger(__name__)
 
 test_type_bp = Blueprint('test_type_bp', __name__) 
 
@@ -48,7 +50,8 @@ def get_test_types():
             'updated_by': t.updated_by
         } for t in test_types]), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @test_type_bp.route('/', methods=['POST'])
 def create_test_type():
@@ -91,7 +94,8 @@ def create_test_type():
         return jsonify({'message': 'Test Type created successfully', 'id': new_test.id}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @test_type_bp.route('/<int:id>', methods=['PUT'])
 def update_test_type(id):
@@ -118,7 +122,8 @@ def update_test_type(id):
         return jsonify({'message': 'Test Type updated successfully'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 
@@ -136,4 +141,5 @@ def toggle_status(id):
         return jsonify({'message': 'Status updated', 'is_active': test_type.is_active}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

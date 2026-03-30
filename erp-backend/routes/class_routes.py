@@ -4,6 +4,8 @@ from models import ClassMaster, ClassSection, Branch, Student, OrgMaster, User
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 from helpers import token_required
+import logging
+logger = logging.getLogger(__name__)
               
 bp = Blueprint("class_routes", __name__)
 
@@ -159,7 +161,8 @@ def create_class_with_sections(current_user):
         # Transaction auto-rollbacks on exception exit of context manager? 
         # No, 'with db.session.begin()' commits on exit, rollbacks on error.
         # So we just catch and return.
-        return jsonify({"error": str(e)}), 400
+        logger.exception("Bad request error")
+        return jsonify({"error": "Invalid request"}), 400
     except IntegrityError as e:
         import traceback
         traceback.print_exc()
@@ -169,7 +172,8 @@ def create_class_with_sections(current_user):
         import traceback
         traceback.print_exc()
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/classes/copy_structure", methods=["POST"])
 @token_required
@@ -216,7 +220,7 @@ def copy_class_structure(current_user):
                 # Verify branch exists (optional, but good for data integrity)
                 branch = Branch.query.get(branch_id)
                 if not branch:
-                    print(f"Skipping invalid branch_id: {branch_id}")
+                    logger.debug(f"Skipping invalid branch_id: {branch_id}")
                     continue
 
                 for sec in sections:
@@ -257,8 +261,9 @@ def copy_class_structure(current_user):
 
 
     except Exception as e:
-        print(f"Error copying class structure: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error copying class structure: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/classes/copy_branch_structure", methods=["POST"])
 @token_required
@@ -336,8 +341,9 @@ def copy_branch_structure(current_user):
         }), 201
 
     except Exception as e:
-        print(f"Error copying branch structure: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error copying branch structure: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/classes", methods=["GET"])
 def get_classes():
@@ -406,5 +412,6 @@ def get_class_summary(current_user):
         return jsonify(list(summary.values())), 200
 
     except Exception as e:
-        print(f"Error fetching summary: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error fetching summary: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

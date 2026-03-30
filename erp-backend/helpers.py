@@ -160,6 +160,15 @@ def normalize_fee_title(title):
         return ""
     return title.lower().replace(" fee", "").replace("admisson", "admission").strip()
 
+def mask_aadhaar(value):
+    """Mask Aadhaar number showing only last 4 digits. e.g. '1234 5678 9012' -> 'XXXX XXXX 9012'"""
+    if not value:
+        return value
+    digits = ''.join(c for c in str(value) if c.isdigit())
+    if len(digits) < 4:
+        return value
+    return 'XXXX XXXX ' + digits[-4:]
+
 def student_to_dict(s):
     # build name safely (no extra spaces if a part is missing)
     name_parts = [s.first_name, s.StudentMiddleName, s.last_name]
@@ -200,7 +209,7 @@ def student_to_dict(s):
         # Include other fields needed for edit form
         "Doa": s.Doa.isoformat() if s.Doa else None,
         "BloodGroup": s.BloodGroup,
-        "Adharcardno": s.Adharcardno,
+        "Adharcardno": mask_aadhaar(s.Adharcardno),
         "Religion": s.Religion,
         "phone": s.phone,
         "MotherTongue": s.MotherTongue,
@@ -218,7 +227,7 @@ def student_to_dict(s):
         "FatherOccuption": s.FatherOccuption,
         "FatherCompany": s.FatherCompany,
         "FatherDesignation": s.FatherDesignation,
-        "FatherAadhar": s.FatherAadhar,
+        "FatherAadhar": mask_aadhaar(s.FatherAadhar),
         "FatherOrganizationId": s.FatherOrganizationId,
         "FatherOtherOrganization": s.FatherOtherOrganization,
         "Motherfirstname": s.Motherfirstname,
@@ -230,7 +239,7 @@ def student_to_dict(s):
         "SecondaryOccupation": s.SecondaryOccupation,
         "SecondaryCompany": s.SecondaryCompany,
         "SecondaryDesignation": s.SecondaryDesignation,
-        "MotherAadhar": s.MotherAadhar,
+        "MotherAadhar": mask_aadhaar(s.MotherAadhar),
         "MotherOrganizationId": s.MotherOrganizationId,
         "MotherOtherOrganization": s.MotherOtherOrganization,
         "GuardianName": s.GuardianName,

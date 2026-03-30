@@ -5,6 +5,8 @@ from helpers import token_required, require_academic_year, student_to_dict, get_
 from datetime import datetime, date
 from sqlalchemy import or_
 from routes.config_routes import is_weekoff_or_holiday
+import logging
+logger = logging.getLogger(__name__)
 bp = Blueprint('attendance_routes', __name__)
 
 @bp.route("/api/attendance", methods=["GET"])
@@ -144,8 +146,9 @@ def get_attendance(current_user):
             "last_modified": last_modified
         }), 200
     except Exception as e:
-        print(f"Get Attendance Error: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Get Attendance Error: {e}")
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/attendance", methods=["POST"])
@@ -155,7 +158,7 @@ def save_attendance(current_user):
         data = request.json
         attendance_list = data.get("attendance") or [] # List of {student_id, date, status}
         
-        print(f"DEBUG: Save Attendance Bulk. Count={len(attendance_list)}")
+        logger.debug(f"Save Attendance Bulk. Count={len(attendance_list)}")
 
         if not attendance_list:
              return jsonify({"message": "No data to save"}), 200
@@ -288,7 +291,7 @@ def save_attendance(current_user):
                 added_count += 1
         
         db.session.commit()
-        print(f"Bulk Save Logic: Added={added_count}, Updated={updated_count}, Skipped={skipped_count}")
+        logger.info(f"Bulk Save Logic: Added={added_count}, Updated={updated_count}, Skipped={skipped_count}")
         
         return jsonify({
             "message": "Attendance saved successfully",
@@ -302,10 +305,11 @@ def save_attendance(current_user):
 
     except Exception as e:
         db.session.rollback()
-        print(f"Save Attendance Error: {e}")
+        logger.error(f"Save Attendance Error: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/attendance/template", methods=["GET"])
 @token_required
@@ -383,10 +387,11 @@ def generate_template(current_user):
         return send_file(output, as_attachment=True, download_name=filename, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     except Exception as e:
-        print(f"Template Error: {e}")
+        logger.error(f"Template Error: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/attendance/upload", methods=["POST"])
 @token_required
@@ -526,6 +531,7 @@ def upload_attendance(current_user):
         return jsonify({"message": "Upload Successful", "added": added, "updated": updated}), 200
         
     except Exception as e:
-        print(f"Upload Error: {e}")
+        logger.error(f"Upload Error: {e}")
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

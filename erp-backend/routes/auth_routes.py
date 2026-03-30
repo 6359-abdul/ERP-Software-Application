@@ -7,6 +7,8 @@ import jwt
 import secrets
 import hashlib
 from helpers import token_required, hash_user_password, verify_user_password, send_otp_email
+import logging
+logger = logging.getLogger(__name__)
  
 bp = Blueprint('auth_routes', __name__)
 
@@ -213,7 +215,8 @@ def create_user(current_user):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/setup/migrate-users", methods=["POST"])
 @token_required
@@ -244,7 +247,8 @@ def migrate_users_to_new_system(current_user):
         db.session.commit()
         return jsonify({"message": f"Migrated {count} access records"}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/users/forgot-password", methods=["POST"])
 @limiter.limit("3 per minute")
@@ -379,7 +383,8 @@ def get_user_profile(current_user):
             }
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/users/update-username", methods=["PUT"])
 @token_required
@@ -407,7 +412,8 @@ def update_username(current_user):
         return jsonify({"message": "Username updated successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/users/update-password", methods=["PUT"])
 @token_required
@@ -436,4 +442,5 @@ def update_password(current_user):
         return jsonify({"message": "Password updated successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500

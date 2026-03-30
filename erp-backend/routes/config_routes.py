@@ -4,6 +4,8 @@ from models import WeeklyOffRule, HolidayCalendar, Branch, ClassMaster
 from helpers import token_required, require_academic_year, get_default_location
 from datetime import datetime, date
 from sqlalchemy import and_, or_
+import logging
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('config_routes', __name__)
 
@@ -91,7 +93,8 @@ def get_weekoffs(current_user):
         rules = query.order_by(WeeklyOffRule.weekday).all()
         return jsonify([weekoff_to_dict(r) for r in rules]), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/config/weekoff", methods=["POST"])
@@ -147,7 +150,8 @@ def create_weekoff(current_user):
         return jsonify({"message": "Weekoff rule created", "rule": weekoff_to_dict(rule)}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/config/weekoff/<int:id>", methods=["DELETE"])
@@ -163,7 +167,8 @@ def delete_weekoff(current_user, id):
         return jsonify({"message": "Weekoff rule deleted"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 # ----------------------------------------------------------
@@ -190,7 +195,8 @@ def get_holidays(current_user):
         holidays = query.order_by(HolidayCalendar.display_order, HolidayCalendar.start_date).all()
         return jsonify([holiday_to_dict(h) for h in holidays]), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/config/holiday", methods=["POST"])
@@ -238,7 +244,8 @@ def create_holiday(current_user):
         return jsonify({"message": "Holiday created", "holiday": holiday_to_dict(holiday)}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/config/holiday/<int:id>", methods=["PUT"])
@@ -285,7 +292,8 @@ def update_holiday(current_user, id):
         return jsonify({"message": "Holiday updated", "holiday": holiday_to_dict(holiday)}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/config/holiday/<int:id>", methods=["DELETE"])
@@ -301,7 +309,8 @@ def delete_holiday(current_user, id):
         return jsonify({"message": "Holiday deleted"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 # ----------------------------------------------------------
@@ -364,7 +373,8 @@ def check_date(current_user):
         result = is_weekoff_or_holiday(d, branch_id, h_year, class_id=class_id)
         return jsonify(result), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/config/check-month", methods=["POST"])
@@ -426,7 +436,8 @@ def check_month(current_user):
 
         return jsonify({"blocked_dates": blocked_dates}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 def is_weekoff_or_holiday(check_date, branch_id, academic_year, class_id=None):
     """

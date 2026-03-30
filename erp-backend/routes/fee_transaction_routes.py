@@ -7,6 +7,8 @@ from datetime import datetime, date
 from decimal import Decimal
 from sqlalchemy import func, or_, and_
 import traceback
+import logging
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('fee_transaction_routes', __name__)
 
@@ -107,13 +109,13 @@ def get_fee_students(current_user):
         
         # DEBUG PRINT
         if "Latheef" in f"{s.first_name} {s.last_name}" or "Kareem" in f"{s.first_name} {s.last_name}":
-             print(f"DEBUG: Student {s.student_id} ({s.first_name})")
-             print(f" - FatherName: {s.Fatherfirstname}")
-             print(f" - FatherPhone: {s.FatherPhone}")
-             print(f" - SmsNo: {s.SmsNo}")
-             print(f" - Phone: {s.phone}")
-             print(f" - Branch: {s.branch}")
-             print(f" - Record Class: {record.class_name}")
+             logger.debug(f"Student {s.student_id} ({s.first_name})")
+             logger.debug(f" - FatherName: {s.Fatherfirstname}")
+             logger.debug(f" - FatherPhone: {s.FatherPhone}")
+             logger.debug(f" - SmsNo: {s.SmsNo}")
+             logger.debug(f" - Phone: {s.phone}")
+             logger.debug(f" - Branch: {s.branch}")
+             logger.debug(f" - Record Class: {record.class_name}")
 
         output.append({
             "student_id": s.student_id, 
@@ -228,7 +230,8 @@ def get_student_fees_detail(current_user, student_id):
     
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/fees/payment", methods=["POST"])
@@ -414,7 +417,8 @@ def record_fee_payment(current_user):
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/fees/payments/<int:student_id>", methods=["GET"])
 @token_required
@@ -493,7 +497,8 @@ def get_student_payment_history(current_user, student_id):
         return jsonify(output), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/fees/payment/<int:payment_id>", methods=["DELETE"])
 @token_required
@@ -570,7 +575,8 @@ def delete_fee_payment(current_user, payment_id):
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @bp.route("/api/fees/assign-special", methods=["POST"])
 @token_required
@@ -663,7 +669,8 @@ def assign_special_fee(current_user):
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/fees/student-fee/add", methods=["POST"])
@@ -707,7 +714,8 @@ def add_student_fee(current_user):
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/fees/student-fee/<int:fee_id>", methods=["PUT"])
@@ -757,7 +765,8 @@ def update_student_fee(current_user, fee_id):
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/fees/student-fee/<int:fee_id>", methods=["DELETE"])
@@ -787,7 +796,8 @@ def delete_student_fee(current_user, fee_id):
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/fees/assign-concession", methods=["POST"])
@@ -888,7 +898,8 @@ def assign_concession(current_user):
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @bp.route("/api/fees/assign-fee-type", methods=["POST"])
@@ -968,7 +979,8 @@ def assign_fee_type(current_user):
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 # ---------------------------------------------------------------------------
@@ -1015,4 +1027,5 @@ def nullify_student_fees(current_user, student_id):
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Unexpected error")
+        return jsonify({"error": "An internal error occurred"}), 500
