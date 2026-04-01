@@ -3,8 +3,57 @@ from datetime import datetime
 import mysql.connector
 from mysql.connector import Error 
 import os
+import logging
+from helpers import token_required
+from models import Branch, UserBranchAccess
 
 report_bp = Blueprint('report', __name__)
+logger = logging.getLogger(__name__)
+
+
+def resolve_branch_scope(current_user, requested_branch=None):
+    if current_user.role == "Admin" or current_user.branch == "All":
+        return requested_branch
+
+    if requested_branch and requested_branch not in ["All", "All Branches", current_user.branch]:
+        branch_obj = Branch.query.filter(
+            (Branch.branch_code == requested_branch) | (Branch.branch_name == requested_branch)
+        ).first()
+        if branch_obj:
+            access = UserBranchAccess.query.filter_by(
+                user_id=current_user.user_id,
+                branch_id=branch_obj.id,
+                is_active=True
+            ).first()
+            if access:
+                return branch_obj.branch_name
+
+    return current_user.branch
+
+
+def ensure_student_branch_access(current_user, student_branch):
+    if current_user.role == "Admin" or current_user.branch == "All":
+        return True
+    if not student_branch:
+        return False
+    if student_branch == current_user.branch:
+        return True
+
+    branch_obj = Branch.query.filter(
+        (Branch.branch_code == student_branch) | (Branch.branch_name == student_branch)
+    ).first()
+    if not branch_obj:
+        return False
+
+    if current_user.branch in [branch_obj.branch_code, branch_obj.branch_name]:
+        return True
+
+    access = UserBranchAccess.query.filter_by(
+        user_id=current_user.user_id,
+        branch_id=branch_obj.id,
+        is_active=True
+    ).first()
+    return access is not None
 
 def get_db_connection():
     """Create database connection"""
@@ -17,9 +66,10 @@ def get_db_connection():
     )
 # ============== GET STUDENTS FOR DROPDOWN ==============
 @report_bp.route('/api/students', methods=['GET'])
-def get_students():
+@token_required
+def get_students(current_user):
     """Get students by branch, class, section for dropdown"""
-    branch = request.args.get('branch')
+    branch = resolve_branch_scope(current_user, request.args.get('branch'))
     class_name = request.args.get('class')
     section = request.args.get('section')
     academic_year = request.args.get('academic_year')
@@ -77,7 +127,8 @@ def get_students():
 
 # ============== GET COMPLETE STUDENT REPORT ==============
 @report_bp.route('/api/report/student', methods=['GET'])
-def get_student_report():
+@token_required
+def get_student_report(current_user):
     """Get complete student report data"""
     student_id = request.args.get('student_id')
     test_id = request.args.get('test_id')
@@ -121,6 +172,8 @@ def get_student_report():
         
         if not student:
             return jsonify({'error': 'Student not found'}), 404
+        if not ensure_student_branch_access(current_user, student.get('raw_branch') or student.get('branch_name')):
+            return jsonify({'error': 'Unauthorized'}), 403
         
         # ========== 2. Get Test Details and class_test_id ==========
         # Input test_id is expected to be the test_type_id (e.g. 1 for FA-1, 2 for FA-2)
@@ -155,13 +208,11 @@ def get_student_report():
             test = cursor.fetchone()
             
             if not test:
-                with open("debug_report_error.txt", "a") as f:
-                    f.write(f"FAIL: test_id={test_id}, class={class_id}, year={academic_year}, branch={query_branch}\n")
+                logger.warning(
+                    "Report lookup failed for test_id=%s class_id=%s academic_year=%s branch=%s",
+                    test_id, class_id, academic_year, query_branch
+                )
                 return jsonify({'error': 'Test not found for this class'}), 404
-        
-        # DEBUG LOG
-        with open("debug_report_success.txt", "a") as f:
-             f.write(f"SUCCESS: req_test_id={test_id} -> found_test={test['test_name']} (ID: {test['test_type_id']}). Branch={query_branch}\n")
 
         class_test_id = test['class_test_id']
         current_test_name = test['test_name']
@@ -208,17 +259,18 @@ def get_student_report():
         """
         cursor.execute(subjects_query, (student_id, class_test_id))
         subjects = cursor.fetchall()
-        
-        # Calculate class average for each subject
+
+        avg_query = """
+            SELECT subject_id, AVG(marks_obtained) as class_avg
+            FROM student_marks
+            WHERE class_test_id = %s AND is_absent = 0
+            GROUP BY subject_id
+        """
+        cursor.execute(avg_query, (class_test_id,))
+        avg_rows = cursor.fetchall()
+        avg_map = {row['subject_id']: round(float(row['class_avg'] or 0), 1) for row in avg_rows}
         for subject in subjects:
-            avg_query = """
-                SELECT AVG(marks_obtained) as class_avg
-                FROM student_marks
-                WHERE class_test_id = %s AND subject_id = %s AND is_absent = 0
-            """
-            cursor.execute(avg_query, (class_test_id, subject['subject_id']))
-            avg_result = cursor.fetchone()
-            subject['class_average'] = round(float(avg_result['class_avg'] or 0), 1)
+            subject['class_average'] = avg_map.get(subject['subject_id'], 0)
         
         # ========== Helper function to get grade ==========
         def get_grade(marks, max_marks, require_exact_scale=False):
@@ -551,10 +603,10 @@ def get_student_report():
         return jsonify(response)
         
     except Error as e:
-        print(f"Database error: {e}")
+        logger.exception("Database error while building student report")
         return jsonify({'error': str(e)}), 500
     except Exception as e:
-        print(f"Error: {e}")
+        logger.exception("Unexpected error while building student report")
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
@@ -565,7 +617,8 @@ def get_student_report():
 
 # ============== GET STUDENT HISTORY ACROSS YEARS ==============
 @report_bp.route('/api/report/student/history', methods=['GET'])
-def get_student_history():
+@token_required
+def get_student_history(current_user):
     """Get student's complete academic history across all years"""
     student_id = request.args.get('student_id')
     
@@ -596,6 +649,8 @@ def get_student_history():
         
         if not student:
             return jsonify({'error': 'Student not found'}), 404
+        if not ensure_student_branch_access(current_user, student.get('branch')):
+            return jsonify({'error': 'Unauthorized'}), 403
         
         # Get all academic records
         records_query = """
@@ -739,7 +794,8 @@ def get_student_history():
 
 # ============== GET REPORT WITH SPECIFIC ACADEMIC YEAR (For Historical Reports) ==============
 @report_bp.route('/api/report/student/year', methods=['GET'])
-def get_student_report_by_year():
+@token_required
+def get_student_report_by_year(current_user):
     """Get student report for a specific academic year (for historical data)"""
     student_id = request.args.get('student_id')
     academic_year = request.args.get('academic_year')
@@ -777,6 +833,8 @@ def get_student_report_by_year():
         
         if not student:
             return jsonify({'error': 'No record found for this student in the specified academic year'}), 404
+        if not ensure_student_branch_access(current_user, student.get('branch_name')):
+            return jsonify({'error': 'Unauthorized'}), 403
         
         # Get grading scales
         grading_query = """
@@ -857,6 +915,16 @@ def get_student_report_by_year():
             """
             cursor.execute(marks_query, (student_id, test['class_test_id']))
             subjects = cursor.fetchall()
+
+            avg_query = """
+                SELECT subject_id, AVG(marks_obtained) as avg
+                FROM student_marks
+                WHERE class_test_id = %s AND is_absent = 0
+                GROUP BY subject_id
+            """
+            cursor.execute(avg_query, (test['class_test_id'],))
+            avg_rows = cursor.fetchall()
+            avg_map = {row['subject_id']: round(float(row['avg'] or 0), 1) for row in avg_rows}
             
             hifz_data = []
             academic_data = []
@@ -868,15 +936,7 @@ def get_student_report_by_year():
                 max_marks = subj['max_marks']
                 grade = 'AB' if is_absent else get_grade(secured, max_marks)
                 percentage = 0 if max_marks == 0 else round((secured / max_marks) * 100)
-                
-                # Get class average
-                avg_query = """
-                    SELECT AVG(marks_obtained) as avg FROM student_marks 
-                    WHERE class_test_id = %s AND subject_id = %s AND is_absent = 0
-                """
-                cursor.execute(avg_query, (test['class_test_id'], subj['subject_id']))
-                avg_res = cursor.fetchone()
-                class_avg = round(float(avg_res['avg'] or 0), 1)
+                class_avg = avg_map.get(subj['subject_id'], 0)
                 
                 entry = {
                     'subject': subj['subject_name'],
@@ -955,3 +1015,4 @@ def get_student_report_by_year():
             cursor.close()
         if conn:
             conn.close()
+            
