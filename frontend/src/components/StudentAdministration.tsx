@@ -7,6 +7,7 @@ import ComingSoon from './ComingSoon';
 import ImportStudentData from './ImportStudentData';
 import CreateStudent from './CreateStudent';
 import PromoteStudents from './PromoteStudents';
+import DemoteStudents from './DemoteStudents';
 import ClassSummary from './ClassSummary';
 import MakeStudentInactive from './MakeStudentInactive';
 import SearchStudent from './SearchStudent';
@@ -24,7 +25,7 @@ interface StudentAdministrationProps {
 type StudentAdminView =
     'students' | 'search' | 'summary' | 'reports' | 'certificates' | 'upgrade'
     | 'import' | 'addStudent' | 'viewStudent' | 'editStudent'
-    | 'inactive' | 'inactiveReport';
+    | 'inactive' | 'inactiveReport' | 'demote';
 
 // ---------------------------------------------------------------------------
 // Dropdown Component
@@ -110,6 +111,7 @@ const StudentAdminHeader: React.FC<{ activeView: StudentAdminView; setActiveView
                         </Dropdown>
 
                         <button className={btn('upgrade')} onClick={() => setActiveView('upgrade')}>Upgrade</button>
+                        <button className={btn('demote')} onClick={() => setActiveView('demote')}>De-promote</button>
                     </div>
                 </div>
             </div>
@@ -567,6 +569,9 @@ const StudentAdministration: React.FC<StudentAdministrationProps> = ({ navigateT
 
             case 'upgrade':
                 return <PromoteStudents onBack={() => setActiveView('students')} />;
+
+            case 'demote':
+                return <DemoteStudents onBack={() => setActiveView('students')} />;
 
             case 'summary':
                 return <ClassSummary onBack={() => setActiveView('students')} />;

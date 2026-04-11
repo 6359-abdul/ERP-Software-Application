@@ -62,6 +62,7 @@ export interface Student {
   documents?: string[];
   feeInstallments: FeeInstallment[];
   total_due?: number;
+  is_promoted?: boolean;
 }
 
 
