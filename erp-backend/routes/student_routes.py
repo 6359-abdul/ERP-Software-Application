@@ -1,8 +1,23 @@
+
 from flask import Blueprint, jsonify, request, send_file
 from extensions import db
 from models import Student, Branch, UserBranchAccess, StudentFee, StudentAcademicRecord
+from models import (
+    Student,
+    Branch,
+    UserBranchAccess,
+    StudentFee,
+    StudentAcademicRecord,
+    FeePayment,
+    Attendance,
+    StudentSubjectAssignment,
+    StudentTestAssignment,
+    StudentMarks,
+)
+
+
 from services.sequence_service import SequenceService
-from helpers import token_required, require_academic_year, get_branch_query_filter, student_to_dict, auto_enroll_student_fee
+from helpers import token_required, require_academic_year, get_branch_query_filter, student_to_dict, auto_enroll_student_fee, require_editable_student
 from datetime import datetime
 from sqlalchemy import or_, and_, func
 import io
@@ -17,6 +32,57 @@ import logging
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('student_routes', __name__)
+
+
+def _deactivate_student_year_data(student_id, academic_year, demoted_by_user_id=None):
+    """
+    ERP-safe demotion helper - uses state transitions, NEVER deletes financial data.
+
+    ERP Rule: Financial records must NEVER be deleted, even for corrections.
+    - StudentFee structures: deactivated (is_active=False, deleted_at set).
+    - FeePayment rows: UNTOUCHED - real collected money, permanent audit trail.
+    - Attendance rows: UNTOUCHED - historical calendar records.
+    - StudentMarks rows: UNTOUCHED - historical academic records.
+    - Subject/test assignments: deactivated (status=False).
+    """
+    now = datetime.now()
+    for fee in StudentFee.query.filter_by(student_id=student_id, academic_year=academic_year).all():
+        fee.is_active = False
+        fee.deleted_at = now
+        if demoted_by_user_id:
+            fee.deleted_by = demoted_by_user_id
+    for sa in StudentSubjectAssignment.query.filter_by(student_id=student_id, academic_year=academic_year).all():
+        sa.status = False
+    for ta in StudentTestAssignment.query.filter_by(
+        student_id=student_id, academic_year=academic_year
+    ).all():
+        ta.status = False
+
+
+def _reactivate_student_year_data(student_id, academic_year):
+    """
+    Opposite of _deactivate — reactivates everything for re-promotion.
+    """
+    # 1. Reactivate fees
+    fees = StudentFee.query.filter_by(
+        student_id=student_id, academic_year=academic_year
+    ).all()
+    for fee in fees:
+        fee.is_active = True
+        fee.deleted_at = None
+
+    # 2. Reactivate assignments
+    for sa in StudentSubjectAssignment.query.filter_by(
+        student_id=student_id, academic_year=academic_year
+    ).all():
+        sa.status = True
+
+    for ta in StudentTestAssignment.query.filter_by(
+        student_id=student_id, academic_year=academic_year
+    ).all():
+        ta.status = True
+
+
 
 def save_student_photo(student, photo_data):
     try:
@@ -94,8 +160,11 @@ def get_students(current_user):
                 StudentAcademicRecord, 
                 and_(Student.student_id == StudentAcademicRecord.student_id, StudentAcademicRecord.academic_year == h_year)
             )
-            # Filter: Either has a record for this year OR is currently in this year (and no record needed)
-            q = q.filter(or_(StudentAcademicRecord.id != None, Student.academic_year == h_year))
+            # Filter: Show IF (currently in this year) OR (was promoted to this year and still marked active)
+            q = q.filter(or_(
+                and_(StudentAcademicRecord.id != None, StudentAcademicRecord.is_promoted == True),
+                Student.academic_year == h_year
+            ))
         else:
             # CURRENT STATE MODE
             q = Student.query
@@ -210,6 +279,7 @@ def get_students(current_user):
                         s_dict['rollNo'] = record.roll_number
                         s_dict['academic_year'] = record.academic_year
                         s_dict['is_promoted'] = record.is_promoted
+                        s_dict['is_locked'] = record.is_locked
                     else:
                         s_dict['academic_year'] = h_year
                 else:
@@ -249,6 +319,7 @@ def get_students(current_user):
 
 @bp.route("/api/students/<int:student_id>", methods=["PUT"])
 @token_required
+@require_editable_student
 def update_student(current_user, student_id):
     try:
         student = Student.query.get(student_id)
@@ -655,6 +726,7 @@ def create_student(current_user):
 
 @bp.route("/api/students/<int:student_id>", methods=["DELETE"])
 @token_required
+@require_editable_student
 def delete_student(current_user, student_id):
     try:
         student = Student.query.get(student_id)
@@ -900,6 +972,7 @@ def get_student_history(current_user, student_id):
             "section": r.section,
             "roll_no": r.roll_number,
             "is_promoted": r.is_promoted,
+            "is_locked": r.is_locked,
             "promoted_date": r.promoted_date.isoformat() if r.promoted_date else None,
             "created_at": r.created_at.isoformat() if r.created_at else None
         } for r in records]
@@ -914,124 +987,256 @@ def promote_students_bulk(current_user):
     """
     Bulk promote students to a new academic year.
     Mirrors the individual promote logic for each student.
-    Skips duplicates & unauthorized students, collects errors per student.
+    Skips duplicates and unauthorized students, collects errors per student.
     """
     data = request.json or {}
     student_ids = data.get("student_ids", [])
     new_year = data.get("target_year")
     new_class = data.get("target_class")
-    new_section = data.get("target_section")        # Optional
-    roll_numbers = data.get("roll_numbers", {})    # Optional dict: {student_id: new_roll_no}
+    new_section = data.get("target_section")
+    roll_numbers = data.get("roll_numbers", {})
 
-    # -----------------------------
-    # 1️⃣  INPUT VALIDATION
-    # -----------------------------
     if not isinstance(student_ids, list) or not student_ids:
-        return jsonify({"error": "student_ids must be a non‑empty list"}), 400
+        return jsonify({"error": "student_ids must be a non-empty list"}), 400
     if not new_year or not new_class:
         return jsonify({"error": "target_year and target_class are required"}), 400
 
     success_count = 0
-    errors = []          # Stores error messages per student
-    processed_ids = set()  # Avoid processing same student twice
+    errors = []
+    processed_ids = set()
 
     try:
-        # -----------------------------
-        # 2️⃣  FETCH ALL STUDENTS IN ONE QUERY
-        # -----------------------------
         students = Student.query.filter(Student.student_id.in_(student_ids)).all()
-        
-        # Build a quick lookup: {student_id: Student object}
         student_map = {s.student_id: s for s in students}
-        # Identify invalid student_ids (not found)
+
         if not_found := [sid for sid in student_ids if sid not in student_map]:
             errors.append(f"Students not found: {', '.join(map(str, not_found))}")
 
-        # -----------------------------
-        # 3️⃣  PERMISSION CHECK (PER STUDENT)
-        # -----------------------------
-        # If user is NOT Admin & branch != 'All', we must validate EACH student's branch
         if current_user.role != 'Admin' and current_user.branch != 'All':
-            for sid in student_ids:
-                if sid in student_map:
-                    student = student_map[sid]
-                    if student.branch != current_user.branch:
-                        errors.append(f"Unauthorized for student {student.admission_no} (branch mismatch)")
-                        # Remove unauthorized student from map → won't be processed
-                        del student_map[sid]
+            for sid in list(student_map.keys()):
+                student = student_map[sid]
+                if student.branch != current_user.branch:
+                    errors.append(f"Unauthorized for student {student.admission_no} (branch mismatch)")
+                    del student_map[sid]
 
-        # -----------------------------
-        # 4️⃣  PROCESS EACH STUDENT
-        # -----------------------------
+        from datetime import timezone
         for student_id, student in student_map.items():
             try:
-                # ---- Skip already processed (duplicate ID in input) ----
+                db.session.begin_nested()
+                
                 if student_id in processed_ids:
                     continue
                 processed_ids.add(student_id)
 
-                # ---- 4.1 Check Existing Record for Target Year ----
-                if StudentAcademicRecord.query.filter_by(
+                existing_target_record = StudentAcademicRecord.query.filter_by(
                     student_id=student_id,
                     academic_year=new_year
-                ).first():
-                    errors.append(f"Student {student.admission_no} already exists in Academic Year {new_year}")
-                    continue   # SKIP
+                ).first()
+                current_record = StudentAcademicRecord.query.filter_by(
+                    student_id=student_id,
+                    academic_year=student.academic_year
+                ).first()
 
-                # ---- 4.2 Determine New Roll Number ----
                 new_roll_no = roll_numbers.get(str(student_id), student.Roll_Number)
-
-                # ---- 4.X Determine Final Section ----
-                # If target_section is explicitly provided (e.g. "B"), use it.
-                # If target_section is empty (e.g. "All Sec"), keep student's current section (e.g. "A" -> "A").
                 final_section = new_section or student.section
 
-                # ---- 4.3 Create New Academic Record ----
+                if existing_target_record:
+                    if student.academic_year == new_year:
+                        errors.append(f"Student {student.admission_no} already exists in Academic Year {new_year}")
+                        db.session.rollback()
+                        continue
+                    
+                    # RE-PROMOTION CASE: Reactivate the existing record
+                    if current_record:
+                        current_record.is_promoted = True
+                        current_record.promoted_date = datetime.now()
+                        current_record.is_locked = True
+                        current_record.locked_at = datetime.now(timezone.utc)
+
+                    existing_target_record.is_promoted = False
+                    existing_target_record.is_locked = False
+                    existing_target_record.locked_at = None
+                    existing_target_record.promoted_date = datetime.now()
+                    existing_target_record.class_name = new_class
+                    existing_target_record.section = final_section
+                    existing_target_record.roll_number = new_roll_no
+
+                    # Reactivate fees and assignments
+                    _reactivate_student_year_data(student_id, new_year)
+
+                    student.clazz = new_class
+                    student.section = final_section
+                    student.Roll_Number = new_roll_no
+                    student.academic_year = new_year
+
+                    db.session.commit()
+                    success_count += 1
+                    continue
+
+                if current_record:
+                    current_record.is_promoted = True
+                    current_record.promoted_date = datetime.now()
+                    current_record.is_locked = True
+                    current_record.locked_at = datetime.now(timezone.utc)
+
                 new_record = StudentAcademicRecord(
                     student_id=student_id,
                     academic_year=new_year,
                     class_name=new_class,
                     section=final_section,
                     roll_number=new_roll_no,
-                    is_promoted=True,
-                    promoted_date=datetime.now()
+                    is_promoted=False,
+                    is_locked=False,
+                    promoted_date=None
                 )
                 db.session.add(new_record)
 
-                # ---- 4.4 Update Student's Current State ----
                 student.clazz = new_class
                 student.section = final_section
                 student.Roll_Number = new_roll_no
                 student.academic_year = new_year
 
-                # Commit changes for this student first to ensure consistency for fee generation
-                db.session.commit()
-
-                # ---- 4.5 Auto‑Enroll Fees ----
                 try:
                     auto_enroll_student_fee(
                         student_id=student_id,
-                        class_name=new_class,  # FIXED: Correct argument name
+                        class_name=new_class,
                         year=new_year,
                         is_student_new=False
                     )
-                    db.session.commit() # Commit fees
                 except Exception as fee_err:
-                    logger.warning(f"Fee auto‑enroll failed for {student.admission_no}: {fee_err}")
-                    errors.append(f"Fee enrollment warning for {student.admission_no}: {fee_err}")                    # Fee failure is non-blocking for promotion success, already committed promotion.
+                    logger.warning(f"Fee auto-enroll failed for {student.admission_no}: {fee_err}")
+                    errors.append(f"Fee enrollment warning for {student.admission_no}: {fee_err}")
 
+                db.session.commit()
                 success_count += 1
 
             except Exception as e:
-                db.session.rollback()  # Rollback changes for this specific student if promotion failed
+                db.session.rollback()
                 errors.append(f"Error for {student.admission_no}: {str(e)}")
-                # Continue processing next student
 
-        # -----------------------------
-        # 5️⃣  FINAL RESPONSE
-        # -----------------------------
         return jsonify({
             "message": f"Bulk promotion processed. {success_count} students promoted successfully.",
+            "success_count": success_count,
+            "errors": errors
+        }), 200 if success_count > 0 else 400
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/api/students/demote-bulk", methods=["POST"])
+@token_required
+def demote_students_bulk(current_user):
+    """
+    Bulk DEMOTE (de-promote) students — reverting a mistaken promotion.
+
+    ERP-safe: Uses state transitions, never deletes data.
+    - Fee structures in source_year are deactivated (not deleted).
+    - Real payment transactions are NEVER touched (audit trail).
+    - The source_year academic record is preserved but cleared of is_promoted flag.
+    - Student pointer (academic_year, clazz, section) is restored to restore_year.
+
+    Request body:
+        student_ids  : list[int]
+        source_year  : str  — the year the student was MISTAKENLY promoted TO
+        restore_year : str  — the year the student should be RESTORED to
+    """
+    data = request.json or {}
+    student_ids = data.get("student_ids", [])
+    source_year = data.get("source_year")      # wrong promoted year (FROM)
+    restore_year = data.get("restore_year")    # correct year to go back TO
+
+    if not isinstance(student_ids, list) or not student_ids:
+        return jsonify({"error": "student_ids must be a non-empty list"}), 400
+    if not source_year or not restore_year:
+        return jsonify({"error": "source_year and restore_year are required"}), 400
+    if source_year == restore_year:
+        return jsonify({"error": "source_year and restore_year cannot be the same"}), 400
+        
+    if current_user.role != 'Admin':
+        return jsonify({"error": "Demotion not allowed"}), 403
+
+    success_count = 0
+    errors = []
+    processed_ids = set()
+
+    try:
+        students = Student.query.filter(Student.student_id.in_(student_ids)).all()
+        student_map = {s.student_id: s for s in students}
+
+        if not_found := [sid for sid in student_ids if sid not in student_map]:
+            errors.append(f"Students not found: {', '.join(map(str, not_found))}")
+
+        if current_user.role != "Admin" and current_user.branch != "All":
+            for sid in list(student_map.keys()):
+                if student_map[sid].branch != current_user.branch:
+                    errors.append(f"Unauthorized for student {student_map[sid].admission_no}")
+                    del student_map[sid]
+
+        for student_id, student in student_map.items():
+            if student_id in processed_ids:
+                continue
+            processed_ids.add(student_id)
+
+            try:
+                # 1. Verify the source year record exists (the mistakenly promoted year)
+                source_record = StudentAcademicRecord.query.filter_by(
+                    student_id=student_id, academic_year=source_year
+                ).first()
+                if not source_record:
+                    errors.append(
+                        f"{student.admission_no}: No record found for source year {source_year}."
+                    )
+                    continue
+
+                # 2. Verify the restore year record exists
+                restore_record = StudentAcademicRecord.query.filter_by(
+                    student_id=student_id, academic_year=restore_year
+                ).first()
+                if not restore_record:
+                    errors.append(
+                        f"{student.admission_no}: No record found for restore year {restore_year}. "
+                        "Student may not have belonged to that year."
+                    )
+                    continue
+
+                # 3. Soft-deactivate data tied to the mistaken source year
+                _deactivate_student_year_data(
+                    student_id, source_year, demoted_by_user_id=current_user.user_id
+                )
+
+                # 4. Clear is_promoted on source record (keep row for audit)
+                source_record.is_promoted = False
+                source_record.promoted_date = None
+                source_record.is_locked = False
+                source_record.locked_at = None
+
+                # 5. Reactivate restore year record (student is back here)
+                restore_record.is_promoted = False
+                restore_record.is_locked = False
+                restore_record.locked_at = None
+
+                # 6. Point the Student back to restore year
+                student.academic_year = restore_year
+                student.clazz = restore_record.class_name
+                student.section = restore_record.section
+                student.Roll_Number = restore_record.roll_number
+
+                db.session.commit()
+                success_count += 1
+                logger.info(
+                    "Demoted student %s from %s to %s by user %s",
+                    student.admission_no, source_year, restore_year, current_user.username
+                )
+
+            except Exception as e:
+                db.session.rollback()
+                errors.append(f"Error demoting {student.admission_no}: {str(e)}")
+                logger.error("Demotion error for %s: %s", student.admission_no, e, exc_info=True)
+
+        return jsonify({
+            "message": f"Demotion complete. {success_count} student(s) successfully demoted.",
             "success_count": success_count,
             "errors": errors
         }), 200 if success_count > 0 else 400
@@ -1167,8 +1372,6 @@ def get_student_summary(current_user):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
 
 @bp.route("/api/students/template", methods=["GET"])
 def download_student_template():

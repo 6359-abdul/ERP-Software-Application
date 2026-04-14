@@ -7,6 +7,7 @@ import ComingSoon from './ComingSoon';
 import ImportStudentData from './ImportStudentData';
 import CreateStudent from './CreateStudent';
 import PromoteStudents from './PromoteStudents';
+import DemoteStudents from './DemoteStudents';
 import ClassSummary from './ClassSummary';
 import MakeStudentInactive from './MakeStudentInactive';
 import SearchStudent from './SearchStudent';
@@ -24,7 +25,7 @@ interface StudentAdministrationProps {
 type StudentAdminView =
     'students' | 'search' | 'summary' | 'reports' | 'certificates' | 'upgrade'
     | 'import' | 'addStudent' | 'viewStudent' | 'editStudent'
-    | 'inactive' | 'inactiveReport';
+    | 'inactive' | 'inactiveReport' | 'demote';
 
 // ---------------------------------------------------------------------------
 // Dropdown Component
@@ -110,6 +111,7 @@ const StudentAdminHeader: React.FC<{ activeView: StudentAdminView; setActiveView
                         </Dropdown>
 
                         <button className={btn('upgrade')} onClick={() => setActiveView('upgrade')}>Upgrade</button>
+                        <button className={btn('demote')} onClick={() => setActiveView('demote')}>De-promote</button>
                     </div>
                 </div>
             </div>
@@ -411,14 +413,34 @@ const StudentList: React.FC<{ onView: any; onEdit: any; setActiveView: any }> =
                                             <button onClick={() => onView(s)} className="px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1" title="Details">
                                                 <span>ℹ️</span> Details
                                             </button>
-                                            <button onClick={() => onEdit(s)} className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 flex items-center gap-1" title="Edit">
-                                                <span>✏️</span> Edit
+                                            <button
+                                                onClick={() => {
+                                                    if (s.is_locked) {
+                                                        alert("This student record is locked for this academic year and cannot be edited.");
+                                                    } else {
+                                                        onEdit(s);
+                                                    }
+                                                }}
+                                                className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${s.is_locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                                                title={s.is_locked ? "Record locked (Promoted)" : "Edit"}
+                                            >
+                                                <span>{s.is_locked ? '🔒' : '✏️'}</span> Edit
                                             </button>
                                             <button onClick={() => handlePrint(s)} className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 flex items-center gap-1" title="Print">
                                                 <span>🖨️</span> Print
                                             </button>
-                                            <button onClick={() => handleDeleteClick(s)} className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1" title="Deactivate">
-                                                <span>🚫</span> Inactivate
+                                            <button
+                                                onClick={() => {
+                                                    if (s.is_locked) {
+                                                        alert("This student record is locked for this academic year and cannot be deactivated.");
+                                                    } else {
+                                                        handleDeleteClick(s);
+                                                    }
+                                                }}
+                                                className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${s.is_locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                                                title={s.is_locked ? "Record locked (Promoted)" : "Deactivate"}
+                                            >
+                                                <span>{s.is_locked ? '🔒' : '🚫'}</span> Inactivate
                                             </button>
                                             {s.status === 'Inactive' && (
                                                 <button onClick={() => handleActivate(s)} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center gap-1" title="Activate">
@@ -567,6 +589,9 @@ const StudentAdministration: React.FC<StudentAdministrationProps> = ({ navigateT
 
             case 'upgrade':
                 return <PromoteStudents onBack={() => setActiveView('students')} />;
+
+            case 'demote':
+                return <DemoteStudents onBack={() => setActiveView('students')} />;
 
             case 'summary':
                 return <ClassSummary onBack={() => setActiveView('students')} />;
