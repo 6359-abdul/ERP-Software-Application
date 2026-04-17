@@ -1765,11 +1765,331 @@ export const DueReport: React.FC = () => {
     );
 };
 
+export const LateFeeDueReport: React.FC = () => {
+    const [data, setData] = useState<any[]>([]);
+    const [filteredData, setFilteredData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    // Filters
+    const [classList, setClassList] = useState<string[]>([]);
+    const [selectedClass, setSelectedClass] = useState('All');
+    const [selectedSection, setSelectedSection] = useState('All');
+    const [minDueAmount, setMinDueAmount] = useState<string>('');
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const sections = useClassSections(selectedClass);
+
+    useEffect(() => {
+        const loadClasses = async () => {
+            try {
+                const resClasses = await api.get('/classes');
+                const classesData = resClasses.data.classes || [];
+                setClassList(["All", ...classesData.map((c: any) => c.class_name)]);
+            } catch (err) {
+                console.error("Failed to load classes", err);
+            }
+        };
+        loadClasses();
+        // Initial fetch
+        fetchReport();
+    }, []);
+
+    const fetchReport = async () => {
+        try {
+            setLoading(true);
+            setError('');
+            const params = new URLSearchParams({
+                class: selectedClass === 'All' ? '' : selectedClass, // Handle 'All' correctly if backend expects empty or 'All'
+                section: selectedSection === 'All' ? '' : selectedSection,
+                ...(minDueAmount && { min_due: minDueAmount })
+            });
+
+            // If backend expects 'All' literally, keep it. 
+            // Original code sent selectedClass directly. 
+            // I'll stick to sending 'All' if simpler, or check logic.
+            // If I look at DailyReport refactor, I sent 'All'.
+            // Here due report might be different. 
+            // But let's assume 'All' is handled or I can filter locally if I fetch everything?
+            // Due report for "All" classes is huge.
+            // I will send the params. 
+            // But if params are passed as 'All', does backend handle it?
+            // Usually yes if I wrote it or if it was there.
+            // I'll stick to matching the previous logic: `class: selectedClass`.
+
+            const params2 = new URLSearchParams();
+            if (selectedClass !== 'All') params2.append('class', selectedClass);
+            if (selectedSection !== 'All') params2.append('section', selectedSection);
+            if (minDueAmount) params2.append('min_due', minDueAmount);
+
+            const res = await api.get(`/reports/fees/late-due?${params2.toString()}`);
+            setData(res.data);
+            setFilteredData(res.data);
+        } catch (err: any) {
+            setError(err.response?.data?.error || 'Error fetching report');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Derived State: Local Filtering (Search + maybe class/section if we fetched all)
+    // Derived State: Filtered Data (Robust Client-Side Filtering)
+    useEffect(() => {
+        if (!data) return;
+        let res = data;
+
+        // 1. Strict Class Filter (if not All)
+        if (selectedClass !== 'All') {
+            res = res.filter(s => s.class === selectedClass);
+        }
+
+        // 2. Strict Section Filter (if not All)
+        if (selectedSection !== 'All') {
+            res = res.filter(s => s.section === selectedSection);
+        }
+
+        // 3. Search Filter
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            res = res.filter(s =>
+                (s.name?.toLowerCase() || '').includes(term) ||
+                (s.admission_no?.toLowerCase() || '').includes(term) ||
+                (s.adm_no?.toLowerCase() || '').includes(term) || // Fallback
+                (s.father_mobile?.includes(term))
+            );
+        }
+        setFilteredData(res);
+    }, [searchTerm, data, selectedClass, selectedSection]);
+
+    const totalDue = filteredData.reduce((sum, s) => sum + (s.due_amount || 0), 0);
+    const totalFee = filteredData.reduce((sum, s) => sum + (s.total_fee || 0), 0);
+
+    const downloadExcel = () => {
+        if (!filteredData.length) return;
+        const excelData = filteredData.map((s: any) => ({
+            StudentName: s.name,
+            AdmissionNo: s.admission_no || s.adm_no || s.admissionNo || '-',
+            Class: `${s.class} ${s.section || ''}`,
+            FatherName: s.father_name || s.father || s.parent_name || '-',
+            FatherMobile: s.father_mobile,
+            TotalFee: s.total_fee,
+            PaidAmount: s.paid_amount || (s.total_fee - s.due_amount),
+            DueAmount: s.due_amount
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Late Fee Due Report");
+        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([excelBuffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        });
+        saveAs(blob, `Late_Fee_Due_Report.xlsx`);
+    };
+
+    const downloadPDF = () => {
+        if (!filteredData.length) return;
+        const doc = new jsPDF("l", "mm", "a4");
+        doc.text("Late Fee Due Report", 14, 15);
+
+        const tableColumn = [
+            "Student", "Adm No", "Class", "Father Name", "Mobile", "Total Fee", "Paid", "Due"
+        ];
+
+        const tableRows = filteredData.map((s: any) => ([
+            s.name,
+            s.admission_no || s.adm_no || s.admissionNo || '-',
+            `${s.class} ${s.section || ''}`,
+            s.father_name || s.father || s.parent_name || '-',
+            s.father_mobile,
+            s.total_fee,
+            s.paid_amount || (s.total_fee - s.due_amount),
+            s.due_amount
+        ]));
+
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 20,
+            styles: { fontSize: 8 }
+        });
+
+        doc.save("Late_Fee_Due_Report.pdf");
+    };
+
+    return (
+        <div className="space-y-4 font-sans">
+            <FilterContainer>
+                {/* Class */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
+                    <select
+                        value={selectedClass}
+                        onChange={(e) => setSelectedClass(e.target.value)}
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                    >
+                        {classList.map(c => (
+                            <option key={c} value={c}>{c === 'All' ? 'All Classes' : c}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Section */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
+                    <select
+                        value={selectedSection}
+                        onChange={(e) => setSelectedSection(e.target.value)}
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                    >
+                        {sections.map(s => (
+                            <option key={s} value={s}>{s === 'All' ? 'All Sections' : s}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Search */}
+                <div className="col-span-1 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Search Student</label>
+                    <input
+                        type="text"
+                        placeholder="Name, admission no, mobile..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                    />
+                </div>
+            </FilterContainer>
+
+            {/* Actions Row */}
+            <div className="flex gap-2 mb-4">
+                <button
+                    onClick={fetchReport}
+                    className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
+                >
+                    🔍 Search Report
+                </button>
+                <div className="flex-grow"></div>
+                <button
+                    onClick={downloadExcel}
+                    className="bg-green-500 text-white px-3 py-1.5 rounded text-sm hover:bg-green-600"
+                >
+                    📊 Excel
+                </button>
+                <button
+                    onClick={downloadPDF}
+                    className="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600"
+                >
+                    📄 PDF
+                </button>
+            </div>
+
+            {loading && <div className="text-center py-4">Loading...</div>}
+            {error && <div className="text-red-500 text-center py-4">{error}</div>}
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <StatCard label="Total Students with Dues" value={filteredData.length} color="blue" />
+                <StatCard label="Total Fee Demand" value={totalFee} color="purple" />
+                <StatCard label="Total Due Amount" value={totalDue} color="red" />
+                <StatCard label="Avg Due per Student" value={filteredData.length ? Math.round(totalDue / filteredData.length) : 0} color="orange" />
+            </div>
+
+            {/* Late Fee Due Table */}
+            <div className="bg-white border rounded-lg overflow-hidden shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">S.No</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Student Name</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Adm No.</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Father Name</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Mobile</th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Total Fee</th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Paid</th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Due Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {filteredData.length === 0 ? (
+                            <tr>
+                                <td colSpan={9} className="bg-green-50 text-green-600 text-center py-8 font-medium">
+                                    🎉 No students with pending dues!
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredData.map((s, idx) => (
+                                <tr key={s.student_id || idx} className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 text-gray-500">{idx + 1}</td>
+                                    <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
+                                    <td className="px-4 py-3 text-blue-600">{s.admission_no || s.adm_no || s.admissionNo || '-'}</td>
+                                    <td className="px-4 py-3">{s.class} {s.section}</td>
+                                    <td className="px-4 py-3 text-gray-600">{s.father_name || s.father || s.parent_name || '-'}</td>
+                                    <td className="px-4 py-3">
+                                        <a href={`tel:${s.father_mobile}`} className="text-blue-600 hover:underline">
+                                            {s.father_mobile}
+                                        </a>
+                                    </td>
+                                    <td className="px-4 py-3 text-right">₹{s.total_fee?.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 py-3 text-right text-green-600">
+                                        ₹{(s.paid_amount || (s.total_fee - s.due_amount))?.toLocaleString('en-IN')}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-bold text-red-600">
+                                        ₹{s.due_amount?.toLocaleString('en-IN')}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                    {filteredData.length > 0 && (
+                        <tfoot className="bg-gray-100 font-bold">
+                            <tr>
+                                <td colSpan={6} className="px-4 py-3 text-right">Total:</td>
+                                <td className="px-4 py-3 text-right">₹{totalFee.toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-right text-green-600">
+                                    ₹{(totalFee - totalDue).toLocaleString('en-IN')}
+                                </td>
+                                <td className="px-4 py-3 text-right text-red-600">
+                                    ₹{totalDue.toLocaleString('en-IN')}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    )}
+                </table>
+            </div>
+
+            {/* Class-wise Due Summary */}
+            {filteredData.length > 0 && (
+                <div className="bg-white p-4 rounded-lg border mt-4">
+                    <h4 className="font-semibold mb-3 text-gray-700">Class-wise Due Summary</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {Object.entries(
+                            filteredData.reduce((acc: any, s) => {
+                                const key = `${s.class} ${s.section || ''}`;
+                                acc[key] = (acc[key] || 0) + (s.due_amount || 0);
+                                return acc;
+                            }, {})
+                        ).map(([cls, amt]: any) => (
+                            <div key={cls} className="bg-red-50 p-3 rounded border border-red-100">
+                                <p className="text-xs text-gray-500">{cls}</p>
+                                <p className="font-bold text-red-600">₹{Number(amt).toLocaleString('en-IN')}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 export default {
     TodayCollection,
     DailyReport,
     MonthlyReport,
     ClassWiseReport,
     InstallmentWiseReport,
-    DueReport
+    DueReport,
+    LateFeeDueReport
 };

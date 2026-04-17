@@ -3,7 +3,7 @@ from extensions import db
 from models import FeePayment, Student, StudentFee
 from helpers import token_required, require_academic_year
 from datetime import date, datetime
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload
 
 def consolidate_receipts(payments):
@@ -465,6 +465,67 @@ def report_fee_due(current_user):
             StudentFee.academic_year == h_year,
             Student.academic_year == h_year,
             StudentFee.is_active == True
+        )
+        
+        if target_branch and target_branch not in ['All', 'AllBranches']:
+            query = query.filter(Student.branch == target_branch)
+            
+        query = query.group_by(Student.student_id).having(func.sum(StudentFee.due_amount) > 0)
+        
+        results = query.all()
+        
+        output = []
+        for s, due, fee in results:
+            output.append({
+                "student_id": s.student_id,
+                "name": f"{s.first_name} {s.StudentMiddleName or ''} {s.last_name}".strip(),
+                "admission_no": s.admission_no,
+                "class": s.clazz,
+                "section": s.section,
+                "father_name": s.Fatherfirstname,
+                "total_fee": float(fee or 0),
+                "due_amount": float(due or 0),
+                "father_mobile": s.FatherPhone
+            })
+            
+        return jsonify(output), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/api/reports/fees/late-due", methods=["GET"])
+@token_required
+def report_fee_late_due(current_user):
+    """Get students with late due amount (due date passed or no due date)"""
+    try:
+        h_year, err, code = require_academic_year()
+        if err: return err, code
+        
+        # Strict Branch Logic
+        if current_user.role == 'Admin':
+            target_branch = request.headers.get("X-Branch", "All")
+        else:
+             target_branch = current_user.branch
+        
+        # Security Check
+        if current_user.role != 'Admin' and (not target_branch or target_branch in ['All', 'AllBranches']):
+             return jsonify([]), 200
+
+        # Query StudentFees grouped by Student
+        # Filter where due_amount > 0 and (due_date is NULL or due_date < today)
+        
+        query = db.session.query(
+            Student,
+            func.sum(StudentFee.due_amount).label("total_due"),
+            func.sum(StudentFee.total_fee).label("total_fee")
+        ).join(StudentFee).filter(
+            StudentFee.academic_year == h_year,
+            Student.academic_year == h_year,
+            StudentFee.is_active == True,
+            or_(
+                StudentFee.due_date == None,
+                StudentFee.due_date < date.today()
+            )
         )
         
         if target_branch and target_branch not in ['All', 'AllBranches']:
