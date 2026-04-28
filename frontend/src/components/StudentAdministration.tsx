@@ -12,6 +12,7 @@ import ClassSummary from './ClassSummary';
 import MakeStudentInactive from './MakeStudentInactive';
 import SearchStudent from './SearchStudent';
 import UpdateStudentDetails from './UpdateStudentDetails';
+import ChangeSection from './ChangeSection';
 import { Student } from '../types';
 import api from '../api';
 
@@ -26,7 +27,7 @@ interface StudentAdministrationProps {
 type StudentAdminView =
     'students' | 'search' | 'summary' | 'reports' | 'certificates' | 'upgrade'
     | 'import' | 'addStudent' | 'viewStudent' | 'editStudent'
-    | 'inactive' | 'inactiveReport' | 'demote' | 'updateDetails';
+    | 'inactive' | 'inactiveReport' | 'demote' | 'updateDetails' | 'changeSection';
 
 // ---------------------------------------------------------------------------
 // Dropdown Component
@@ -112,6 +113,7 @@ const StudentAdminHeader: React.FC<{ activeView: StudentAdminView; setActiveView
                             </DropdownItem>
                         </Dropdown>
 
+                        <button className={btn('changeSection')} onClick={() => setActiveView('changeSection')}>Change Section</button>
                         <button className={btn('upgrade')} onClick={() => setActiveView('upgrade')}>Upgrade</button>
                         <button className={btn('demote')} onClick={() => setActiveView('demote')}>De-promote</button>
                     </div>
@@ -595,6 +597,9 @@ const StudentAdministration: React.FC<StudentAdministrationProps> = () => {
 
             case 'updateDetails':
                 return <UpdateStudentDetails onBack={() => setActiveView('students')} />;
+
+            case 'changeSection':
+                return <ChangeSection onBack={() => setActiveView('students')} />;
 
             default:
                 return <ComingSoon pageTitle="Coming Soon" />;
