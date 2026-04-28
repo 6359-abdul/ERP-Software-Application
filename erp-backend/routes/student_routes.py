@@ -148,6 +148,8 @@ def get_students(current_user):
         # Header Filtering
         h_branch = request.headers.get("X-Branch")
         h_year = request.headers.get("X-Academic-Year")
+        if h_year:
+            h_year = h_year.strip()
         
         # Base Query
         # We always start with Student.
@@ -537,6 +539,8 @@ def update_student(current_user, student_id):
 @token_required
 def create_student(current_user):
     h_year, err, code = require_academic_year()
+    if h_year:
+        h_year = h_year.strip()
     if err:
         return err, code
 
@@ -1237,6 +1241,90 @@ def demote_students_bulk(current_user):
 
         return jsonify({
             "message": f"Demotion complete. {success_count} student(s) successfully demoted.",
+            "success_count": success_count,
+            "errors": errors
+        }), 200 if success_count > 0 else 400
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/api/students/change-section-bulk", methods=["POST"])
+@token_required
+def change_section_bulk(current_user):
+    """
+    Bulk change student sections within the same academic year.
+    """
+    data = request.json or {}
+    student_ids = data.get("student_ids", [])
+    target_class = data.get("target_class")
+    target_section = data.get("target_section")
+
+    if not isinstance(student_ids, list) or not student_ids:
+        return jsonify({"error": "student_ids must be a non-empty list"}), 400
+    if not target_class or not target_section:
+        return jsonify({"error": "target_class and target_section are required"}), 400
+
+    h_year = request.headers.get("X-Academic-Year")
+    if not h_year:
+        return jsonify({"error": "Academic Year context (X-Academic-Year header) is required"}), 400
+
+    success_count = 0
+    errors = []
+    processed_ids = set()
+
+    try:
+        students = Student.query.filter(Student.student_id.in_(student_ids)).all()
+        student_map = {s.student_id: s for s in students}
+
+        if current_user.role != "Admin" and current_user.branch != "All":
+            for sid in list(student_map.keys()):
+                if student_map[sid].branch != current_user.branch:
+                    errors.append(f"Unauthorized for student {student_map[sid].admission_no}")
+                    del student_map[sid]
+
+        for student_id, student in student_map.items():
+            if student_id in processed_ids:
+                continue
+            processed_ids.add(student_id)
+
+            try:
+                # 1. Update Student record
+                if student.academic_year == h_year:
+                    student.clazz = target_class
+                    student.section = target_section
+
+                # 2. Update StudentAcademicRecord for the current year
+                record = StudentAcademicRecord.query.filter_by(
+                    student_id=student_id,
+                    academic_year=h_year
+                ).first()
+
+                if record:
+                    record.class_name = target_class
+                    record.section = target_section
+                else:
+                    # If for some reason record doesn't exist, create it
+                    record = StudentAcademicRecord(
+                        student_id=student_id,
+                        academic_year=h_year,
+                        class_name=target_class,
+                        section=target_section,
+                        roll_number=student.Roll_Number,
+                        is_promoted=False
+                    )
+                    db.session.add(record)
+
+                db.session.commit()
+                success_count += 1
+
+            except Exception as e:
+                db.session.rollback()
+                errors.append(f"Error for {student.admission_no}: {str(e)}")
+
+        return jsonify({
+            "message": f"Section change processed. {success_count} students moved successfully.",
             "success_count": success_count,
             "errors": errors
         }), 200 if success_count > 0 else 400

@@ -252,6 +252,7 @@ const TakeAttendanceForm: React.FC = () => {
                                 type="date"
                                 value={attendanceDate}
                                 onChange={(e) => setAttendanceDate(e.target.value)}
+                                max={new Date().toISOString().split('T')[0]}
                                 className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 text-sm"
                             />
                         </div>
@@ -324,26 +325,33 @@ const TakeAttendanceForm: React.FC = () => {
                                                     {[
                                                         { val: 'Present', label: 'P', color: 'green' },
                                                         { val: 'Absent', label: 'A', color: 'red' },
-                                                    ].map(opt => (
-                                                        <label key={opt.val} className="flex items-center cursor-pointer">
-                                                            <input
-                                                                type="radio"
-                                                                name={`status-${student.student_id}`}
-                                                                checked={attendance[student.student_id!] === opt.val}
-                                                                onChange={() => {
-                                                                    if ((student as any).is_locked) {
-                                                                        alert("This student record is locked for this academic year.");
-                                                                    } else {
-                                                                        handleStatusChange(student.student_id!, opt.val);
-                                                                    }
-                                                                }}
-                                                                disabled={(student as any).is_locked}
-                                                                className={`h-5 w-5 text-${opt.color}-600 border-gray-300 focus:ring-${opt.color}-500 ${(student as any).is_locked ? 'cursor-not-allowed opacity-50' : ''}`}
-                                                                title={(student as any).is_locked ? 'Record locked (Promoted)' : ''}
-                                                            />
-                                                            <span className={`ml-1 text-${opt.color}-700 font-medium`}>{opt.label}</span>
-                                                        </label>
-                                                    ))}
+                                                    ].map(opt => {
+                                                        const colorMap: { [key: string]: { text: string; ring: string; label: string } } = {
+                                                            green: { text: 'text-green-600', ring: 'focus:ring-green-500', label: 'text-green-700' },
+                                                            red: { text: 'text-red-600', ring: 'focus:ring-red-500', label: 'text-red-700' },
+                                                        };
+                                                        const classes = colorMap[opt.color];
+                                                        return (
+                                                            <label key={opt.val} className="flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`status-${student.student_id}`}
+                                                                    checked={attendance[student.student_id!] === opt.val}
+                                                                    onChange={() => {
+                                                                        if ((student as any).is_locked) {
+                                                                            alert("This student record is locked for this academic year.");
+                                                                        } else {
+                                                                            handleStatusChange(student.student_id!, opt.val);
+                                                                        }
+                                                                    }}
+                                                                    disabled={(student as any).is_locked}
+                                                                    className={`h-5 w-5 ${classes.text} border-gray-300 ${classes.ring} ${(student as any).is_locked ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                                    title={(student as any).is_locked ? 'Record locked (Promoted)' : ''}
+                                                                />
+                                                                <span className={`ml-1 ${classes.label} font-medium`}>{opt.label}</span>
+                                                            </label>
+                                                        );
+                                                    })}
                                                 </div>
                                             </td>
                                         </tr>
@@ -595,14 +603,27 @@ const RegisterViewTab: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Month</label>
                             <select value={selectedMonth} onChange={e => setSelectedMonth(parseInt(e.target.value))} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                    <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('default', { month: 'long' })}</option>
-                                ))}
+                                {Array.from({ length: 12 }, (_, i) => i + 1)
+                                    .filter(m => {
+                                        const now = new Date();
+                                        if (selectedYear > now.getFullYear()) return false;
+                                        if (selectedYear === now.getFullYear() && m > (now.getMonth() + 1)) return false;
+                                        return true;
+                                    })
+                                    .map(m => (
+                                        <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('default', { month: 'long' })}</option>
+                                    ))}
                             </select>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Year</label>
-                            <input type="number" value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                            <input
+                                type="number"
+                                value={selectedYear}
+                                max={new Date().getFullYear()}
+                                onChange={e => setSelectedYear(parseInt(e.target.value))}
+                                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            />
                         </div>
                         <button onClick={handleGetReport} disabled={loading} className="bg-violet-600 text-white px-4 py-2 rounded-md hover:bg-violet-700 text-sm disabled:bg-gray-400">
                             {loading ? 'Loading...' : 'Get Register'}
@@ -659,7 +680,10 @@ const RegisterViewTab: React.FC = () => {
                                             if (status === 'Absent') absentCount++;
                                         });
 
-                                        const blockedCount = Object.keys(blockedDates).length;
+                                        const blockedCount = Object.keys(blockedDates).filter(dateStr => {
+                                            const [year, month] = dateStr.split('-').map(Number);
+                                            return year === selectedYear && month === selectedMonth;
+                                        }).length;
                                         const workingDays = daysInMonth - blockedCount;
                                         const percentage = workingDays > 0 ? ((presentCount / workingDays) * 100).toFixed(1) : '0.0';
 
@@ -1021,14 +1045,27 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Month</label>
                             <select value={selectedMonth} onChange={e => setSelectedMonth(parseInt(e.target.value))} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                    <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('default', { month: 'long' })}</option>
-                                ))}
+                                {Array.from({ length: 12 }, (_, i) => i + 1)
+                                    .filter(m => {
+                                        const now = new Date();
+                                        if (selectedYear > now.getFullYear()) return false;
+                                        if (selectedYear === now.getFullYear() && m > (now.getMonth() + 1)) return false;
+                                        return true;
+                                    })
+                                    .map(m => (
+                                        <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('default', { month: 'long' })}</option>
+                                    ))}
                             </select>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Year</label>
-                            <input type="number" value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                            <input
+                                type="number"
+                                value={selectedYear}
+                                max={new Date().getFullYear()}
+                                onChange={e => setSelectedYear(parseInt(e.target.value))}
+                                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            />
                         </div>
                         <button onClick={handleGetStudents} disabled={loading} className="bg-violet-600 text-white px-4 py-2 rounded-md hover:bg-violet-700 text-sm disabled:bg-gray-400">
                             {loading ? 'Loading...' : 'Get Register'}
