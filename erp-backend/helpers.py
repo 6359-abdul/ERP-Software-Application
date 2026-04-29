@@ -74,15 +74,16 @@ def send_otp_email(to_email, otp):
     
     masked = _mask_email(to_email)
     
-    smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com").strip()
-    smtp_port_raw = os.environ.get("SMTP_PORT")
+    smtp_server = os.environ.get("MAIL_HOST", "smtp.office365.com").strip()
+    smtp_port_raw = os.environ.get("MAIL_PORT")
     try:
         smtp_port = int(smtp_port_raw) if smtp_port_raw else 587
     except (ValueError, TypeError):
-        current_app.logger.warning(f"Invalid SMTP_PORT value '{smtp_port_raw}', falling back to 587")
+        current_app.logger.warning(f"Invalid MAIL_PORT value '{smtp_port_raw}', falling back to 587")
         smtp_port = 587
-    smtp_username = os.environ.get("SMTP_USERNAME", "").strip()
-    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+    smtp_username = os.environ.get("MAIL_USER", "").strip()
+    smtp_password = os.environ.get("MAIL_PASS", "").strip()
+    mail_from = os.environ.get("MAIL_FROM", smtp_username).strip()
     
     if current_app.debug:
         current_app.logger.debug(f"[EMAIL DEBUG] Server={smtp_server}, Port={smtp_port}, To={masked}")
@@ -95,7 +96,7 @@ def send_otp_email(to_email, otp):
 
     msg = EmailMessage()
     msg['Subject'] = 'Password Reset OTP'
-    msg['From'] = smtp_username
+    msg['From'] = mail_from
     msg['To'] = to_email
     msg.set_content(f"""Hello,
 
