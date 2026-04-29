@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from "axios";
 import { API_URL } from "../config";
 import { auth } from '../api';
-
+import HifzAcademylogo from '../images/HifzAcademylogo.png';
 
 interface LoginProps {
   onLoginSuccess: (user: any) => void;
@@ -150,9 +150,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       <div className="w-full max-w-sm mx-auto bg-white rounded-lg shadow-md transition-all duration-300">
         <div className="p-8">
           <div className="text-center space-y-4 mb-8">
-            <img src="https://www.mshifzacademy.com/assets/images/ms-logo.jpg"
-              alt="MS Education Academy Logo"
-              className="mx-auto h-12 object-contain" />
+            <img src={HifzAcademylogo} alt="MS Education Academy Logo" className="h-16" />
 
             {view === 'login' && <p className="text-gray-500 font-medium">Admin Login</p>}
             {view === 'forgot-email' && <p className="text-gray-500 font-medium">Forgot Password</p>}

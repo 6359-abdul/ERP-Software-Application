@@ -131,7 +131,7 @@ const SummaryTables = ({ modeSummary, collectedBySummary, totalCollection }: {
     collectedBySummary: any[];
     totalCollection: number;
 }) => (
-    <div className="flex flex-col md:flex-row gap-6 mt-4">
+    <div className="flex flex-col md:flex-row gap-6 mt-4 px-4 pb-6">
         {/* Payment Mode Table */}
         <div className="flex-1">
             <h4 className="font-semibold text-gray-700 mb-2">Payment Mode Summary</h4>
@@ -203,7 +203,7 @@ const FullReceiptsTable: React.FC<{
     }
 
     return (
-        <div className="bg-white border rounded shadow-sm overflow-x-auto mt-4">
+        <div className="bg-white border rounded shadow-sm overflow-x-auto mt-4 mx-4">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50 text-gray-700">
                     <tr>
@@ -495,7 +495,7 @@ export const TodayCollection: React.FC<ReportProps> = ({ onViewReceipt }) => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 px-4">
                 <button
                     onClick={handleRefresh}
                     className="bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
@@ -518,7 +518,7 @@ export const TodayCollection: React.FC<ReportProps> = ({ onViewReceipt }) => {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-4">
                 <StatCard label="Total Collection" value={summary.total} color="green" />
                 {Object.entries(summary.modeMap || {}).map(([mode, amount]: any) => (
                     <StatCard key={mode} label={mode} value={Number(amount)} color="blue" />
@@ -728,7 +728,7 @@ export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 px-4">
                 <button
                     onClick={handleSearch}
                     className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
@@ -756,7 +756,7 @@ export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
             {rawData && (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 px-4">
                         <StatCard label="Total Collection" value={summary.total} color="green" />
                         {Object.entries(summary.modeMap || {}).map(([mode, amount]: any) => (
                             <StatCard key={mode} label={mode} value={Number(amount)} color="blue" />
@@ -966,7 +966,7 @@ export const MonthlyReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 px-4">
                 <button
                     onClick={handleSearch}
                     className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
@@ -994,7 +994,7 @@ export const MonthlyReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
             {rawData && (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 px-4">
                         <StatCard label="Total Collection" value={summary.total} color="green" />
                         {Object.entries(summary.modeMap || {}).map(([mode, amount]: any) => (
                             <StatCard key={mode} label={mode} value={Number(amount)} color="blue" />
@@ -1179,7 +1179,7 @@ export const ClassWiseReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 px-4">
                 <button
                     onClick={fetchReport}
                     className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
@@ -1207,7 +1207,7 @@ export const ClassWiseReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
             {rawData && (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-4">
                         {/* Show raw demand/due only if no strict filter that invalidates them? 
                            Actually, if we filter by 'Cash', Total Demand is still the class's total demand.
                            Collected is the 'Cash' collected.
@@ -1393,7 +1393,7 @@ export const InstallmentWiseReport: React.FC<ReportProps> = ({ onViewReceipt }) 
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 px-4">
                 <button
                     onClick={fetchReport}
                     className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
@@ -1421,7 +1421,7 @@ export const InstallmentWiseReport: React.FC<ReportProps> = ({ onViewReceipt }) 
             {rawData && (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 px-4">
                         <StatCard label="Total Demand" value={rawData.total_demand} color="blue" />
                         <StatCard label="Collected (Filtered)" value={summary.total} color="green" />
                         <StatCard label="Due Amount" value={rawData.due} color="red" />
@@ -1644,7 +1644,7 @@ export const DueReport: React.FC = () => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 px-4">
                 <button
                     onClick={fetchReport}
                     className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
@@ -1670,7 +1670,7 @@ export const DueReport: React.FC = () => {
             {error && <div className="text-red-500 text-center py-4">{error}</div>}
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-4">
                 <StatCard label="Total Students with Dues" value={filteredData.length} color="blue" />
                 <StatCard label="Total Fee Demand" value={totalFee} color="purple" />
                 <StatCard label="Total Due Amount" value={totalDue} color="red" />
@@ -1678,7 +1678,7 @@ export const DueReport: React.FC = () => {
             </div>
 
             {/* Due Table */}
-            <div className="bg-white border rounded-lg overflow-hidden shadow-sm">
+            <div className="bg-white border rounded-lg overflow-hidden shadow-sm mx-4">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                         <tr>
@@ -1743,7 +1743,7 @@ export const DueReport: React.FC = () => {
 
             {/* Class-wise Due Summary */}
             {filteredData.length > 0 && (
-                <div className="bg-white p-4 rounded-lg border mt-4">
+                <div className="bg-white p-4 rounded-lg border mt-4 mx-4 mb-6">
                     <h4 className="font-semibold mb-3 text-gray-700">Class-wise Due Summary</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                         {Object.entries(
@@ -1962,7 +1962,7 @@ export const LateFeeDueReport: React.FC = () => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 px-4">
                 <button
                     onClick={fetchReport}
                     className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
@@ -1988,7 +1988,7 @@ export const LateFeeDueReport: React.FC = () => {
             {error && <div className="text-red-500 text-center py-4">{error}</div>}
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-4">
                 <StatCard label="Total Students with Dues" value={filteredData.length} color="blue" />
                 <StatCard label="Total Fee Demand" value={totalFee} color="purple" />
                 <StatCard label="Total Due Amount" value={totalDue} color="red" />
@@ -1996,7 +1996,7 @@ export const LateFeeDueReport: React.FC = () => {
             </div>
 
             {/* Late Fee Due Table */}
-            <div className="bg-white border rounded-lg overflow-hidden shadow-sm">
+            <div className="bg-white border rounded-lg overflow-hidden shadow-sm mx-4">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                         <tr>
@@ -2061,7 +2061,7 @@ export const LateFeeDueReport: React.FC = () => {
 
             {/* Class-wise Due Summary */}
             {filteredData.length > 0 && (
-                <div className="bg-white p-4 rounded-lg border mt-4">
+                <div className="bg-white p-4 rounded-lg border mt-4 mx-4 mb-6">
                     <h4 className="font-semibold mb-3 text-gray-700">Class-wise Due Summary</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                         {Object.entries(
