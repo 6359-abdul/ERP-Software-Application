@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDownIcon, UserIcon, LogoutIcon, MenuIcon, ArrowBackIcon, ArrowForwardIcon, HomeIcon } from './icons';
 import { Page } from '../App';
 import api from '../api';
+import HifzAcademylogo from '../images/HifzAcademylogo.png';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -182,7 +183,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
   }, [user.role]);
 
   return (
-    <header className="bg-green-700 text-white shadow-md z-20">
+    <header className="bg-[#009746] text-white shadow-lg z-10">
       <nav className="container-fluid mx-auto px-4">
         {/* ... (existing nav structure) ... */}
         <div className="flex items-center justify-between h-16">
@@ -192,7 +193,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
               <MenuIcon className="w-6 h-6" />
             </button>
             <a href="#" onClick={() => navigateTo('dashboard')} className="flex items-center space-x-3">
-              <img src="https://www.mshifzacademy.com/assets/images/ms-logo.jpg" alt="MS Education Academy Logo" className="h-12" />
+              <img src={HifzAcademylogo} alt="MS Education Academy Logo" className="h-12" />
             </a>
             <div className="hidden md:flex items-center ml-4">
 

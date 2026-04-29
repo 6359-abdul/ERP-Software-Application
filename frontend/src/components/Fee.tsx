@@ -87,6 +87,9 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
         </div>
     );
 
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isAdmin = user.role === 'Admin';
+
     return (
         <div>
             {/* Fee Management Header */}
@@ -96,7 +99,7 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
                         <span className="text-blue-600 mr-2">₹</span> Fee Management
                     </h2>
                     <div className="flex gap-2 flex-wrap">
-                        {renderDropdown('feeMasters', dropdownItems.feeMasters)}
+                        {isAdmin && renderDropdown('feeMasters', dropdownItems.feeMasters)}
                         {/*{renderDropdown('cheque', dropdownItems.cheque)}*/}
                         <button
                             className="px-4 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
@@ -113,8 +116,8 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
                         >
                             Take Fee
                         </button>
-                        {renderDropdown('concession', dropdownItems.concession)}
-                        {renderDropdown('refund', dropdownItems.refund)}
+                        {isAdmin && renderDropdown('concession', dropdownItems.concession)}
+                        {isAdmin && renderDropdown('refund', dropdownItems.refund)}
                         {/*{renderDropdown('voucher', dropdownItems.voucher)}*/}
                         {/*<button className={buttonStyle}>Bulk Fee Payment</button>*/}
                     </div>
