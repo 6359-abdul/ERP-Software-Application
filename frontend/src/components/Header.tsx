@@ -10,7 +10,7 @@ interface HeaderProps {
   onLogout: () => void;
   goBack: () => void;
   goForward: () => void;
-  canGoBack: boolean; 
+  canGoBack: boolean;
   canGoForward: boolean;
 }
 
@@ -156,8 +156,16 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
         const storedYear = localStorage.getItem('academicYear');
         if (!storedYear && yearsList.length > 0) {
           const firstYear = yearsList[0].name;
-          localStorage.setItem('academicYear', firstYear);
-          setSelectedYear(firstYear);
+          // 1. Define the year you want as default
+          const targetYear = '2026-2027';
+
+          // 2. Check if the target year actually exists in the API response
+          const hasTargetYear = yearsList.some((y: any) => y.name === targetYear);
+
+          // 3. Use the target year if found, otherwise fallback to the first item in the array
+          const defaultYear = hasTargetYear ? targetYear : yearsList[0].name;
+          localStorage.setItem('academicYear', defaultYear);
+          setSelectedYear(defaultYear);
         }
       })
       .catch(err => console.error("Failed to load academic years in Header", err));

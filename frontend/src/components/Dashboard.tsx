@@ -23,6 +23,7 @@ import UpdateStudentFeeStructure from './UpdateStudentFeeStructure';
 import FeeReports from './FeeReports';
 import Configuration from './Configuration';
 import DocumentManagement from './DocumentManagement';
+import CreateStudent from './CreateStudent';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
 
 
@@ -83,6 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           {currentPage === 'fee-reports' && <FeeReports />}
           {currentPage === 'configuration' && <Configuration navigateTo={navigateTo} />}
           {currentPage === 'document-management' && <DocumentManagement />}
+          {currentPage === 'create-student' && <CreateStudent mode="create" onCancel={() => navigateTo('dashboard')} onSave={() => navigateTo('student-administration')} />}
         </main>
       </div>
     </div>
