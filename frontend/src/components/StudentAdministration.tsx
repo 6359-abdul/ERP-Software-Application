@@ -1,6 +1,6 @@
 // ---------------- COMPLETE & FIXED StudentAdministration.tsx ----------------
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Page } from '../App';
 import { ChevronDownIcon, SearchIcon, UserIcon } from './icons';
 import ComingSoon from './ComingSoon';
@@ -63,6 +63,113 @@ const DropdownItem: React.FC<{ children: any; onClick?: () => void }> =
     );
 
 // ---------------------------------------------------------------------------
+// Pagination Component
+// ---------------------------------------------------------------------------
+interface PaginationProps {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+    totalItems: number;
+    itemsPerPage: number;
+}
+
+const Pagination: React.FC<PaginationProps> = ({
+    currentPage,
+    totalPages,
+    onPageChange,
+    totalItems,
+    itemsPerPage,
+}) => {
+    if (totalPages <= 1) return null;
+
+    // Generate page numbers to display (with ellipsis logic)
+    const getPages = (): { pages: number[]; showLastPage: boolean } => {
+        const pages: number[] = [];
+        let showLastPage = false;
+
+        if (totalPages <= 5) {
+            // Show all pages if 5 or fewer
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            // Show first 3 pages around current
+            const start = Math.max(1, currentPage - 1);
+            const end = Math.min(totalPages - 1, start + 2);
+
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+
+            // Show ellipsis + last page if there's a gap
+            if (end < totalPages - 1) {
+                showLastPage = true;
+            } else if (end === totalPages - 1) {
+                // No ellipsis needed, just show last page
+                pages.push(totalPages);
+            }
+        }
+
+        return { pages, showLastPage };
+    };
+
+    const { pages, showLastPage } = getPages();
+
+    return (
+        <div className="p-4 border-t bg-gray-50 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <span className="text-sm text-gray-500 italic">
+                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} records
+            </span>
+            <div className="flex items-center gap-1 flex-wrap">
+                <button
+                    disabled={currentPage === 1}
+                    onClick={() => onPageChange(currentPage - 1)}
+                    className="px-2 py-1 text-sm font-medium text-gray-600 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-gray-600 mr-2"
+                >
+                    Previous
+                </button>
+
+                {pages.map(p => (
+                    <button
+                        key={p}
+                        onClick={() => onPageChange(p)}
+                        className={`min-w-[28px] px-1.5 py-0.5 text-sm font-semibold transition-colors ${currentPage === p
+                            ? 'text-indigo-700 underline underline-offset-4'
+                            : 'text-gray-500 hover:text-gray-800'
+                            }`}
+                    >
+                        {p}
+                    </button>
+                ))}
+
+                {showLastPage && (
+                    <>
+                        <span className="px-1 text-sm text-gray-400">...</span>
+                        <button
+                            onClick={() => onPageChange(totalPages)}
+                            className={`min-w-[28px] px-1.5 py-0.5 text-sm font-semibold transition-colors ${currentPage === totalPages
+                                ? 'text-indigo-700 underline underline-offset-4'
+                                : 'text-gray-500 hover:text-gray-800'
+                                }`}
+                        >
+                            {totalPages}
+                        </button>
+                    </>
+                )}
+
+                <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => onPageChange(currentPage + 1)}
+                    className="px-2 py-1 text-sm font-medium text-gray-600 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-gray-600 ml-2"
+                >
+                    Next
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// ---------------------------------------------------------------------------
 // Header Component
 // ---------------------------------------------------------------------------
 const StudentAdminHeader: React.FC<{ activeView: StudentAdminView; setActiveView: any }> =
@@ -85,7 +192,6 @@ const StudentAdminHeader: React.FC<{ activeView: StudentAdminView; setActiveView
                     <div className="flex items-center flex-wrap gap-2">
                         <button className={btn('students')} onClick={() => setActiveView('students')}>Students</button>
                         <button className={btn('addStudent')} onClick={() => setActiveView('addStudent')}>Create Student</button>
-                        {/*<button className={btn('import')} onClick={() => setActiveView('import')}>Import</button>*/}
                         <button className={btn('search')} onClick={() => setActiveView('search')}>Search</button>
                         <button className={btn('updateDetails')} onClick={() => setActiveView('updateDetails')}>Update Student Details</button>
                         <button className={btn('summary')} onClick={() => setActiveView('summary')}>Class Summary</button>
@@ -134,10 +240,6 @@ interface ClassItem {
 const StudentList: React.FC<{ onView: any; onEdit: any }> =
     ({ onView, onEdit }) => {
 
-        // Filters
-        // Branch filtering is now handled globally via the MainContent dropdown.
-        // We just read localStorage.getItem('currentBranch') when fetching API.
-
         const [students, setStudents] = useState<Student[]>([]);
         const [loading, setLoading] = useState(false);
         const [showInactive, setShowInactive] = useState(false);
@@ -147,6 +249,10 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
         const [searchTerm, setSearchTerm] = useState('');
         const [classOptions, setClassOptions] = useState<ClassItem[]>([]);
         const [sectionOptions, setSectionOptions] = useState<string[]>([]);
+
+        // Pagination State
+        const [currentPage, setCurrentPage] = useState(1);
+        const [itemsPerPage, setItemsPerPage] = useState(15);
 
         // Delete State
         const [passwordModalOpen, setPasswordModalOpen] = useState(false);
@@ -159,7 +265,6 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
                 .then(res => setClassOptions(res.data.classes || []))
                 .catch(() => console.log("Failed loading classes"));
 
-            // Initial Load
             loadStudents();
         }, []);
 
@@ -167,6 +272,11 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
         useEffect(() => {
             loadStudents();
         }, [selectedClass, selectedSection, searchTerm, showInactive]);
+
+        // Reset to page 1 when filters change
+        useEffect(() => {
+            setCurrentPage(1);
+        }, [selectedClass, selectedSection, searchTerm, showInactive, itemsPerPage]);
 
         useEffect(() => {
             if (!selectedClass) {
@@ -191,7 +301,7 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
 
         const loadStudents = () => {
             setLoading(true);
-            const globalBranch = localStorage.getItem('currentBranch') || ''; // default empty or handle appropriately in backend
+            const globalBranch = localStorage.getItem('currentBranch') || '';
 
             api.get('/students', {
                 params: {
@@ -205,6 +315,30 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
                 .then(res => setStudents(res.data.students || []))
                 .catch(() => setStudents([]))
                 .finally(() => setLoading(false));
+        };
+
+        // Calculate pagination data
+        const paginationData = useMemo(() => {
+            const totalItems = students.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const currentStudents = students.slice(startIndex, endIndex);
+
+            return {
+                totalItems,
+                totalPages,
+                currentStudents
+            };
+        }, [students, currentPage, itemsPerPage]);
+
+        // Handle page change
+        const handlePageChange = (page: number) => {
+            if (page >= 1 && page <= paginationData.totalPages) {
+                setCurrentPage(page);
+                // Scroll to top of table on page change
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         };
 
         // Handle Delete Click
@@ -232,11 +366,8 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
             if (!password) return alert("Please enter password");
 
             try {
-                // Verify password
                 const verifyRes = await api.post('/verify-current-password', { password });
                 if (verifyRes.data.success) {
-                    // Delete student
-                    // Assuming student object has student_id based on backend model
                     const id = studentToDelete.student_id || studentToDelete.id;
                     await api.delete(`/students/${id}`);
                     alert("Student marked as Inactive successfully");
@@ -284,7 +415,7 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
                                 <p>Student Profile Report</p>
                              </div>
 
-                             <img src="${s.photo || ''}" class="photo-box" onerror="this.style.display='none'; this.parentElement.style.backgroundColor='#f3f4f6'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.innerHTML='<span style=\'font-size:40px;color:#9ca3af;\'>👤</span>';" />
+                             <img src="${s.photo || ''}" class="photo-box" onerror="this.style.display='none';" />
                              <h2 style="text-align:center; border:none;">${s.name}</h2>
                              <p style="text-align:center;">${s.admNo} | Class: ${s.class} - ${s.section}</p>
 
@@ -363,87 +494,97 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
             if (!students.length) return <div className="p-6 text-gray-600 text-center">No students found</div>;
 
             return (
-                <div className="overflow-auto">
-                    <table className="min-w-full text-sm divide-y divide-gray-200">
-                        <thead className="bg-violet-600 text-white">
-                            <tr>
-                                <th className="px-4 py-3 text-left">Student Name</th>
-                                <th className="px-4 py-3 text-left">Adm No.</th>
-                                <th className="px-4 py-3 text-left">Roll No.</th>
-                                <th className="px-4 py-3 text-left">Class</th>
-                                <th className="px-4 py-3 text-left">Branch</th>
-                                <th className="px-4 py-3 text-left">Father/ Guardian Name</th>
-                                <th className="px-4 py-3 text-left">Father Mobile</th>
-                                <th className="px-4 py-3 text-left">Tools</th>
-                            </tr>
-                        </thead>
-
-                        <tbody className="divide-y divide-gray-200 bg-white">
-                            {students.map(s => (
-                                <tr key={s.admNo} className="hover:bg-gray-50">
-                                    <td className="px-4 py-2 flex items-center gap-2">
-                                        {s.photo ? (
-                                            <img src={s.photo} className="w-8 h-8 rounded-full object-cover border" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; (e.target as HTMLImageElement).parentElement?.classList.add('bg-gray-100', 'flex', 'items-center', 'justify-center'); }} />
-                                        ) : (
-                                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border">
-                                                <UserIcon className="w-5 h-5 text-gray-400" />
-                                            </div>
-                                        )}
-                                        <span className="font-medium text-blue-600">{s.name}</span>
-                                    </td>
-                                    <td className="px-4 py-2">{s.admNo}</td>
-                                    <td className="px-4 py-2">{s.rollNo}</td>
-                                    <td className="px-4 py-2">{s.class} {s.section}</td>
-                                    <td className="px-4 py-2">{s.branch}</td>
-                                    <td className="px-4 py-2">{s.father}</td>
-                                    <td className="px-4 py-2">{s.fatherMobile}</td>
-
-
-                                    <td className="px-4 py-2">
-                                        <div className="flex items-center gap-1">
-                                            <button onClick={() => onView(s)} className="px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1" title="Details">
-                                                <span>ℹ️</span> Details
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    if (s.is_locked) {
-                                                        alert("This student record is locked for this academic year and cannot be edited.");
-                                                    } else {
-                                                        onEdit(s);
-                                                    }
-                                                }}
-                                                className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${s.is_locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                                title={s.is_locked ? "Record locked (Promoted)" : "Edit"}
-                                            >
-                                                <span>{s.is_locked ? '🔒' : '✏️'}</span> Edit
-                                            </button>
-                                            <button onClick={() => handlePrint(s)} className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 flex items-center gap-1" title="Print">
-                                                <span>🖨️</span> Print
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    if (s.is_locked) {
-                                                        alert("This student record is locked for this academic year and cannot be deactivated.");
-                                                    } else {
-                                                        handleDeleteClick(s);
-                                                    }
-                                                }}
-                                                className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${s.is_locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
-                                                title={s.is_locked ? "Record locked (Promoted)" : "Deactivate"}
-                                            >
-                                                <span>{s.is_locked ? '🔒' : '🚫'}</span> Inactivate
-                                            </button>
-                                            {s.status === 'Inactive' && (
-                                                <button onClick={() => handleActivate(s)} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center gap-1" title="Activate">
-                                                    <span>✅</span> Activate
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
+                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div className="overflow-auto">
+                        <table className="min-w-full text-sm divide-y divide-gray-200">
+                            <thead className="bg-violet-600 text-white">
+                                <tr>
+                                    <th className="px-4 py-3 text-left">Student Name</th>
+                                    <th className="px-4 py-3 text-left">Adm No.</th>
+                                    <th className="px-4 py-3 text-left">Roll No.</th>
+                                    <th className="px-4 py-3 text-left">Class</th>
+                                    <th className="px-4 py-3 text-left">Branch</th>
+                                    <th className="px-4 py-3 text-left">Father/ Guardian Name</th>
+                                    <th className="px-4 py-3 text-left">Father Mobile</th>
+                                    <th className="px-4 py-3 text-left">Tools</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+
+                            <tbody className="divide-y divide-gray-200 bg-white">
+                                {paginationData.currentStudents.map(s => (
+                                    <tr key={s.admNo} className="hover:bg-gray-50">
+                                        <td className="px-4 py-2 flex items-center gap-2">
+                                            {s.photo ? (
+                                                <img src={s.photo} className="w-8 h-8 rounded-full object-cover border" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                            ) : (
+                                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border">
+                                                    <UserIcon className="w-5 h-5 text-gray-400" />
+                                                </div>
+                                            )}
+                                            <span className="font-medium text-blue-600">{s.name}</span>
+                                        </td>
+                                        <td className="px-4 py-2">{s.admNo}</td>
+                                        <td className="px-4 py-2">{s.rollNo}</td>
+                                        <td className="px-4 py-2">{s.class} {s.section}</td>
+                                        <td className="px-4 py-2">{s.branch}</td>
+                                        <td className="px-4 py-2">{s.father}</td>
+                                        <td className="px-4 py-2">{s.fatherMobile}</td>
+
+                                        <td className="px-4 py-2">
+                                            <div className="flex items-center gap-1">
+                                                <button onClick={() => onView(s)} className="px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1" title="Details">
+                                                    <span>ℹ️</span> Details
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (s.is_locked) {
+                                                            alert("This student record is locked for this academic year and cannot be edited.");
+                                                        } else {
+                                                            onEdit(s);
+                                                        }
+                                                    }}
+                                                    className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${s.is_locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                                                    title={s.is_locked ? "Record locked (Promoted)" : "Edit"}
+                                                >
+                                                    <span>{s.is_locked ? '🔒' : '✏️'}</span> Edit
+                                                </button>
+                                                <button onClick={() => handlePrint(s)} className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 flex items-center gap-1" title="Print">
+                                                    <span>🖨️</span> Print
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (s.is_locked) {
+                                                            alert("This student record is locked for this academic year and cannot be deactivated.");
+                                                        } else {
+                                                            handleDeleteClick(s);
+                                                        }
+                                                    }}
+                                                    className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${s.is_locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                                                    title={s.is_locked ? "Record locked (Promoted)" : "Deactivate"}
+                                                >
+                                                    <span>{s.is_locked ? '🔒' : '🚫'}</span> Inactivate
+                                                </button>
+                                                {s.status === 'Inactive' && (
+                                                    <button onClick={() => handleActivate(s)} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center gap-1" title="Activate">
+                                                        <span>✅</span> Activate
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination Component */}
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={paginationData.totalPages}
+                        onPageChange={handlePageChange}
+                        totalItems={paginationData.totalItems}
+                        itemsPerPage={itemsPerPage}
+                    />
                 </div>
             );
         };
@@ -460,7 +601,6 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
                         className="border px-3 py-2 rounded-md"
                     >
                         <option value="">-- All Classes --</option>
-                        {/* FIXED: Map over objects correctly */}
                         {Array.isArray(classOptions) && classOptions.map(c => (
                             <option key={c.id} value={c.class_name}>
                                 {c.class_name}
@@ -510,6 +650,25 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
                     </div>
 
                 </div>
+
+                {/* Items per page selector */}
+                {students.length > 0 && (
+                    <div className="flex items-center justify-end mb-3 gap-2">
+                        <label className="text-sm text-gray-600">Show:</label>
+                        <select
+                            value={itemsPerPage}
+                            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm"
+                        >
+                            <option value={10}>10</option>
+                            <option value={15}>15</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                        </select>
+                        <span className="text-sm text-gray-600">per page</span>
+                    </div>
+                )}
 
                 {table()}
 

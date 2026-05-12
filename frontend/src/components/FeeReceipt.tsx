@@ -38,7 +38,7 @@ const ReceiptTemplate = ({ data, copyType, logo }: { data: any, copyType: string
       <div className="flex items-center justify-start mb-4">
         <img src={logo} alt="School Logo" className="h-16 mr-4" />
         <div>
-          <h1 className="text-2xl font-bold text-black">MS Education Academy</h1>
+          <h1 className="text-2xl font-bold text-black">MS HifzAcademy</h1>
           <p className="text-md text-gray-600">Fee Receipt <span className="text-sm font-semibold ml-2">({copyType})</span></p>
         </div>
       </div>
