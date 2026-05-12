@@ -32,7 +32,39 @@ export interface Receipt {
 interface ReportProps {
     onViewReceipt: (receiptNo: string) => void;
 }
+// --------------------------------------------------------------------------
+// Date Formatting Helper
+// --------------------------------------------------------------------------
+const formatDateDDMMYYYY = (dateStr: string | undefined | null): string => {
+    if (!dateStr) return '-';
 
+    try {
+        // Handle if already in DD-MM-YYYY format
+        if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+            return dateStr;
+        }
+
+        // Handle YYYY-MM-DD format
+        if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+            const datePart = dateStr.split('T')[0]; // Remove time part if present
+            const [year, month, day] = datePart.split('-');
+            return `${day}-${month}-${year}`;
+        }
+
+        // Handle other formats via Date object
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}-${month}-${year}`;
+        }
+
+        return dateStr; // Return as-is if can't parse
+    } catch {
+        return dateStr || '-';
+    }
+};
 // --------------------------------------------------------------------------
 // Shared Components
 // --------------------------------------------------------------------------
@@ -423,7 +455,8 @@ const downloadExcelReport = (receipts: any[], filename: string) => {
         Paid: r.amount_paid || r.amount,
         Due: r.due_amount || 0,
         Mode: r.mode,
-        TransactionID: r.mode === 'Cheque' ? `Chq: ${r.cheque_no || '-'} | ${r.bank_name || '-'} | ${r.cheque_date || '-'}` : (r.transaction_id || '-'), Date: r.date,
+        TransactionID: r.mode === 'Cheque' ? `Chq: ${r.cheque_no || '-'} | ${r.bank_name || '-'} | ${r.cheque_date || '-'}` : (r.transaction_id || '-'),
+        Date: formatDateDDMMYYYY(r.date),
         Time: r.time,
         TakenBy: r.collected_by
     }));
@@ -461,7 +494,10 @@ const downloadPDFReport = (receipts: any[], title: string, filename: string) => 
         r.amount_paid || r.amount,
         r.due_amount || 0,
         r.mode,
-        r.mode === 'Cheque' ? `Chq: ${r.cheque_no || '-'} | ${r.bank_name || '-'} | ${r.cheque_date || '-'}` : (r.transaction_id || '-'), `${r.date} ${r.time}`,
+        r.mode === 'Cheque'
+            ? `Chq: ${r.cheque_no || '-'} | ${r.bank_name || '-'} | ${formatDateDDMMYYYY(r.cheque_date)}`
+            : (r.transaction_id || '-'),
+        `${formatDateDDMMYYYY(r.date)} ${r.time || ''}`,
         r.collected_by
     ]));
 

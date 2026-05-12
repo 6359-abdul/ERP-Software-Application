@@ -5,7 +5,7 @@ import { Page } from '../App';
 interface FeeProps {
     navigateTo: (page: Page) => void;
 }
- 
+
 const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
@@ -114,7 +114,7 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
                                 navigateTo('take-fee');
                             }}
                         >
-                            Take Fee
+                            Collect Fee {/* Nothing but Take Fee - user reqeust to change the name */}
                         </button>
                         {isAdmin && renderDropdown('concession', dropdownItems.concession)}
                         {isAdmin && renderDropdown('refund', dropdownItems.refund)}
@@ -140,7 +140,7 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
                         onClick={() => navigateTo('take-fee')}
                         className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-sm font-medium"
                     >
-                        Collect Due Fees
+                        Collect Fees
                     </button>
                 </div>
             </div>
