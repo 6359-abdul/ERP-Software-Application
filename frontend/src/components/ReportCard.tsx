@@ -488,12 +488,12 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
             {data.hifzTargetLevel && data.hifzTargetLevel.length > 0 ? (
               <ResponsiveContainer width={450} height={220}>
                 <LineChart data={data.hifzTargetLevel}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                   <XAxis dataKey="month" label={{ value: 'MONTHS', position: 'insideBottom', offset: -5, fontSize: 10 }} fontSize={10} />
-                  <YAxis label={{ value: 'PARAS', angle: -90, position: 'insideLeft', fontSize: 10 }} fontSize={10} />
+                  <YAxis domain={[0, 30]} label={{ value: 'PARAS', angle: -90, position: 'insideLeft', fontSize: 10 }} fontSize={10} />
                   <Tooltip />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
-                  <Line type="monotone" dataKey="targetParas" name="Nazira+Hifz" stroke="#4a235a" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="targetParas" name={data.student?.admissionCategory === "Hifz" ? "Hifz" : "Hifz + Nazira"} stroke={data.student?.admissionCategory === "Hifz" ? "#22c55e" : "#8b5cf6"} strokeWidth={2} dot={{ r: 3 }} />
                   <Line type="monotone" dataKey="actualParas" name="Student Performance" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} connectNulls />
                 </LineChart>
               </ResponsiveContainer>

@@ -1,7 +1,11 @@
+# pyrefly: ignore [missing-import]
 from flask import Blueprint, request, jsonify
 from datetime import datetime
+# pyrefly: ignore [import-error, missing-import]
 import mysql.connector
+# pyrefly: ignore [import-error, missing-import]
 from mysql.connector import Error 
+# pyrefly: ignore [import-error]
 import os
 import logging
 from helpers import token_required
@@ -10,6 +14,33 @@ from models import Branch, UserBranchAccess
 report_bp = Blueprint('report', __name__)
 logger = logging.getLogger(__name__)
 
+def _build_hifz_graph_for_report(student_id):
+    try:
+        from routes.hifz_routes import get_graph_data_for_student
+        graph = get_graph_data_for_student(student_id)
+        expected = graph.get("expected", [])
+        actual = graph.get("actual", [])
+        if not expected and not actual:
+            return []
+        
+        month_map: dict = {}
+        for m in range(0, 31, 3):
+            month_map[m] = {"month": m}
+            
+        for p in expected:
+            if p["month"] not in month_map:
+                month_map[p["month"]] = {"month": p["month"]}
+            month_map[p["month"]]["targetParas"] = p["paras"]
+            
+        for p in actual:
+            if p["month"] not in month_map:
+                month_map[p["month"]] = {"month": p["month"]}
+            month_map[p["month"]]["actualParas"] = p["paras"]
+            
+        return sorted(month_map.values(), key=lambda x: x["month"])
+    except Exception:
+        logger.warning(f"Could not build Hifz graph for student_id={student_id}")
+        return []
 
 def resolve_branch_scope(current_user, requested_branch=None):
     if current_user.role == "Admin" or current_user.branch == "All":
@@ -159,6 +190,7 @@ def get_student_report(current_user):
                 COALESCE(sar.class, s.class) as class_name,
                 COALESCE(sar.section, s.section) as section,
                 COALESCE(sar.roll_number, s.Roll_Number) as roll_number,
+                s.AdmissionCategory,
                 s.admission_no,
                 s.location
             FROM students s
@@ -575,13 +607,20 @@ def get_student_report(current_user):
             }]
         
         # ========== Build Final Response ==========
+        category = student.get('AdmissionCategory') or ''
+        if category == 'Hifz+Nazira':
+            category = 'Hifz + Nazira'
+            
+        formatted_group_roll = f"{category}/{student.get('roll_number') or ''}".strip('/') if category or student.get('roll_number') else ''
+
         response = {
             'reportTitle': f"PROGRESS REPORT OF {current_test_name.upper()}",
             'student': {
                 'studentName': student['student_name'].strip(),
                 'fathersName': student['father_name'] or '',
                 'classSection': f"{student['class_name']} {student['section'] or ''}".strip(),
-                'groupRollNo': str(student['roll_number'] or ''),
+                'groupRollNo': formatted_group_roll,
+                'admissionCategory': category,
                 'branchName': student['branch_name'] or '',
                 'academicYear': academic_year
             },
@@ -598,7 +637,7 @@ def get_student_report(current_user):
                     'totalCount': total_days
                 }
             },
-            'hifzTargetLevel': [],  # Keep empty as per requirement
+            'hifzTargetLevel': _build_hifz_graph_for_report(student_id),
             'teacherRemark': '',     # Keep empty as per requirement
             'academicHistory': academic_history,
             'historicalPerformance': historical_performance

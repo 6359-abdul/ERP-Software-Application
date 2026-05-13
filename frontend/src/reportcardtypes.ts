@@ -77,6 +77,7 @@ export interface StudentDetails {
     groupRollNo: string;
     branchName: string;
     academicYear: string;
+    admissionCategory?: string;
 }
 
 export interface AcademicHistoryRecord {

@@ -954,7 +954,7 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
             >
               <option value="">-- Select --</option>
               <option value="Hifz">Hifz</option>
-              <option value="Nazira">Hifz+Nazira</option>
+              <option value="Hifz+Nazira">Hifz + Nazira</option>
             </FormField>
             <FormField
               label="Admission Class"
