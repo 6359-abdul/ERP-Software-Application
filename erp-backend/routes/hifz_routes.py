@@ -76,7 +76,7 @@ def get_hifz_students():
         class_name = request.args.get('class_name')
         section = request.args.get('section')
         category = request.args.get('category')
-        test_id = request.args.get('test_id', type=int)
+        test_id = request.args.get('test_id')
 
         query = Student.query.filter_by(academic_year=academic_year, status="Active")
         if branch and branch != "All Branches":
