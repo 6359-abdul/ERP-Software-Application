@@ -13,7 +13,7 @@ const HifzTargetSettings: React.FC = () => {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     program_name: "",
     total_months: "",
@@ -136,7 +136,7 @@ const HifzTargetSettings: React.FC = () => {
         <div className="w-full md:w-1/4 bg-white rounded-lg shadow-sm border p-4">
           <div className="flex justify-between items-center mb-4 border-b pb-2">
             <h2 className="font-semibold text-gray-700">Categories</h2>
-            <button 
+            <button
               onClick={handleCreateNew}
               className="text-blue-600 hover:text-blue-800 p-1"
               title="Add New Category"
@@ -144,7 +144,7 @@ const HifzTargetSettings: React.FC = () => {
               <Plus className="w-5 h-5" />
             </button>
           </div>
-          
+
           {loading ? (
             <p className="text-sm text-gray-500">Loading...</p>
           ) : (
@@ -153,11 +153,10 @@ const HifzTargetSettings: React.FC = () => {
                 <li key={p.id}>
                   <button
                     onClick={() => handleSelectProgram(p)}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                      selectedProgram?.id === p.id && !isCreating
-                        ? "bg-blue-50 text-blue-700 font-medium"
-                        : "hover:bg-gray-50 text-gray-700"
-                    }`}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${selectedProgram?.id === p.id && !isCreating
+                      ? "bg-blue-50 text-blue-700 font-medium"
+                      : "hover:bg-gray-50 text-gray-700"
+                      }`}
                   >
                     {p.program_name}
                   </button>
@@ -180,7 +179,7 @@ const HifzTargetSettings: React.FC = () => {
                     {isCreating ? "Create New Target Category" : "Edit Target Category"}
                   </h2>
                   {!isCreating && (
-                    <button 
+                    <button
                       onClick={handleDelete}
                       className="text-red-500 hover:text-red-700 flex items-center gap-1 text-sm font-medium"
                     >
@@ -201,7 +200,7 @@ const HifzTargetSettings: React.FC = () => {
                     <input
                       type="text"
                       value={formData.program_name}
-                      onChange={e => setFormData({...formData, program_name: e.target.value})}
+                      onChange={e => setFormData({ ...formData, program_name: e.target.value })}
                       placeholder="e.g. Hifz + Nazira"
                       className="w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none"
                     />
@@ -211,7 +210,7 @@ const HifzTargetSettings: React.FC = () => {
                     <input
                       type="number"
                       value={formData.total_months}
-                      onChange={e => setFormData({...formData, total_months: e.target.value})}
+                      onChange={e => setFormData({ ...formData, total_months: e.target.value })}
                       className="w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none"
                     />
                   </div>
@@ -220,7 +219,7 @@ const HifzTargetSettings: React.FC = () => {
                     <input
                       type="number"
                       value={formData.total_paras}
-                      onChange={e => setFormData({...formData, total_paras: e.target.value})}
+                      onChange={e => setFormData({ ...formData, total_paras: e.target.value })}
                       className="w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none"
                     />
                   </div>
@@ -228,14 +227,14 @@ const HifzTargetSettings: React.FC = () => {
 
                 <div className="mt-6 flex justify-end gap-3">
                   {isCreating && (
-                    <button 
+                    <button
                       onClick={() => setIsCreating(false)}
                       className="px-4 py-2 border rounded-md text-gray-600 hover:bg-gray-50"
                     >
                       Cancel
                     </button>
                   )}
-                  <button 
+                  <button
                     onClick={handleSave}
                     disabled={saving}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
@@ -277,8 +276,8 @@ const HifzTargetSettings: React.FC = () => {
                       )}
                       {previewData.length > 0 && (
                         <tr className="border-b bg-blue-50/30">
-                          <td className="px-4 py-2">Month {previewData[previewData.length-1].month} (Final)</td>
-                          <td className="px-4 py-2 font-bold text-blue-700">{previewData[previewData.length-1].expected}</td>
+                          <td className="px-4 py-2">Month {previewData[previewData.length - 1].month} (Final)</td>
+                          <td className="px-4 py-2 font-bold text-blue-700">{previewData[previewData.length - 1].expected}</td>
                         </tr>
                       )}
                     </tbody>

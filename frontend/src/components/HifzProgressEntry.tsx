@@ -39,11 +39,14 @@ const HifzProgressEntry: React.FC = () => {
     branch: defaultBranch,
     className: "",
     section: "",
-    category: ""
+    category: "",
+    test_id: ""
   });
 
   const [classes, setClasses] = useState<{ id: number, class_name: string }[]>([]);
   const [sections, setSections] = useState<{ section: string }[]>([]);
+  const [tests, setTests] = useState<{ test_id: number, test_name: string }[]>([]);
+  const [branches, setBranches] = useState<{ branch_code: string, branch_name: string }[]>([]);
 
   const [students, setStudents] = useState<HifzStudent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,6 +55,21 @@ const HifzProgressEntry: React.FC = () => {
 
   // Categories list
   const categories = ["Hifz", "Hifz + Nazira"];
+
+  // Fetch branches
+  useEffect(() => {
+    if (user?.role === 'Admin' || user?.branch === 'All Branches' || user?.branch === 'All') {
+      api.get("/branches")
+        .then(res => {
+          if (res.data && res.data.branches) {
+            setBranches(res.data.branches);
+          }
+        })
+        .catch(err => console.error("Error fetching branches:", err));
+    } else if (user?.branch) {
+      setBranches([{ branch_code: user.branch, branch_name: user.branch }]);
+    }
+  }, []);
 
   // Fetch classes
   useEffect(() => {
@@ -62,16 +80,32 @@ const HifzProgressEntry: React.FC = () => {
     }
   }, [filters.branch]);
 
-  // Fetch sections
+  // Fetch sections and tests when class changes
   useEffect(() => {
     if (filters.className) {
       api.get(`/sections?class=${filters.className}`)
         .then(res => setSections(res.data.sections || res.data || []))
         .catch(() => setSections([]));
+        
+      // Fetch tests for this class
+      const clsObj = classes.find(c => c.class_name === filters.className);
+      if (clsObj) {
+        api.get(`/class-tests/list`, {
+          params: {
+            academic_year: localStorage.getItem("academicYear") || "2024-2025",
+            branch: filters.branch,
+            class_id: clsObj.id
+          }
+        })
+        .then(res => setTests(res.data || []))
+        .catch(() => setTests([]));
+      }
     } else {
       setSections([]);
+      setTests([]);
+      setFilters(prev => ({ ...prev, test_id: "" }));
     }
-  }, [filters.className]);
+  }, [filters.className, filters.branch, classes]);
 
   const fetchStudents = async () => {
     if (!filters.branch || !filters.className || !filters.section || !filters.category) {
@@ -87,7 +121,8 @@ const HifzProgressEntry: React.FC = () => {
           branch: filters.branch,
           class_name: filters.className,
           section: filters.section,
-          category: filters.category
+          category: filters.category,
+          test_id: filters.test_id
         }
       });
       setStudents(res.data || []);
@@ -120,7 +155,8 @@ const HifzProgressEntry: React.FC = () => {
 
     try {
       await api.post("/hifz/bulk-progress", {
-        entries: students
+        entries: students,
+        test_id: filters.test_id ? parseInt(filters.test_id) : null
       });
       setMessage({ type: "success", text: "Progress saved successfully!" });
     } catch (err: any) {
@@ -138,24 +174,21 @@ const HifzProgressEntry: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Branch</label>
             <select
               value={filters.branch}
               onChange={(e) => setFilters({ ...filters, branch: e.target.value, className: "", section: "" })}
-              disabled={user?.branch !== "All Branches" && user?.branch !== "All"}
+              disabled={user?.role !== 'Admin' && user?.branch !== "All Branches" && user?.branch !== "All"}
               className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
             >
               <option value="">Select Branch</option>
-              {user?.branch === "All Branches" || user?.branch === "All" ? (
-                <>
-                  <option value="Murad Nagar">Murad Nagar</option>
-                  <option value="Mehdipatnam">Mehdipatnam</option>
-                </>
-              ) : (
-                <option value={user?.branch}>{user?.branch}</option>
-              )}
+              {branches.map(b => (
+                <option key={b.branch_code || b.branch_name} value={b.branch_name}>
+                  {b.branch_name}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -198,6 +231,19 @@ const HifzProgressEntry: React.FC = () => {
             </select>
           </div>
           <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Test Type (Optional)</label>
+            <select
+              value={filters.test_id}
+              onChange={(e) => setFilters({ ...filters, test_id: e.target.value })}
+              className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
+            >
+              <option value="">Select Test Type</option>
+              {tests.map((t: any) => (
+                <option key={t.test_id} value={t.test_id}>{t.test_name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="md:col-span-1 lg:col-span-1 pt-4">
             <button
               onClick={fetchStudents}
               disabled={loading}

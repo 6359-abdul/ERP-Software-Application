@@ -202,12 +202,12 @@ const Academics: React.FC = () => {
                         {view === "ADD_EXAM" && <ClassTestAssignment />}
                         {view === "GRADING" && <GradeScaleManager />}
                         {view === "MARKS_ENTRY_SUBJECT" && <MarksEntry />}
-                        { view === "MARKS_ENTRY_UPLOAD" && <MarksUpload />}
-                        { view === "STUDENT_REPORT_CARD" && <StudentReportCard />}
-                        { view === "SET_EXAM_ATTENDANCE" && <SetExamAttendance />}
-                        { view === "MARKS_ENTRY_ALL_SUBJECTS" && <MarksEntryAllSubjects />}
-                        { view === "HIFZ_TARGET_SETTINGS" && <HifzTargetSettings />}
-                        { view === "HIFZ_PROGRESS_ENTRY" && <HifzProgressEntry />}
+                        {view === "MARKS_ENTRY_UPLOAD" && <MarksUpload />}
+                        {view === "STUDENT_REPORT_CARD" && <StudentReportCard />}
+                        {view === "SET_EXAM_ATTENDANCE" && <SetExamAttendance />}
+                        {view === "MARKS_ENTRY_ALL_SUBJECTS" && <MarksEntryAllSubjects />}
+                        {view === "HIFZ_TARGET_SETTINGS" && <HifzTargetSettings />}
+                        {view === "HIFZ_PROGRESS_ENTRY" && <HifzProgressEntry />}
 
 
 

@@ -826,7 +826,7 @@ class HifzProgram(db.Model, AuditMixin):
     __tablename__ = "hifz_programs"
     __audit_module__ = "ACADEMICS"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    program_name = db.Column(db.String(100), nullable=False) # e.g. "Hifz + Nazira", "Hifz"
+    program_name = db.Column(db.String(100), unique=True, nullable=False) # e.g. "Hifz + Nazira", "Hifz"
     total_months = db.Column(db.Integer, nullable=False)
     total_paras = db.Column(db.Integer, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
@@ -838,15 +838,15 @@ class StudentHifzProgress(db.Model, AuditMixin):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     student_id = db.Column(db.Integer, db.ForeignKey("students.student_id"), nullable=False)
     academic_year = db.Column(db.String(50), nullable=False)
+    test_id = db.Column(db.Integer, db.ForeignKey("testtype.id"), nullable=True)
     completed_months = db.Column(db.Integer, nullable=False)
     completed_paras = db.Column(db.Numeric(5, 2), nullable=False)
     
     student = db.relationship("Student")
 
     __table_args__ = (
-        db.UniqueConstraint('student_id', 'completed_months', name='uq_student_hifz_month'),
+        db.UniqueConstraint('student_id', 'academic_year', 'test_id', 'completed_months', name='uq_student_hifz_month'),
     )
-
 
 # ----------------------------------------------------------
 # GLOBAL AUDIT EVENT LISTENERS

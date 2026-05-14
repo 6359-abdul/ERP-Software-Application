@@ -76,12 +76,13 @@ def get_hifz_students():
         class_name = request.args.get('class_name')
         section = request.args.get('section')
         category = request.args.get('category')
+        test_id = request.args.get('test_id', type=int)
 
         query = Student.query.filter_by(academic_year=academic_year, status="Active")
         if branch and branch != "All Branches":
-            query = query.filter_by(branch_name=branch)
+            query = query.filter_by(branch=branch)
         if class_name:
-            query = query.filter_by(class_name=class_name)
+            query = query.filter_by(clazz=class_name)
         if section:
             query = query.filter_by(section=section)
         if category:
@@ -92,16 +93,23 @@ def get_hifz_students():
         students = query.all()
         result = []
         for s in students:
-            # Fetch latest progress
-            latest_progress = StudentHifzProgress.query.filter_by(
-                student_id=s.student_id, academic_year=academic_year
-            ).order_by(StudentHifzProgress.completed_months.desc()).first()
+            # Fetch progress by test_id if provided, else latest overall
+            if test_id:
+                latest_progress = StudentHifzProgress.query.filter_by(
+                    student_id=s.student_id, academic_year=academic_year, test_id=test_id
+                ).first()
+            else:
+                latest_progress = StudentHifzProgress.query.filter_by(
+                    student_id=s.student_id, academic_year=academic_year
+                ).order_by(StudentHifzProgress.completed_months.desc()).first()
+            
+            student_name_str = f"{s.first_name or ''} {s.last_name or ''}".strip()
             
             result.append({
                 "student_id": s.student_id,
                 "admission_no": s.admission_no,
-                "student_name": s.student_name,
-                "class_name": s.class_name,
+                "student_name": student_name_str,
+                "class_name": s.clazz,
                 "section": s.section,
                 "roll_number": s.Roll_Number,
                 "category": s.AdmissionCategory,
@@ -112,7 +120,7 @@ def get_hifz_students():
         return jsonify(result), 200
     except Exception as e:
         logger.error(f"Error fetching hifz students: {str(e)}")
-        return jsonify({"message": "Error fetching students"}), 500
+        return jsonify({"message": str(e)}), 500
 
 @hifz_bp.route('/bulk-progress', methods=['POST'])
 def save_bulk_progress():
@@ -120,6 +128,7 @@ def save_bulk_progress():
         data = request.json
         academic_year = request.headers.get("X-Academic-Year", "2024-2025")
         entries = data.get("entries", [])
+        test_id = data.get("test_id")
         
         for entry in entries:
             student_id = entry.get("student_id")
@@ -133,16 +142,30 @@ def save_bulk_progress():
             paras = float(paras)
             
             # Update or insert
-            progress = StudentHifzProgress.query.filter_by(
-                student_id=student_id, completed_months=months
-            ).first()
+            if test_id:
+                progress = StudentHifzProgress.query.filter_by(
+                    student_id=student_id, test_id=test_id
+                ).first()
+                if not progress:
+                    # fallback check if they just updated month for existing test record
+                    progress = StudentHifzProgress.query.filter_by(
+                        student_id=student_id, completed_months=months
+                    ).first()
+            else:
+                progress = StudentHifzProgress.query.filter_by(
+                    student_id=student_id, completed_months=months
+                ).first()
             
             if progress:
                 progress.completed_paras = paras
+                progress.completed_months = months
+                if test_id:
+                    progress.test_id = test_id
             else:
                 progress = StudentHifzProgress(
                     student_id=student_id,
                     academic_year=academic_year,
+                    test_id=test_id,
                     completed_months=months,
                     completed_paras=paras
                 )
