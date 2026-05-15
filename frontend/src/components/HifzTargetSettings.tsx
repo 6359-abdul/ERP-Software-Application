@@ -70,13 +70,27 @@ const HifzTargetSettings: React.FC = () => {
       setMessage({ type: "error", text: "All fields are required." });
       return;
     }
+
+    const months = parseInt(formData.total_months);
+    const paras = parseInt(formData.total_paras);
+
+    if (isNaN(months) || isNaN(paras)) {
+      setMessage({ type: "error", text: "Months and Paras must be valid numbers." });
+      return;
+    }
+
+    if (months <= 0 || paras <= 0) {
+      setMessage({ type: "error", text: "Months and Paras must be positive numbers." });
+      return;
+    }
+
     setSaving(true);
     setMessage(null);
     try {
       const payload = {
         program_name: formData.program_name,
-        total_months: parseInt(formData.total_months),
-        total_paras: parseInt(formData.total_paras)
+        total_months: months,
+        total_paras: paras
       };
 
       if (isCreating) {
@@ -140,6 +154,7 @@ const HifzTargetSettings: React.FC = () => {
               onClick={handleCreateNew}
               className="text-blue-600 hover:text-blue-800 p-1"
               title="Add New Category"
+              aria-label="Add New Category"
             >
               <Plus className="w-5 h-5" />
             </button>

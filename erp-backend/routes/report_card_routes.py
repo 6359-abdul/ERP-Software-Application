@@ -15,6 +15,11 @@ report_bp = Blueprint('report', __name__)
 logger = logging.getLogger(__name__)
 
 def _build_hifz_graph_for_report(student_id):
+    """
+    Build Hifz progress graph merging expected and actual paras by month.
+    Pre-seeds months in 3-month intervals up to 30 months.
+    Returns empty list if graph data unavailable.
+    """
     try:
         from routes.hifz_routes import get_graph_data_for_student
         graph = get_graph_data_for_student(student_id)
@@ -23,7 +28,7 @@ def _build_hifz_graph_for_report(student_id):
         if not expected and not actual:
             return []
         
-        month_map: dict = {}
+        month_map: dict[int, dict] = {}
         for m in range(0, 31, 3):
             month_map[m] = {"month": m}
             
@@ -38,10 +43,9 @@ def _build_hifz_graph_for_report(student_id):
             month_map[p["month"]]["actualParas"] = p["paras"]
             
         return sorted(month_map.values(), key=lambda x: x["month"])
-    except Exception:
-        logger.warning(f"Could not build Hifz graph for student_id={student_id}")
+    except Exception as e:
+        logger.warning(f"Could not build Hifz graph for student_id={student_id}: {e}")
         return []
-
 def resolve_branch_scope(current_user, requested_branch=None):
     if current_user.role == "Admin" or current_user.branch == "All":
         return requested_branch
@@ -608,11 +612,22 @@ def get_student_report(current_user):
         
         # ========== Build Final Response ==========
         category = student.get('AdmissionCategory') or ''
-        if category == 'Hifz+Nazira':
-            category = 'Hifz + Nazira'
-            
-        formatted_group_roll = f"{category}/{student.get('roll_number') or ''}".strip('/') if category or student.get('roll_number') else ''
-
+        # Normalize all '+' patterns by adding spaces around them
+        if '+' in category:
+            category = category.replace('+', ' + ')
+            # Clean up any double spaces
+            category = ' '.join(category.split())
+        
+        # Build group roll number, ensuring we have at least one component
+        roll_number = student.get('roll_number') or ''
+        if category and roll_number:
+            formatted_group_roll = f"{category}/{roll_number}"
+        elif category:
+            formatted_group_roll = category
+        elif roll_number:
+            formatted_group_roll = str(roll_number)
+        else:
+            formatted_group_roll = ''
         response = {
             'reportTitle': f"PROGRESS REPORT OF {current_test_name.upper()}",
             'student': {

@@ -91,20 +91,36 @@ def get_hifz_students():
             query = query.filter_by(AdmissionCategory=cat_str)
             
         students = query.all()
+        student_ids = [s.student_id for s in students]
+        # Batch fetch progress records
+        if test_id:
+            progress_list = StudentHifzProgress.query.filter(
+                StudentHifzProgress.student_id.in_(student_ids),
+                StudentHifzProgress.academic_year == academic_year,
+                StudentHifzProgress.test_id == test_id
+            ).all()
+            progress_map = {p.student_id: p for p in progress_list}
+        else:
+            # Get latest progress per student using subquery
+            from sqlalchemy import func
+            subq = db.session.query(
+                StudentHifzProgress.student_id,
+                func.max(StudentHifzProgress.completed_months).label('max_months')
+            ).filter(
+                StudentHifzProgress.student_id.in_(student_ids),
+              StudentHifzProgress.academic_year == academic_year
+            ).group_by(StudentHifzProgress.student_id).subquery()
+            
+            progress_list = StudentHifzProgress.query.join(
+                subq,
+                (StudentHifzProgress.student_id == subq.c.student_id) &
+                (StudentHifzProgress.completed_months == subq.c.max_months)
+            ).all()
+            progress_map = {p.student_id: p for p in progress_list}
         result = []
         for s in students:
-            # Fetch progress by test_id if provided, else latest overall
-            if test_id:
-                latest_progress = StudentHifzProgress.query.filter_by(
-                    student_id=s.student_id, academic_year=academic_year, test_id=test_id
-                ).first()
-            else:
-                latest_progress = StudentHifzProgress.query.filter_by(
-                    student_id=s.student_id, academic_year=academic_year
-                ).order_by(StudentHifzProgress.completed_months.desc()).first()
-            
+            latest_progress = progress_map.get(s.student_id)
             student_name_str = f"{s.first_name or ''} {s.last_name or ''}".strip()
-            
             result.append({
                 "student_id": s.student_id,
                 "admission_no": s.admission_no,
@@ -144,16 +160,11 @@ def save_bulk_progress():
             # Update or insert
             if test_id:
                 progress = StudentHifzProgress.query.filter_by(
-                    student_id=student_id, test_id=test_id
+                    student_id=student_id, test_id=test_id, academic_year=academic_year
                 ).first()
-                if not progress:
-                    # fallback check if they just updated month for existing test record
-                    progress = StudentHifzProgress.query.filter_by(
-                        student_id=student_id, completed_months=months
-                    ).first()
             else:
                 progress = StudentHifzProgress.query.filter_by(
-                    student_id=student_id, completed_months=months
+                    student_id=student_id, completed_months=months, academic_year=academic_year
                 ).first()
             
             if progress:

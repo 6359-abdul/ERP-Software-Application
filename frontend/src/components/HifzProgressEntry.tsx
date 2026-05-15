@@ -86,7 +86,7 @@ const HifzProgressEntry: React.FC = () => {
       api.get(`/sections?class=${filters.className}`)
         .then(res => setSections(res.data.sections || res.data || []))
         .catch(() => setSections([]));
-        
+
       // Fetch tests for this class
       const clsObj = classes.find(c => c.class_name === filters.className);
       if (clsObj) {
@@ -97,8 +97,8 @@ const HifzProgressEntry: React.FC = () => {
             class_id: clsObj.id
           }
         })
-        .then(res => setTests(res.data || []))
-        .catch(() => setTests([]));
+          .then(res => setTests(res.data || []))
+          .catch(() => setTests([]));
       }
     } else {
       setSections([]);
