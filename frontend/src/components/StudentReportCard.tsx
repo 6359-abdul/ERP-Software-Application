@@ -6,7 +6,7 @@ import {
   TestOption,
   StudentOption,
   ProgressReportData,
-  AcademicHistoryRecord, 
+  AcademicHistoryRecord,
   HistoricalPerformance
 } from '../reportcardtypes';
 import ReportCard from './ReportCard';
@@ -24,49 +24,62 @@ const StudentReportCard: React.FC = () => {
     style.textContent = `
       @media print {
         @page {
-          margin: 5mm;
+          margin: 5mm; /* Sets a standard, small print margin */
         }
 
-        /* 1. RESET OUTER APP SHELL (Allow scrolling/flow) */
+        /* 1. RESET OUTER APP SHELL */
         html, body, #root, #app, .h-screen, .min-h-screen, .student-reports-wrapper {
           margin: 0 !important;
           padding: 0 !important;
           height: auto !important;
           min-height: 0 !important;
           overflow: visible !important;
+          background: white !important;
         }
 
-        /* 2. HIDE UI CHROME (Sidebar, Header, Menu, Back Buttons) */
+        /* FIX THE LEFT SPACE: Strip margin-left from any wrapper that makes room for the sidebar */
+        body > div, #root > div, main, .main-content {
+          margin-left: 0 !important;
+          padding-left: 0 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+
+        /* 2. HIDE UI CHROME (Tabs, Sidebar, Menu) */
         .no-print, 
         aside, nav, header, footer,
         button, a[href*="back"], 
         .sidebar, .menu,
-        /* Explicitly hide the sidebar/menu container based on the screenshot artifact */
-        [class*="sidebar-container"],
-        [class*="nav-container"] {
+        [role="tablist"],
+        [class*="sidebar"],
+        [class*="nav"] {
           display: none !important;
         }
 
-        /* 3. REPORT CARD CONTAINER (Preserve internal layout) */
-        .report-card-container {
-          /* Important: Do NOT reset display to block if it needs to be flex/grid 
-             But usually the container itself is a block. 
-             We just ensure it has width and no shadow. */
+        /* 3. FIX REPORT CARD CONTAINER (Fixes missing signatures) */
+        .all-reports-container {
+          display: block !important; 
           width: 100% !important;
-          margin: 0 !important;
-          padding: 15px !important;
+        }
+
+        .report-card-container {
+          display: block !important; /* CRITICAL: Flexbox cuts off footers in Chrome print */
+          width: 100% !important;
+          max-width: 100% !important; /* Overrides max-w-5xl for printing */
+          margin: 0 0 20px 0 !important; /* Centers and adds bottom spacing */
+          padding: 0 !important;
           box-shadow: none !important;
           border: none !important;
-          
-          /* Separation between reports */
-          margin-bottom: 20px !important; 
-          page-break-after: always; /* Re-introducing clean page break per report */
+          page-break-inside: avoid; /* Prevents the report from splitting awkwardly */
+          page-break-after: always; /* Forces each report to a new page */
         }
         
+        /* Stop the very last report from creating an empty blank page at the end */
+        .report-card-container:last-child {
+          page-break-after: auto;
+        }
+
         /* 4. PRESERVE INTERNAL LAYOUT */
-        /* Avoid resetting visibility globally on all children as it unhides tooltips */
-        
-        /* Explicitly hide recharts tooltip in print */
         .recharts-tooltip-wrapper {
           display: none !important;
           visibility: hidden !important;
@@ -75,20 +88,8 @@ const StudentReportCard: React.FC = () => {
         /* 5. FIX CHARTS AND IMAGES */
         svg, img {
           max-width: 100% !important;
-          /* height: auto !important; <--- Removed this as it might squash fixed-height charts */
           display: block; 
           overflow: visible !important;
-        }
-          margins{
-          left: 0;
-          right:0;
-          top:0;
-          bottom:99;
-          }
-
-        /* 6. HIDE PARENT BACKGROUNDS used for screens */
-        body {
-          background: white !important;
         }
       }
     `;

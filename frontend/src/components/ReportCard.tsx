@@ -9,7 +9,43 @@ interface ReportCardProps {
 }
 import logo1 from '../images/logo1.png';
 
+const HIFZ_TARGET_X_TICKS = Array.from({ length: 11 }, (_, i) => i * 3);
+const HIFZ_TARGET_Y_TICKS = [5, 10, 15, 20, 25, 30];
+const HIFZ_CHART_HEIGHT = 220;
+
+function useMeasuredChartSize(containerRef: React.RefObject<HTMLDivElement | null>) {
+  const [size, setSize] = React.useState({ width: 0, height: HIFZ_CHART_HEIGHT });
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateSize = () => {
+      const width = Math.floor(el.getBoundingClientRect().width);
+      if (width > 0) {
+        setSize({ width, height: HIFZ_CHART_HEIGHT });
+      }
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(el);
+    window.addEventListener('resize', updateSize);
+    window.addEventListener('beforeprint', updateSize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateSize);
+      window.removeEventListener('beforeprint', updateSize);
+    };
+  }, [containerRef]);
+
+  return size;
+}
+
 const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
+  const hifzChartRef = React.useRef<HTMLDivElement>(null);
+  const hifzChartSize = useMeasuredChartSize(hifzChartRef);
   // ============== DEBUG: Check what data we're getting ==============
   React.useEffect(() => {
     console.log("=== REPORT CARD DATA DEBUG ===");
@@ -126,7 +162,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
   }
 
   return (
-    <div className="report-card-container bg-white shadow-2xl rounded-lg border border-gray-200 p-2">
+    <div className="report-card-container max-w-5xl mx-auto w-full bg-white shadow-2xl rounded-lg border border-gray-200 p-2">
       {/* Add Arabic/Urdu font support inline */}
       <style>
         {`
@@ -150,6 +186,15 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
             }
             [dir="rtl"] {
               font-family: 'Noto Nastaliq Urdu', 'Noto Naskh Arabic', 'Noto Sans Arabic', 'Arial Unicode MS', 'Simplified Arabic', 'Traditional Arabic', 'Arial', sans-serif !important;
+            }
+            .hifz-target-chart .hifz-target-chart-plot {
+              height: 220px !important;
+              min-height: 220px !important;
+            }
+            .hifz-target-chart svg {
+              max-width: none !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
           }
         `}
@@ -223,7 +268,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
               <span>HIFZ</span>
               <span dir="rtl" className="font-arabic">حفظ قرآن رپورٹ</span>
             </div>
-            <div className="p-2" style={{ height: '240px' }}>
+            <div className="p-2 flex-1 flex items-center justify-center min-h-[240px] w-full">
               {hifzChartData.length > 0 ? (
                 <ResponsiveContainer width={400} height={220}>
                   <BarChart data={hifzChartData} barSize={30}>
@@ -305,7 +350,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-0.5">
           <div className="border border-indigo-900 rounded-lg overflow-hidden flex flex-col shadow-sm">
             <div className="bg-[#4a235a] text-white px-4 py-2 text-sm font-semibold">ACADEMIC PERFORMANCE</div>
-            <div className="p-4 grid grid-cols-[1fr,1.5fr]" style={{ height: '220px' }}>
+            <div className="p-4 flex-1 grid grid-cols-[1fr,1.5fr] items-center min-h-[220px]">
               <div className="flex flex-col justify-center space-y-2">
                 {data.academicPerformance
                   .filter(ap => ap.subject && ap.subject !== '')
@@ -403,7 +448,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
       )}
 
       {/* Fourth Section: Attendance and Target Level */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-0.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-0.1">
         <div className="border border-indigo-900 rounded-lg overflow-hidden flex flex-col shadow-sm">
           <div className="bg-[#4a235a] text-white px-4 py-2 text-sm font-semibold uppercase">Attendance</div>
           <div className="p-4">
@@ -482,23 +527,49 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
           </div>
         </div>
 
-        <div className="border border-indigo-900 rounded-lg overflow-hidden flex flex-col shadow-sm">
+        <div className="border border-indigo-900 rounded-lg overflow-hidden flex flex-col shadow-sm min-w-0 hifz-target-chart">
           <div className="bg-[#1a5276] text-white px-4 py-2 text-sm font-semibold">HIFZ TARGET LEVEL</div>
-          <div className="p-4" style={{ height: '220px' }}>
+          <div className="px-3 py-4 min-w-0">
             {data.hifzTargetLevel && data.hifzTargetLevel.length > 0 ? (
-              <ResponsiveContainer width={450} height={220}>
-                <LineChart data={data.hifzTargetLevel}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                  <XAxis dataKey="month" label={{ value: 'MONTHS', position: 'insideBottom', offset: -5, fontSize: 10 }} fontSize={10} />
-                  <YAxis domain={[0, 30]} label={{ value: 'PARAS', angle: -90, position: 'insideLeft', fontSize: 10 }} fontSize={10} />
-                  <Tooltip />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
-                  <Line type="monotone" dataKey="targetParas" name={data.student?.admissionCategory === "Hifz" ? "Hifz" : "Hifz + Nazira"} stroke={data.student?.admissionCategory === "Hifz" ? "#22c55e" : "#8b5cf6"} strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="actualParas" name="Student Performance" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} connectNulls />
-                </LineChart>
-              </ResponsiveContainer>
+              <div ref={hifzChartRef} className="hifz-target-chart-plot h-[120px] w-full min-w-0">
+                {hifzChartSize.width > 0 && (
+                  <LineChart
+                    width={hifzChartSize.width}
+                    height={hifzChartSize.height}
+                    data={data.hifzTargetLevel}
+                    margin={{ top: 4, right: 32, left: 4, bottom: 50 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                    <XAxis
+                      type="number"
+                      dataKey="month"
+                      domain={[0, 30]}
+                      ticks={HIFZ_TARGET_X_TICKS}
+                      allowDecimals={false}
+                      padding={{ left: 0, right: 24 }}
+                      tickMargin={4}
+                      label={{ value: 'MONTHS', position: 'bottom', offset: 0, fontSize: 10 }}
+                      fontSize={10}
+                    />
+                    <YAxis
+                      width={42}
+                      domain={[0, 30]}
+                      ticks={[0, 5, 10, 15, 20, 25, 30]}
+                      interval={0}
+                      allowDecimals={false}
+                      tickMargin={4}
+                      label={{ value: 'PARAS', angle: -90, position: 'insideLeft', fontSize: 10 }}
+                      fontSize={10}
+                    />
+                    <Tooltip />
+                    <Legend iconType="circle" verticalAlign="bottom" wrapperStyle={{ fontSize: '10px', paddingTop: 20 }} />
+                    <Line type="monotone" dataKey="targetParas" name={data.student?.admissionCategory === "Hifz" ? "Hifz" : "Hifz + Nazira"} stroke={data.student?.admissionCategory === "Hifz" ? "#22c55e" : "#8b5cf6"} strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} />
+                    <Line type="monotone" dataKey="actualParas" name="Student Performance" stroke="#ef4444" strokeWidth={2} dot={{ r: 2 }} connectNulls isAnimationActive={false} />
+                  </LineChart>
+                )}
+              </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
+              <div className="flex items-center justify-center h-[220px] text-gray-400">
                 <span>No target data available</span>
               </div>
             )}
