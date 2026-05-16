@@ -268,17 +268,17 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
               <span>HIFZ</span>
               <span dir="rtl" className="font-arabic">حفظ قرآن رپورٹ</span>
             </div>
-            <div className="p-2 flex-1 flex items-center justify-center min-h-[240px] w-full">
+            <div className="p-2 flex-1 flex items-center justify-center min-h-[240px] min-w-[620]">
               {hifzChartData.length > 0 ? (
-                <ResponsiveContainer width={400} height={220}>
-                  <BarChart data={hifzChartData} barSize={30}>
+                <ResponsiveContainer width={400} height={200}>
+                  <BarChart data={hifzChartData} barSize={20}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={10} />
                     <YAxis fontSize={10} domain={[0, 'auto']} />
                     <Tooltip />
                     <Legend iconType="rect" wrapperStyle={{ fontSize: '10px' }} />
-                    <Bar dataKey="Total Marks" fill="#22c55e" />
                     <Bar dataKey="Secured Marks" fill="#38bdf8" />
+                    <Bar dataKey="Total Marks" fill="#22c55e" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (

@@ -42,11 +42,12 @@ const HifzProgressEntry: React.FC = () => {
     category: "",
     test_id: ""
   });
-
+  const [academicYear, setAcademicYear] = useState<string>("");
+  const [branches, setBranches] = useState<any[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState<string>("");
   const [classes, setClasses] = useState<{ id: number, class_name: string }[]>([]);
   const [sections, setSections] = useState<{ section: string }[]>([]);
   const [tests, setTests] = useState<{ test_id: number, test_name: string }[]>([]);
-  const [branches, setBranches] = useState<{ branch_code: string, branch_name: string }[]>([]);
 
   const [students, setStudents] = useState<HifzStudent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,19 +57,44 @@ const HifzProgressEntry: React.FC = () => {
   // Categories list
   const categories = ["Hifz", "Hifz + Nazira"];
 
-  // Fetch branches
+  // --- Init ---
   useEffect(() => {
-    if (user?.role === 'Admin' || user?.branch === 'All Branches' || user?.branch === 'All') {
-      api.get("/branches")
-        .then(res => {
-          if (res.data && res.data.branches) {
-            setBranches(res.data.branches);
+    const storedYear = localStorage.getItem("academicYear") || "";
+    const userStr = localStorage.getItem("user");
+    let storedBranch = "All";
+
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        // Fix: If user is Admin or has 'All' access, prioritize the SELECTED branch from localStorage
+        // Otherwise use their assigned branch.
+        if (user.role === 'Admin' || user.branch === 'All' || user.branch === 'AllBranches') {
+          const selected = localStorage.getItem("currentBranch");
+          if (selected && selected !== "All" && selected !== "All Locations") {
+            storedBranch = selected;
           }
-        })
-        .catch(err => console.error("Error fetching branches:", err));
-    } else if (user?.branch) {
-      setBranches([{ branch_code: user.branch, branch_name: user.branch }]);
+        } else {
+          // Specific Branch User
+          storedBranch = user.branch || "All";
+        }
+
+        // Set available branches for dropdown if needed (simplified)
+        if (user.role === 'Admin') {
+          // In a real app we might fetch all branches, but for now we set the selected one + All
+          // Or just rely on the storedBranch current value
+        }
+      } catch (e) {
+        console.error("Error parsing user", e);
+      }
     }
+
+    setAcademicYear(storedYear);
+    setSelectedBranch(storedBranch);
+
+    // Mock/Fetch Branches list if needed for the dropdown to be useful
+    // For now, we ensure selectedBranch is set correctly for filtering
+    setBranches([{ branch_name: storedBranch, branch_code: storedBranch }]);
+
   }, []);
 
   // Fetch classes
@@ -176,19 +202,14 @@ const HifzProgressEntry: React.FC = () => {
       <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Branch</label>
+            <label className="block text-sm font-medium text-gray-700">Branch</label>
             <select
-              value={filters.branch}
-              onChange={(e) => setFilters({ ...filters, branch: e.target.value, className: "", section: "" })}
-              disabled={user?.role !== 'Admin' && user?.branch !== "All Branches" && user?.branch !== "All"}
-              className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
+              value={selectedBranch}
+              onChange={e => setSelectedBranch(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+              disabled={branches.length <= 1}
             >
-              <option value="">Select Branch</option>
-              {branches.map(b => (
-                <option key={b.branch_code || b.branch_name} value={b.branch_name}>
-                  {b.branch_name}
-                </option>
-              ))}
+              {branches.map(b => <option key={b.branch_code} value={b.branch_code}>{b.branch_name}</option>)}
             </select>
           </div>
           <div>

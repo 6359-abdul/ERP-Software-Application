@@ -734,7 +734,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
                         {/* Left Column */}
                         <div className="lg:col-span-3 space-y-4">
                             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                                <RupeeIcon />&nbsp;Take Fee
+                                <RupeeIcon />&nbsp;Charge Fee
                             </h3>
 
                             <div className="p-4 border rounded-lg shadow-sm bg-violet-50/50 space-y-3">
@@ -1137,7 +1137,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
                                         className="px-4 py-2 text-sm font-medium text-white bg-violet-600 rounded-md hover:bg-violet-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500"
                                         disabled={!selectedStudent}
                                     >
-                                        Take Fee
+                                        Collect Fee {/* Take fee as Collect Fee */}
                                     </button>
                                     <button
                                         onClick={handleReset}
