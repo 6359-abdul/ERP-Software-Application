@@ -25,7 +25,7 @@ interface StudentAdministrationProps {
 
 // Page view types
 type StudentAdminView =
-    'students' | 'search' | 'summary' | 'reports' | 'certificates' | 'upgrade'
+    'students' | 'search' | 'summary' | 'upgrade'
     | 'import' | 'addStudent' | 'viewStudent' | 'editStudent'
     | 'inactive' | 'inactiveReport' | 'demote' | 'updateDetails' | 'changeSection';
 
@@ -196,15 +196,15 @@ const StudentAdminHeader: React.FC<{ activeView: StudentAdminView; setActiveView
                         <button className={btn('updateDetails')} onClick={() => setActiveView('updateDetails')}>Update Student Details</button>
                         <button className={btn('summary')} onClick={() => setActiveView('summary')}>Class Summary</button>
 
-                        <Dropdown title="Report" isOpen={open === 'report'} onToggle={() => toggle('report')}>
+                        {/* <Dropdown title="Report" isOpen={open === 'report'} onToggle={() => toggle('report')}>
                             <DropdownItem>Custom Download</DropdownItem>
                             <DropdownItem>Pre-defined Download</DropdownItem>
                         </Dropdown>
 
-                        <Dropdown title="Certificates" isOpen={open === 'certs'} onToggle={() => toggle('certs')}>
+                      <Dropdown title="Certificates" isOpen={open === 'certs'} onToggle={() => toggle('certs')}>
                             <DropdownItem>Student Certificate</DropdownItem>
                             <DropdownItem>Teacher Certificate</DropdownItem>
-                        </Dropdown>
+                        </Dropdown> */}
 
                         <Dropdown
                             title="Inactive"

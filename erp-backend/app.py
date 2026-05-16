@@ -1,3 +1,5 @@
+#pyre-ignore[import]
+#pyre-ignore[16]
 from flask import Flask, request, jsonify, send_from_directory # Force Reload
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -140,6 +142,9 @@ def create_app():
     app.register_blueprint(test_attendance_bp)
     app.register_blueprint(config_bp)
     app.register_blueprint(document_routes, url_prefix="/api/documents")
+
+    from routes.hifz_routes import hifz_bp
+    app.register_blueprint(hifz_bp, url_prefix="/api/hifz")
 
     # -----------------------------
     # SERVE UPLOADS (legacy - kept for backward compatibility)

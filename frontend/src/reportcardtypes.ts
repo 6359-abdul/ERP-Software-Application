@@ -8,7 +8,7 @@ export interface ClassOption {
 export interface SectionOption {
     section: string;
 }
- 
+
 export interface TestOption {
     test_id: number | string;
     test_name: string;
@@ -77,6 +77,7 @@ export interface StudentDetails {
     groupRollNo: string;
     branchName: string;
     academicYear: string;
+    admissionCategory?: string;
 }
 
 export interface AcademicHistoryRecord {

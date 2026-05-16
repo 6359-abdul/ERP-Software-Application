@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@types/xlsx": "^0.0.35",
-    "axios": "^1.13.2",
+    "axios": "1.15.1",
     "file-saver": "^2.0.5",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^5.0.7",

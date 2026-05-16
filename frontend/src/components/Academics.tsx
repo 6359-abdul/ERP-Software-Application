@@ -13,7 +13,8 @@ import MarksUpload from "./MarksUpload";
 import StudentReportCard from "./StudentReportCard";
 import SetExamAttendance from "./SetExamAttendance";
 import MarksEntryAllSubjects from "./MarksEntryAllSubjects";
-
+import HifzTargetSettings from "./HifzTargetSettings";
+import HifzProgressEntry from "./HifzProgressEntry";
 
 // --- Types ---
 type AcademicView =
@@ -32,7 +33,9 @@ type AcademicView =
     | "MARKS_ENTRY_ALL_SUBJECTS"
     | "ACADEMIC_SETTING"
     | "STUDENT_REPORT_CARD"
-    | "SET_EXAM_ATTENDANCE";
+    | "SET_EXAM_ATTENDANCE"
+    | "HIFZ_TARGET_SETTINGS"
+    | "HIFZ_PROGRESS_ENTRY";
 
 interface DropdownItem {
     label: string;
@@ -112,6 +115,7 @@ const Academics: React.FC = () => {
                                         { label: "Subject Wise", onClick: () => setView("MARKS_ENTRY_SUBJECT") },
                                         { label: "Enter All Subject Marks", onClick: () => setView("MARKS_ENTRY_ALL_SUBJECTS") },
                                         { label: "Upload Exam Marks", onClick: () => setView("MARKS_ENTRY_UPLOAD") },
+                                        { label: "Hifz Progress Entry", onClick: () => setView("HIFZ_PROGRESS_ENTRY") },
                                         { label: "Marks Progress Report", disabled: true },
                                         { label: "Student Health Details", disabled: true }
                                     ]}
@@ -150,6 +154,7 @@ const Academics: React.FC = () => {
                                         { label: "Create Test", onClick: () => setView("CREATE_TEST") },
                                         { label: "Add Exam", onClick: () => setView("ADD_EXAM") },
                                         { label: "Grading", onClick: () => setView("GRADING") },
+                                        { label: "Hifz Target Settings", onClick: () => setView("HIFZ_TARGET_SETTINGS") },
                                         { label: "Academic Setting", disabled: true }
                                     ]}
                                 />
@@ -201,6 +206,8 @@ const Academics: React.FC = () => {
                         {view === "STUDENT_REPORT_CARD" && <StudentReportCard />}
                         {view === "SET_EXAM_ATTENDANCE" && <SetExamAttendance />}
                         {view === "MARKS_ENTRY_ALL_SUBJECTS" && <MarksEntryAllSubjects />}
+                        {view === "HIFZ_TARGET_SETTINGS" && <HifzTargetSettings />}
+                        {view === "HIFZ_PROGRESS_ENTRY" && <HifzProgressEntry />}
 
 
 
