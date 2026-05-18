@@ -20,6 +20,7 @@ import StudentAdministration from './StudentAdministration';
 import ConcessionMaster from './ConcessionMaster';
 import StudentConcession from './StudentConcession';
 import UpdateStudentFeeStructure from './UpdateStudentFeeStructure';
+import UpdateRebateDate from './UpdateRebateDate';
 import FeeReports from './FeeReports';
 import Configuration from './Configuration';
 import DocumentManagement from './DocumentManagement';
@@ -81,6 +82,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           {currentPage === 'concession-master' && <ConcessionMaster />}
           {currentPage === 'student-concession' && <StudentConcession />}
           {currentPage === 'update-student-fee-structure' && <UpdateStudentFeeStructure />}
+          {currentPage === 'update-rebate-date' && <UpdateRebateDate />}
           {currentPage === 'fee-reports' && <FeeReports />}
           {currentPage === 'configuration' && <Configuration navigateTo={navigateTo} />}
           {currentPage === 'document-management' && <DocumentManagement />}
