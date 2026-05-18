@@ -22,6 +22,7 @@ export type Page =
   | "concession-master"
   | "student-concession"
   | "update-student-fee-structure"
+  | "update-rebate-date"
   | "create-student"
   | "import-student-data"
   | "fee-reports"
