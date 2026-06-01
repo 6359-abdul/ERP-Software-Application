@@ -6,7 +6,8 @@ import {
     ClassWiseReport,
     InstallmentWiseReport,
     DueReport,
-    LateFeeDueReport
+    LateFeeDueReport,
+    SearchStudentReport
 } from './FeeReportComponents';
 import FeeReceipt from './FeeReceipt';
 import api from '../api';
@@ -114,6 +115,8 @@ const FeeReports: React.FC = () => {
         { id: 'installment', label: 'Installment Wise' },
         { id: 'due', label: 'Due Report' },
         { id: 'late-due', label: 'Late Fee Due' },
+        { id: 'search', label: 'Search Student' }
+
     ];
 
     return (
@@ -152,6 +155,7 @@ const FeeReports: React.FC = () => {
                 {activeTab === 'installment' && <InstallmentWiseReport onViewReceipt={handleViewReceipt} />}
                 {activeTab === 'due' && <DueReport />}
                 {activeTab === 'late-due' && <LateFeeDueReport />}
+                {activeTab === 'search' && <SearchStudentReport onViewReceipt={handleViewReceipt} />}
             </div>
 
             {/* Receipt Modal */}

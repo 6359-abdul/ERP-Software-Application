@@ -2303,6 +2303,539 @@ export const LateFeeDueReport: React.FC = () => {
             )}
         </div>
     );
+    
+
+};
+// --------------------------------------------------------------------------
+// Search Student Report (NEW)
+// --------------------------------------------------------------------------
+export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchType, setSearchType] = useState<'name' | 'admission'>('admission');
+    const [students, setStudents] = useState<any[]>([]);
+    const [selectedStudent, setSelectedStudent] = useState<any>(null);
+    const [receipts, setReceipts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [searching, setSearching] = useState(false);
+    const [error, setError] = useState('');
+
+    // Edit Modal State
+    const [editingReceipt, setEditingReceipt] = useState<any>(null);
+    const [editForm, setEditForm] = useState({
+        mode: '',
+        transaction_id: '',
+        cheque_no: '',
+        bank_name: '',
+        cheque_date: '',
+        date: ''
+    });
+    const [saving, setSaving] = useState(false);
+
+    // Check admin role
+    // NEW (Robust Detection)
+const getUserRole = (): string => {
+    // Check direct keys
+    const directRole = localStorage.getItem('userRole') || 
+                       localStorage.getItem('role') || 
+                       localStorage.getItem('user_role');
+    if (directRole) return directRole.toLowerCase();
+
+    // Check JSON user objects
+    const possibleKeys = ['user', 'currentUser', 'authUser', 'userData', 'loggedInUser'];
+    for (const key of possibleKeys) {
+        try {
+            const data = localStorage.getItem(key);
+            if (data) {
+                const parsed = JSON.parse(data);
+                const role = parsed?.role || parsed?.userRole || parsed?.user_role;
+                if (role) return String(role).toLowerCase();
+            }
+        } catch {
+            // Not JSON, skip
+        }
+    }
+
+    // Try to decode JWT token
+    try {
+        const token = localStorage.getItem('token') || localStorage.getItem('access_token') || localStorage.getItem('authToken');
+        if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const role = payload?.role || payload?.user_role;
+            if (role) return String(role).toLowerCase();
+        }
+    } catch {
+        // Invalid token
+    }
+
+    return '';
+};
+
+const userRole = getUserRole();
+const isAdmin = userRole === 'admin' || userRole === 'superadmin' || userRole === 'super_admin';
+
+// DEBUG: Remove after testing
+console.log('Detected user role:', userRole, '| isAdmin:', isAdmin);
+
+    const paymentModes = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque"];
+
+    // Search students by name or admission no
+    const handleSearch = async () => {
+        if (!searchTerm.trim()) {
+            alert('Please enter a search term');
+            return;
+        }
+        try {
+            setSearching(true);
+            setError('');
+            setStudents([]);
+            setSelectedStudent(null);
+            setReceipts([]);
+
+            const params = new URLSearchParams({
+                q: searchTerm.trim(),
+                type: searchType
+            });
+            const res = await api.get(`/students/search?${params.toString()}`);
+            const list = res.data.students || res.data || [];
+            setStudents(list);
+
+            // Auto-select if exact match (admission no)
+            if (list.length === 1) {
+                handleSelectStudent(list[0]);
+            } else if (list.length === 0) {
+                setError('No students found');
+            }
+        } catch (err: any) {
+            setError(err.response?.data?.error || 'Failed to search students');
+        } finally {
+            setSearching(false);
+        }
+    };
+
+    // Fetch receipts for selected student
+    const handleSelectStudent = async (student: any) => {
+        try {
+            setLoading(true);
+            setSelectedStudent(student);
+            setError('');
+
+            const studentId = student.id || student.student_id;
+            const res = await api.get(`/reports/fees/student-receipts/${studentId}`);
+            setReceipts(res.data.receipts || []);
+        } catch (err: any) {
+            setError(err.response?.data?.error || 'Failed to fetch receipts');
+            setReceipts([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Open edit modal (admin only)
+    const handleEditReceipt = (receipt: any) => {
+        if (!isAdmin) {
+            alert('Only admin can edit receipt details');
+            return;
+        }
+        setEditingReceipt(receipt);
+        setEditForm({
+            mode: receipt.mode || 'Cash',
+            transaction_id: receipt.transaction_id || '',
+            cheque_no: receipt.cheque_no || '',
+            bank_name: receipt.bank_name || '',
+            cheque_date: receipt.cheque_date || '',
+            date: receipt.date || ''
+        });
+    };
+
+    // Save edited receipt
+    const handleSaveEdit = async () => {
+        if (!editingReceipt) return;
+        try {
+            setSaving(true);
+            const payload: any = {
+                mode: editForm.mode,
+                date: editForm.date
+            };
+            if (editForm.mode === 'Cheque') {
+                payload.cheque_no = editForm.cheque_no;
+                payload.bank_name = editForm.bank_name;
+                payload.cheque_date = editForm.cheque_date;
+                payload.transaction_id = '';
+            } else if (editForm.mode === 'Cash') {
+                payload.transaction_id = '';
+            } else {
+                payload.transaction_id = editForm.transaction_id;
+            }
+
+            await api.put(`/reports/fees/receipt/${editingReceipt.receipt_no}`, payload);
+
+            // Refresh receipts
+            if (selectedStudent) {
+                await handleSelectStudent(selectedStudent);
+            }
+            setEditingReceipt(null);
+            alert('Receipt updated successfully');
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Failed to update receipt');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const totalCollected = receipts.reduce((sum, r) => sum + Number(r.amount_paid || r.amount || 0), 0);
+
+    return (
+        <div className="space-y-4 font-sans">
+            {/* Search Bar */}
+            <div className="bg-white p-4 rounded shadow-sm border border-gray-200 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    <div className="md:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Search By</label>
+                        <select
+                            value={searchType}
+                            onChange={(e) => setSearchType(e.target.value as 'name' | 'admission')}
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                        >
+                            <option value="admission">Admission Number</option>
+                            <option value="name">Student Name</option>
+                        </select>
+                    </div>
+                    <div className="md:col-span-7">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {searchType === 'admission' ? 'Admission Number' : 'Student Name'}
+                        </label>
+                        <input
+                            type="text"
+                            placeholder={searchType === 'admission' ? 'e.g. HARG0001' : 'Enter student name...'}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                        />
+                    </div>
+                    <div className="md:col-span-2">
+                        <button
+                            onClick={handleSearch}
+                            disabled={searching}
+                            className="w-full bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium hover:bg-indigo-800 disabled:opacity-50"
+                        >
+                            {searching ? 'Searching...' : '🔍 Search'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {error && <div className="text-red-500 text-center py-2 px-4">{error}</div>}
+
+            {/* Student List (when multiple results) */}
+            {students.length > 1 && !selectedStudent && (
+                <div className="bg-white border rounded shadow-sm mx-4">
+                    <h4 className="font-semibold p-3 border-b bg-gray-50">Select a Student ({students.length} found)</h4>
+                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-3 py-2 text-left">Adm No.</th>
+                                <th className="px-3 py-2 text-left">Student Name</th>
+                                <th className="px-3 py-2 text-left">Class</th>
+                                <th className="px-3 py-2 text-left">Father Name</th>
+                                <th className="px-3 py-2 text-left">Mobile</th>
+                                <th className="px-3 py-2 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {students.map((s: any, idx: number) => (
+                                <tr key={idx} className="hover:bg-gray-50">
+                                    <td className="px-3 py-2 text-blue-600 font-medium">{s.admission_no || s.adm_no}</td>
+                                    <td className="px-3 py-2 font-medium">{s.name}</td>
+                                    <td className="px-3 py-2">{s.class} {s.section}</td>
+                                    <td className="px-3 py-2">{s.father_name || s.father || '-'}</td>
+                                    <td className="px-3 py-2">{s.father_mobile || '-'}</td>
+                                    <td className="px-3 py-2 text-center">
+                                        <button
+                                            onClick={() => handleSelectStudent(s)}
+                                            className="bg-violet-600 hover:bg-violet-700 text-white px-3 py-1 rounded text-xs"
+                                        >
+                                            View Receipts
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {/* Selected Student Info */}
+            {selectedStudent && (
+                <div className="bg-blue-50 border border-blue-200 rounded p-4 mx-4">
+                    <div className="flex justify-between items-start">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1">
+                            <div>
+                                <p className="text-xs text-gray-500">Student Name</p>
+                                <p className="font-semibold">{selectedStudent.name}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-gray-500">Admission No.</p>
+                                <p className="font-semibold text-blue-700">{selectedStudent.admission_no || selectedStudent.adm_no}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-gray-500">Class</p>
+                                <p className="font-semibold">{selectedStudent.class} {selectedStudent.section}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-gray-500">Father Name</p>
+                                <p className="font-semibold">{selectedStudent.father_name || selectedStudent.father || '-'}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => { setSelectedStudent(null); setReceipts([]); }}
+                            className="text-gray-500 hover:text-gray-700 ml-4"
+                        >
+                            ✕ Clear
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {loading && <div className="text-center py-4">Loading receipts...</div>}
+
+            {/* Receipts Summary */}
+            {selectedStudent && !loading && (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4">
+                        <StatCard label="Total Receipts" value={receipts.length} color="blue" />
+                        <StatCard label="Total Collected" value={totalCollected} color="green" />
+                        <StatCard label="Edit Access" value={isAdmin ? 'Admin (Allowed)' : 'View Only'} color={isAdmin ? 'green' : 'orange'} />
+                    </div>
+
+                    {/* Receipts Table - Custom with Edit Button */}
+                    {receipts.length === 0 ? (
+                        <div className="bg-red-50 text-red-500 text-center py-8 border rounded mt-4 mx-4 font-medium">
+                            No receipts found for this student
+                        </div>
+                    ) : (
+                        <div className="bg-white border rounded shadow-sm overflow-x-auto mt-4 mx-4">
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead className="bg-gray-50 text-gray-700">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left font-semibold">S.No</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Rcpt No</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Date/Time</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Fee Type</th>
+                                        <th className="px-3 py-2 text-right font-semibold">Paid</th>
+                                        <th className="px-3 py-2 text-right font-semibold">Due</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Mode</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Trans/Cheque</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Taken By</th>
+                                        <th className="px-3 py-2 text-center font-semibold">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {receipts.map((r: any, idx: number) => (
+                                        <tr key={idx} className="hover:bg-gray-50">
+                                            <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
+                                            <td className="px-3 py-2 font-medium text-blue-700">{r.receipt_no}</td>
+                                            <td className="px-3 py-2 text-xs text-gray-600">
+                                                {formatDateDDMMYYYY(r.date)}<br />
+                                                <span className="text-gray-400">{r.time}</span>
+                                            </td>
+                                            <td className="px-3 py-2 max-w-[200px] truncate" title={r.fee_type_str}>{r.fee_type_str || '-'}</td>
+                                            <td className="px-3 py-2 text-right font-bold">₹{(r.amount_paid || r.amount || 0).toLocaleString()}</td>
+                                            <td className="px-3 py-2 text-right text-red-500">₹{(r.due_amount || 0).toLocaleString()}</td>
+                                            <td className="px-3 py-2">
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                    r.mode === 'Cash' ? 'bg-green-100 text-green-700' :
+                                                    r.mode === 'UPI' ? 'bg-purple-100 text-purple-700' :
+                                                    r.mode === 'Cheque' ? 'bg-orange-100 text-orange-700' :
+                                                    'bg-blue-100 text-blue-700'
+                                                }`}>
+                                                    {r.mode}
+                                                </span>
+                                            </td>
+                                            <td className="px-3 py-2 text-xs max-w-[180px]">
+                                                {r.mode === 'Cheque' ? (
+                                                    <div>
+                                                        <div>{r.cheque_no || '-'}</div>
+                                                        <div className="text-gray-400">{r.bank_name || '-'}</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="truncate" title={r.transaction_id}>{r.transaction_id || '-'}</div>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-600">{r.collected_by}</td>
+                                            <td className="px-3 py-2 text-center">
+                                                <div className="flex gap-1 justify-center">
+                                                    <button
+                                                        onClick={() => onViewReceipt(r.receipt_no)}
+                                                        className="text-white bg-violet-600 hover:bg-violet-700 px-2 py-1 rounded text-xs"
+                                                    >
+                                                        View
+                                                    </button>
+                                                    {isAdmin && (
+                                                        <button
+                                                            onClick={() => handleEditReceipt(r)}
+                                                            className="text-white bg-amber-600 hover:bg-amber-700 px-2 py-1 rounded text-xs"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot className="bg-gray-100 font-bold">
+                                    <tr>
+                                        <td colSpan={4} className="px-3 py-2 text-right">Total:</td>
+                                        <td className="px-3 py-2 text-right">₹{totalCollected.toLocaleString()}</td>
+                                        <td colSpan={5}></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Edit Modal */}
+            {editingReceipt && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+                        <div className="p-4 border-b flex justify-between items-center">
+                            <h3 className="font-bold text-lg text-gray-800">
+                                Edit Receipt: {editingReceipt.receipt_no}
+                            </h3>
+                            <button
+                                onClick={() => setEditingReceipt(null)}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-4">
+                            {/* Read-only info */}
+                            <div className="bg-gray-50 p-3 rounded text-sm border">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <span className="text-gray-500">Student:</span>
+                                        <p className="font-semibold">{selectedStudent?.name}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500">Amount Paid:</span>
+                                        <p className="font-semibold text-green-700">
+                                            ₹{(editingReceipt.amount_paid || editingReceipt.amount || 0).toLocaleString()}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Editable: Date */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Payment Date <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    value={editForm.date ? (
+                                        /^\d{2}-\d{2}-\d{4}$/.test(editForm.date)
+                                            ? editForm.date.split('-').reverse().join('-')
+                                            : editForm.date.split('T')[0]
+                                    ) : ''}
+                                    onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                                    className="block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm"
+                                />
+                            </div>
+
+                            {/* Editable: Mode */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Payment Mode <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    value={editForm.mode}
+                                    onChange={(e) => setEditForm({ ...editForm, mode: e.target.value })}
+                                    className="block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm"
+                                >
+                                    {paymentModes.map(m => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Conditional fields based on mode */}
+                            {editForm.mode === 'Cheque' ? (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Cheque No.</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.cheque_no}
+                                            onChange={(e) => setEditForm({ ...editForm, cheque_no: e.target.value })}
+                                            className="block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.bank_name}
+                                            onChange={(e) => setEditForm({ ...editForm, bank_name: e.target.value })}
+                                            className="block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Cheque Date</label>
+                                        <input
+                                            type="date"
+                                            value={editForm.cheque_date ? (
+                                                /^\d{2}-\d{2}-\d{4}$/.test(editForm.cheque_date)
+                                                    ? editForm.cheque_date.split('-').reverse().join('-')
+                                                    : editForm.cheque_date.split('T')[0]
+                                            ) : ''}
+                                            onChange={(e) => setEditForm({ ...editForm, cheque_date: e.target.value })}
+                                            className="block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm"
+                                        />
+                                    </div>
+                                </>
+                            ) : editForm.mode !== 'Cash' ? (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Transaction ID</label>
+                                    <input
+                                        type="text"
+                                        value={editForm.transaction_id}
+                                        onChange={(e) => setEditForm({ ...editForm, transaction_id: e.target.value })}
+                                        className="block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm"
+                                    />
+                                </div>
+                            ) : null}
+
+                            <div className="bg-yellow-50 border border-yellow-200 p-2 rounded text-xs text-yellow-800">
+                                ⚠️ Only Payment Date, Mode, and Transaction/Cheque details can be edited. Amount, Fee Type, and Student details are non-editable.
+                            </div>
+                        </div>
+
+                        <div className="p-4 border-t flex gap-2 justify-end bg-gray-50">
+                            <button
+                                onClick={() => setEditingReceipt(null)}
+                                disabled={saving}
+                                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={saving}
+                                className="px-4 py-2 text-sm bg-indigo-700 text-white rounded hover:bg-indigo-800 disabled:opacity-50"
+                            >
+                                {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 export default {
     TodayCollection,
@@ -2311,5 +2844,6 @@ export default {
     ClassWiseReport,
     InstallmentWiseReport,
     DueReport,
-    LateFeeDueReport
+    LateFeeDueReport,
+    SearchStudentReport
 };

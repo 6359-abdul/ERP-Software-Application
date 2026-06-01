@@ -91,6 +91,29 @@ def login_user():
         }
     }), 200
 
+@bp.route("/api/users", methods=["GET"])
+@token_required
+def list_users(current_user):
+    try:
+        users = User.query.order_by(User.username).all()
+        return jsonify({
+            "users": [
+                {
+                    "user_id": u.user_id,
+                    "username": u.username,
+                    "name": u.username,
+                    "useremail": getattr(u, "useremail", ""),
+                    "role": u.role,
+                    "branch": u.branch,
+                    "location": getattr(u, "location", "")
+                }
+                for u in users
+            ]
+        }), 200
+    except Exception as e:
+        current_app.logger.exception("Error fetching users")
+        return jsonify({"error": "Failed to fetch users"}), 500
+
 @bp.route("/api/verify-current-password", methods=["POST"])
 @token_required
 @limiter.limit("10 per minute")
