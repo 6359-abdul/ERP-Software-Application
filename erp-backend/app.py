@@ -143,6 +143,7 @@ def create_app():
     app.register_blueprint(config_bp)
     app.register_blueprint(document_routes, url_prefix="/api/documents")
 
+
     from routes.hifz_routes import hifz_bp
     app.register_blueprint(hifz_bp, url_prefix="/api/hifz")
 
