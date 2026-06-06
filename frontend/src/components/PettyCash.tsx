@@ -153,7 +153,7 @@ const PettyCash: React.FC = () => {
     <div className="container mx-auto p-6 space-y-6">
 
       {/* Form Section */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-6 print:hidden">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">New Petty Cash Entry</h2>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -278,7 +278,7 @@ const PettyCash: React.FC = () => {
       </div>
 
       {/* Accordion List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden print:hidden">
         <div className="p-4 bg-gray-50 border-b">
           <h2 className="text-xl font-semibold text-gray-800">Transactions History</h2>
         </div>
@@ -388,16 +388,16 @@ const PettyCash: React.FC = () => {
 
       {/* View Details Modal */}
       {selectedReceipt && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col transform transition-all">
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300 print:absolute print:inset-0 print:bg-white print:p-0 print:z-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col transform transition-all print:shadow-none print:max-h-none print:rounded-none">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4 flex justify-between items-center text-white">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4 flex justify-between items-center text-white print:bg-none print:bg-white print:text-black print:border-b-2 print:border-gray-800">
               <h3 className="text-xl font-bold tracking-wide">Transaction Overview</h3>
-              <button onClick={() => setSelectedReceipt(null)} className="text-white hover:text-red-200 transition-colors text-2xl leading-none">&times;</button>
+              <button onClick={() => setSelectedReceipt(null)} className="text-white hover:text-red-200 transition-colors text-2xl leading-none print:hidden">&times;</button>
             </div>
 
             {/* Content Body */}
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto print:overflow-visible">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
 
                 <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
@@ -466,10 +466,25 @@ const PettyCash: React.FC = () => {
                   <span className="font-bold text-gray-800 text-base">{selectedReceipt.academic_year || '-'}</span>
                 </div>
               </div>
+
+              {/* Signatures for Print */}
+              <div className="hidden print:flex justify-between items-end mt-24 mb-8 px-8 w-full">
+                <div className="text-center">
+                  <div className="border-t-2 border-gray-800 w-48 mb-2"></div>
+                  <span className="font-semibold text-gray-800">Principal Signature</span>
+                </div>
+                <div className="text-center">
+                  <div className="border-t-2 border-gray-800 w-48 mb-2"></div>
+                  <span className="font-semibold text-gray-800">Director Signature</span>
+                </div>
+              </div>
             </div>
 
             {/* Footer */}
-            <div className="bg-gray-50 px-6 py-4 border-t flex justify-end">
+            <div className="bg-gray-50 px-6 py-4 border-t flex justify-end space-x-3 print:hidden">
+              <button onClick={() => window.print()} className="px-6 py-2 bg-blue-600 text-white font-semibold border border-transparent rounded-lg shadow-sm hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                Print Receipt
+              </button>
               <button onClick={() => setSelectedReceipt(null)} className="px-6 py-2 bg-white text-gray-700 font-semibold border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 hover:text-gray-900 transition-colors focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 Close Details
               </button>
