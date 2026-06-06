@@ -345,7 +345,7 @@ const PettyCash: React.FC = () => {
       {/* Accordion List */}
       <div className="bg-white rounded-lg shadow overflow-hidden print:hidden">
         <div className="p-4 bg-gray-50 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Transactions History</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Petty Cash Transactions History</h2>
         </div>
 
         {loading ? (
