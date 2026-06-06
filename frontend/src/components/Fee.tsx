@@ -110,6 +110,12 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
                             Fee Reports
                         </button>
                         <button
+                            className="px-4 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+                            onClick={() => navigateTo('petty-cash')}
+                        >
+                            Petty Cash
+                        </button>
+                        <button
                             className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-sm"
                             onClick={() => {
                                 console.log('Fee Payment button clicked, navigating to take-fee');

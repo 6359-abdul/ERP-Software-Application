@@ -147,6 +147,9 @@ def create_app():
     from routes.hifz_routes import hifz_bp
     app.register_blueprint(hifz_bp, url_prefix="/api/hifz")
 
+    from routes.petty_cash_routes import petty_cash_bp
+    app.register_blueprint(petty_cash_bp, url_prefix="/api/petty-cash")
+
     # -----------------------------
     # SERVE UPLOADS (legacy - kept for backward compatibility)
     # -----------------------------
