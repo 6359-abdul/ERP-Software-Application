@@ -8,6 +8,11 @@ interface Ledger {
   ledger_type: string;
 }
 
+interface PettyCashItem {
+  item_name: string;
+  amount: number | string;
+}
+
 interface PettyCashTxn {
   id?: number;
   branch_id?: number | string;
@@ -24,6 +29,7 @@ interface PettyCashTxn {
   description?: string;
   created_by?: string;
   approved_by?: string;
+  items?: PettyCashItem[];
 }
 
 const PettyCash: React.FC = () => {
@@ -43,13 +49,14 @@ const PettyCash: React.FC = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAccountant = user.role === 'Admin' || user.role === 'Accountant';
 
-  const [formData, setFormData] = useState<PettyCashTxn>({
+  const [formData, setFormData] = useState<PettyCashTxn & { items: PettyCashItem[] }>({
     transaction_date: new Date().toISOString().split('T')[0],
     voucher_name: '',
     voucher_type: 'Payment',
     ledger_id: '',
     paid_to: '',
     amount: '',
+    items: [{ item_name: '', amount: '' }],
     payment_mode: 'Cash',
     description: '',
     approved_by: '',
@@ -105,6 +112,7 @@ const PettyCash: React.FC = () => {
         voucher_name: '',
         paid_to: '',
         amount: '',
+        items: [{ item_name: '', amount: '' }],
         ledger_id: '',
         description: '',
         approved_by: '',
@@ -148,6 +156,7 @@ const PettyCash: React.FC = () => {
   });
 
   const filteredLedgers = ledgers.filter(l => l.ledger_type === selectedLedgerType);
+  const grandTotal = formData.items.reduce((sum, item) => sum + (parseFloat(item.amount as string) || 0), 0);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -211,9 +220,65 @@ const PettyCash: React.FC = () => {
             <input type="text" name="paid_to" value={formData.paid_to} onChange={handleInputChange} className="border p-2 rounded" placeholder="Name" />
           </div>
 
-          <div className="flex flex-col">
-            <label className="text-sm text-gray-600 mb-1">Amount</label>
-            <input type="number" step="0.01" min="0" name="amount" value={formData.amount} onChange={handleInputChange} className="border p-2 rounded" placeholder="0.00" required />
+          <div className="lg:col-span-4 mt-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <div className="flex justify-between items-center mb-4">
+              <label className="text-md font-semibold text-gray-800">Items to Add</label>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, items: [...formData.items, { item_name: '', amount: '' }] })}
+                className="text-blue-600 text-sm hover:text-blue-800 font-medium flex items-center"
+              >
+                + Add Item
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {formData.items.map((item, index) => (
+                <div key={index} className="flex space-x-4 items-center">
+                  <input
+                    type="text"
+                    value={item.item_name}
+                    onChange={(e) => {
+                      const newItems = [...formData.items];
+                      newItems[index].item_name = e.target.value;
+                      setFormData({ ...formData, items: newItems });
+                    }}
+                    placeholder={`Item ${index + 1}`}
+                    className="border p-2 rounded flex-1"
+                    required
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={item.amount}
+                    onChange={(e) => {
+                      const newItems = [...formData.items];
+                      newItems[index].amount = e.target.value;
+                      setFormData({ ...formData, items: newItems });
+                    }}
+                    placeholder="Amount"
+                    className="border p-2 rounded w-32 text-right"
+                    required
+                  />
+                  {formData.items.length > 1 && (
+                    <button type="button" onClick={() => {
+                      const newItems = formData.items.filter((_, i) => i !== index);
+                      setFormData({ ...formData, items: newItems });
+                    }} className="text-red-500 hover:text-red-700 font-bold px-2 py-1">
+                      &times;
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end items-center mt-6 pr-8">
+              <span className="font-semibold text-gray-600 mr-4 uppercase text-sm tracking-wider">Total Amount</span>
+              <span className="font-bold text-2xl text-emerald-600 w-32 text-right border-t-2 border-emerald-200 pt-2">
+                ₹{grandTotal.toFixed(2)}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-col">
@@ -441,9 +506,36 @@ const PettyCash: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow">
-                  <span className="text-emerald-700 font-semibold block text-xs uppercase tracking-wider mb-1">Amount</span>
-                  <span className="font-bold text-emerald-700 text-xl">₹{Number(selectedReceipt.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow md:col-span-2">
+                  <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-2">Items</span>
+                  {selectedReceipt.items && selectedReceipt.items.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-100 text-gray-600 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-2 font-medium">Item Name</th>
+                            <th className="px-4 py-2 font-medium text-right">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedReceipt.items.map((item, idx) => (
+                            <tr key={idx} className="border-b border-gray-100 last:border-0 hover:bg-white transition-colors">
+                              <td className="px-4 py-2 text-gray-800">{item.item_name}</td>
+                              <td className="px-4 py-2 text-right font-medium text-gray-700">₹{Number(item.amount).toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-gray-50 border-t border-gray-200">
+                          <tr>
+                            <td className="px-4 py-2 font-bold text-gray-800 text-right uppercase text-xs tracking-wider">Total</td>
+                            <td className="px-4 py-2 font-bold text-emerald-700 text-right text-base">₹{Number(selectedReceipt.amount).toFixed(2)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500 italic">No items recorded.</span>
+                  )}
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow md:col-span-2">

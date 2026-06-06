@@ -888,6 +888,18 @@ class PettyCash(db.Model, AuditMixin):
     # Relationships
     branch = db.relationship("Branch")
     ledger = db.relationship("PettyCashLedger")
+    items = db.relationship("PettyCashVoucherItem", backref="petty_cash_voucher", cascade="all, delete-orphan", lazy=True)
+
+
+class PettyCashVoucherItem(db.Model, AuditMixin):
+    __tablename__ = "petty_cash_voucher_items"
+    __audit_module__ = "PETTY_CASH"
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    petty_cash_id = db.Column(db.BigInteger, db.ForeignKey('petty_cash.id'), nullable=False)
+    item_name = db.Column(db.String(255), nullable=False)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
 
 
 # ----------------------------------------------------------

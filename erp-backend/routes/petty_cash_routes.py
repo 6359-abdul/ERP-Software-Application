@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify, g
-from models import db, PettyCash, PettyCashLedger, User, Branch
+from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashVoucherItem
 from helpers import token_required
 from datetime import datetime
 from sqlalchemy import extract
@@ -161,7 +161,8 @@ def get_transactions(current_user):
                 "academic_year": t.academic_year,
                 "description": t.description or "",
                 "approved_by": t.approved_by or "",
-                "created_by": User.query.get(t.created_by).username if t.created_by else ""
+                "created_by": User.query.get(t.created_by).username if t.created_by else "",
+                "items": [{"item_name": item.item_name, "amount": float(item.amount)} for item in t.items]
             })
             
         return jsonify(result), 200
@@ -231,7 +232,8 @@ def get_transaction(current_user, txn_id):
             "academic_year": t.academic_year,
             "description": t.description or "",
             "approved_by": t.approved_by or "",
-            "created_by": User.query.get(t.created_by).username if t.created_by else ""
+            "created_by": User.query.get(t.created_by).username if t.created_by else "",
+            "items": [{"item_name": item.item_name, "amount": float(item.amount)} for item in t.items]
         }), 200
     except Exception as e:
         logger.error(f"Error getting transaction: {str(e)}")
@@ -261,10 +263,18 @@ def create_transaction(current_user):
                 "message": "Invalid ledger"
             }), 400
             
-        amount = float(data.get('amount', 0))
-        if amount <= 0:
+        items_data = data.get('items', [])
+        if not items_data or not isinstance(items_data, list):
+            return jsonify({"message": "Items are required"}), 400
+            
+        try:
+            total_amount = sum(float(item.get('amount', 0)) for item in items_data)
+        except (ValueError, TypeError):
+            return jsonify({"message": "Invalid item amount"}), 400
+
+        if total_amount <= 0:
             return jsonify({
-                "message": "Amount must be greater than zero"
+                "message": "Total amount must be greater than zero"
             }), 400
             
         transaction_date = datetime.strptime(
@@ -300,13 +310,28 @@ def create_transaction(current_user):
             voucher_type=voucher_type,
             ledger_id=ledger.id,
             paid_to=paid_to,
-            amount=amount,
+            amount=total_amount,
             payment_mode=payment_mode,
             academic_year=academic_year,
             description=description,
             approved_by=approved_by
         )
         db.session.add(txn)
+        db.session.flush()
+        
+        for item in items_data:
+            item_name = item.get('item_name')
+            item_amt = float(item.get('amount', 0))
+            if not item_name or not str(item_name).strip():
+                return jsonify({"message": "Item name is required for all items"}), 400
+            
+            v_item = PettyCashVoucherItem(
+                petty_cash_id=txn.id,
+                item_name=str(item_name).strip(),
+                amount=item_amt
+            )
+            db.session.add(v_item)
+            
         db.session.commit()
         return jsonify({"message": "Transaction created successfully", "id": txn.id}), 201
     except ValueError as ve:
@@ -352,13 +377,39 @@ def update_transaction(current_user, txn_id):
             if not data['paid_to'] or not str(data['paid_to']).strip():
                 return jsonify({"message": "Paid To is required"}), 400
             txn.paid_to = data['paid_to']
-        if 'amount' in data:
-            amount = float(data['amount'])
-            if amount <= 0:
-                return jsonify({
-                    "message": "Amount must be greater than zero"
-                }), 400
-            txn.amount = amount
+            
+        if 'items' in data:
+            items_data = data['items']
+            if not items_data or not isinstance(items_data, list):
+                return jsonify({"message": "Items are required"}), 400
+                
+            try:
+                total_amount = sum(float(item.get('amount', 0)) for item in items_data)
+            except (ValueError, TypeError):
+                return jsonify({"message": "Invalid item amount"}), 400
+                
+            if total_amount <= 0:
+                return jsonify({"message": "Total amount must be greater than zero"}), 400
+                
+            # Clear existing items
+            for existing_item in txn.items:
+                db.session.delete(existing_item)
+            
+            # Add new items
+            for item in items_data:
+                item_name = item.get('item_name')
+                item_amt = float(item.get('amount', 0))
+                if not item_name or not str(item_name).strip():
+                    return jsonify({"message": "Item name is required for all items"}), 400
+                
+                v_item = PettyCashVoucherItem(
+                    petty_cash_id=txn.id,
+                    item_name=str(item_name).strip(),
+                    amount=item_amt
+                )
+                db.session.add(v_item)
+                
+            txn.amount = total_amount
         if 'payment_mode' in data:
             if data['payment_mode'] not in ('Cash','UPI'):
                 return jsonify({"message":"Payment mode must be 'Cash' or 'UPI'"}),400
