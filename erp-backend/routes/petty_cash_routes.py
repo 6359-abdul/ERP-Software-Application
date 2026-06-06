@@ -152,7 +152,10 @@ def get_transactions(current_user):
                 "paid_to": t.paid_to,
                 "amount": float(t.amount),
                 "payment_mode": t.payment_mode,
-                "academic_year": t.academic_year
+                "academic_year": t.academic_year,
+                "description": t.description or "",
+                "approved_by": t.approved_by or "",
+                "created_by": User.query.get(t.created_by).username if t.created_by else ""
             })
             
         return jsonify(result), 200
@@ -219,7 +222,10 @@ def get_transaction(current_user, txn_id):
             "paid_to": t.paid_to,
             "amount": float(t.amount),
             "payment_mode": t.payment_mode,
-            "academic_year": t.academic_year
+            "academic_year": t.academic_year,
+            "description": t.description or "",
+            "approved_by": t.approved_by or "",
+            "created_by": User.query.get(t.created_by).username if t.created_by else ""
         }), 200
     except Exception as e:
         logger.error(f"Error getting transaction: {str(e)}")
@@ -269,7 +275,9 @@ def create_transaction(current_user):
             paid_to=data.get('paid_to'),
             amount=amount,
             payment_mode=data['payment_mode'],
-            academic_year=academic_year
+            academic_year=academic_year,
+            description=data.get('description'),
+            approved_by=data.get('approved_by')
         )
         db.session.add(txn)
         db.session.commit()
@@ -318,6 +326,10 @@ def update_transaction(current_user, txn_id):
             txn.amount = amount
         if 'payment_mode' in data:
             txn.payment_mode = data['payment_mode']
+        if 'description' in data:
+            txn.description = data['description']
+        if 'approved_by' in data:
+            txn.approved_by = data['approved_by']
             
         db.session.commit()
         return jsonify({"message": "Transaction updated successfully"}), 200

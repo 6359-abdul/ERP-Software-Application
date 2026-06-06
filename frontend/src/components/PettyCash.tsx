@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
-import { format } from 'date-fns'; // Assuming date-fns is used, otherwise standard Date works. I'll use standard Date if date-fns is not there, let's stick to standard to be safe.
+
 
 interface Ledger {
   id: number;
@@ -21,6 +21,9 @@ interface PettyCashTxn {
   amount: number | string;
   payment_mode: string;
   academic_year?: string;
+  description?: string;
+  created_by?: string;
+  approved_by?: string;
 }
 
 const PettyCash: React.FC = () => {
@@ -28,16 +31,18 @@ const PettyCash: React.FC = () => {
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const [showLedgerModal, setShowLedgerModal] = useState(false);
   const [newLedger, setNewLedger] = useState({ ledger_name: '', ledger_type: 'Indirect' });
+
+  const [selectedReceipt, setSelectedReceipt] = useState<PettyCashTxn | null>(null);
 
   // Accordion state - group by month
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAccountant = user.role === 'Admin' || user.role === 'Accountant';
-  
+
   const [formData, setFormData] = useState<PettyCashTxn>({
     transaction_date: new Date().toISOString().split('T')[0],
     voucher_name: '',
@@ -46,8 +51,10 @@ const PettyCash: React.FC = () => {
     paid_to: '',
     amount: '',
     payment_mode: 'Cash',
+    description: '',
+    approved_by: '',
   });
-  
+
   // Need to track ledger type for the form to filter ledgers
   const [selectedLedgerType, setSelectedLedgerType] = useState('Indirect');
 
@@ -65,7 +72,7 @@ const PettyCash: React.FC = () => {
     try {
       const response = await api.get('/petty-cash');
       setTransactions(response.data);
-      
+
       // Auto-expand current month
       const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
       setExpandedMonths(prev => ({ ...prev, [currentMonth]: true }));
@@ -98,6 +105,8 @@ const PettyCash: React.FC = () => {
         paid_to: '',
         amount: '',
         ledger_id: '',
+        description: '',
+        approved_by: '',
       });
       fetchTransactions();
     } catch (err: any) {
@@ -122,14 +131,8 @@ const PettyCash: React.FC = () => {
     setExpandedMonths(prev => ({ ...prev, [monthStr]: !prev[monthStr] }));
   };
 
-  const deleteTransaction = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
-    try {
-      await api.delete(`/petty-cash/${id}`);
-      fetchTransactions();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete transaction');
-    }
+  const handlePrint = (txn: PettyCashTxn) => {
+    setSelectedReceipt(txn);
   };
 
   // Group transactions by month-year
@@ -147,13 +150,13 @@ const PettyCash: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      
+
       {/* Form Section */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">New Petty Cash Entry</h2>
-        
+
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          
+
           <div className="flex flex-col">
             <label className="text-sm text-gray-600 mb-1">Date</label>
             <input type="date" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} className="border p-2 rounded" required />
@@ -174,12 +177,12 @@ const PettyCash: React.FC = () => {
 
           <div className="flex flex-col">
             <label className="text-sm text-gray-600 mb-1">Ledger Type</label>
-            <select 
-              value={selectedLedgerType} 
+            <select
+              value={selectedLedgerType}
               onChange={(e) => {
                 setSelectedLedgerType(e.target.value);
-                setFormData({...formData, ledger_id: ''}); // Reset ledger selection
-              }} 
+                setFormData({ ...formData, ledger_id: '' }); // Reset ledger selection
+              }}
               className="border p-2 rounded"
             >
               <option value="Direct">Direct</option>
@@ -188,18 +191,18 @@ const PettyCash: React.FC = () => {
           </div>
 
           <div className="flex flex-col">
-             <label className="text-sm text-gray-600 mb-1 flex justify-between items-center">
-               <span>Ledger</span>
-               {isAccountant && (
-                 <button type="button" onClick={() => setShowLedgerModal(true)} className="text-blue-600 text-xs hover:underline">+ Add Ledger</button>
-               )}
-             </label>
-             <select name="ledger_id" value={formData.ledger_id} onChange={handleInputChange} className="border p-2 rounded" required>
-                <option value="">Select Ledger</option>
-                {filteredLedgers.map(l => (
-                  <option key={l.id} value={l.id}>{l.ledger_name}</option>
-                ))}
-             </select>
+            <label className="text-sm text-gray-600 mb-1 flex justify-between items-center">
+              <span>Ledger</span>
+              {isAccountant && (
+                <button type="button" onClick={() => setShowLedgerModal(true)} className="text-blue-600 text-xs hover:underline">+ Add Ledger</button>
+              )}
+            </label>
+            <select name="ledger_id" value={formData.ledger_id} onChange={handleInputChange} className="border p-2 rounded" required>
+              <option value="">Select Ledger</option>
+              {filteredLedgers.map(l => (
+                <option key={l.id} value={l.id}>{l.ledger_name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex flex-col">
@@ -210,6 +213,52 @@ const PettyCash: React.FC = () => {
           <div className="flex flex-col">
             <label className="text-sm text-gray-600 mb-1">Amount</label>
             <input type="number" step="0.01" min="0" name="amount" value={formData.amount} onChange={handleInputChange} className="border p-2 rounded" placeholder="0.00" required />
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-sm text-gray-600 mb-1">Description</label>
+            <textarea name="description" value={formData.description} onChange={handleInputChange as any} className="border p-2 rounded h-10" placeholder="Details"></textarea>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-sm text-gray-600 mb-1">Created By</label>
+            <input type="text" value={user.username || 'Current User'} readOnly className="border p-2 rounded bg-gray-100 text-gray-500 cursor-not-allowed" />
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-sm text-gray-600 mb-1">Approved By</label>
+            <div className="flex items-center space-x-4 h-10 border p-2 rounded">
+              <label className="flex items-center text-sm">
+                <input
+                  type="checkbox"
+                  value="Principal"
+                  checked={formData.approved_by?.includes('Principal')}
+                  onChange={(e) => {
+                    let arr = formData.approved_by ? formData.approved_by.split(',') : [];
+                    if (e.target.checked) arr.push('Principal');
+                    else arr = arr.filter(a => a !== 'Principal');
+                    setFormData({ ...formData, approved_by: arr.join(',') });
+                  }}
+                  className="mr-2"
+                />
+                Principal
+              </label>
+              <label className="flex items-center text-sm">
+                <input
+                  type="checkbox"
+                  value="Director"
+                  checked={formData.approved_by?.includes('Director')}
+                  onChange={(e) => {
+                    let arr = formData.approved_by ? formData.approved_by.split(',') : [];
+                    if (e.target.checked) arr.push('Director');
+                    else arr = arr.filter(a => a !== 'Director');
+                    setFormData({ ...formData, approved_by: arr.join(',') });
+                  }}
+                  className="mr-2"
+                />
+                Director
+              </label>
+            </div>
           </div>
 
           <div className="flex flex-col">
@@ -232,7 +281,7 @@ const PettyCash: React.FC = () => {
         <div className="p-4 bg-gray-50 border-b">
           <h2 className="text-xl font-semibold text-gray-800">Transactions History</h2>
         </div>
-        
+
         {loading ? (
           <div className="p-6 text-center text-gray-500">Loading transactions...</div>
         ) : error ? (
@@ -243,7 +292,7 @@ const PettyCash: React.FC = () => {
           <div className="divide-y">
             {Object.entries(groupedTransactions).map(([monthYear, txns]) => (
               <div key={monthYear} className="w-full">
-                <button 
+                <button
                   onClick={() => toggleMonth(monthYear)}
                   className="w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 transition text-left"
                 >
@@ -253,7 +302,7 @@ const PettyCash: React.FC = () => {
                     <span className="text-lg text-gray-400">{expandedMonths[monthYear] ? '▲' : '▼'}</span>
                   </span>
                 </button>
-                
+
                 {expandedMonths[monthYear] && (
                   <div className="overflow-x-auto p-4">
                     <table className="w-full text-sm text-left">
@@ -275,18 +324,18 @@ const PettyCash: React.FC = () => {
                             <td className="px-4 py-2 whitespace-nowrap">{t.transaction_date}</td>
                             <td className="px-4 py-2">{t.voucher_name}</td>
                             <td className="px-4 py-2">
-                               <span className={`px-2 py-1 rounded text-xs ${t.voucher_type === 'Received' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                 {t.voucher_type}
-                               </span>
+                              <span className={`px-2 py-1 rounded text-xs ${t.voucher_type === 'Received' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {t.voucher_type}
+                              </span>
                             </td>
                             <td className="px-4 py-2">{t.ledger_name}</td>
                             <td className="px-4 py-2">{t.paid_to || '-'}</td>
                             <td className="px-4 py-2">{t.payment_mode}</td>
                             <td className="px-4 py-2 text-right font-medium">₹{Number(t.amount).toFixed(2)}</td>
                             <td className="px-4 py-2 text-center">
-                               {isAccountant && (
-                                 <button onClick={() => t.id && deleteTransaction(t.id)} className="text-red-500 hover:text-red-700 font-bold px-2" title="Delete">×</button>
-                               )}
+                              <button onClick={() => setSelectedReceipt(t)} className="text-blue-600 hover:text-blue-800 font-medium px-2 py-1 text-xs border border-blue-600 rounded" title="View Details">
+                                View Details
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -308,19 +357,19 @@ const PettyCash: React.FC = () => {
             <form onSubmit={handleCreateLedger} className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Ledger Name</label>
-                <input 
-                  type="text" 
-                  value={newLedger.ledger_name} 
-                  onChange={(e) => setNewLedger({...newLedger, ledger_name: e.target.value})} 
-                  className="w-full border p-2 rounded" 
-                  required 
+                <input
+                  type="text"
+                  value={newLedger.ledger_name}
+                  onChange={(e) => setNewLedger({ ...newLedger, ledger_name: e.target.value })}
+                  className="w-full border p-2 rounded"
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Ledger Type</label>
-                <select 
-                  value={newLedger.ledger_type} 
-                  onChange={(e) => setNewLedger({...newLedger, ledger_type: e.target.value})} 
+                <select
+                  value={newLedger.ledger_type}
+                  onChange={(e) => setNewLedger({ ...newLedger, ledger_type: e.target.value })}
                   className="w-full border p-2 rounded"
                 >
                   <option value="Direct">Direct</option>
@@ -332,6 +381,98 @@ const PettyCash: React.FC = () => {
                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save Ledger</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Details Modal */}
+      {selectedReceipt && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col transform transition-all">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4 flex justify-between items-center text-white">
+              <h3 className="text-xl font-bold tracking-wide">Transaction Overview</h3>
+              <button onClick={() => setSelectedReceipt(null)} className="text-white hover:text-red-200 transition-colors text-2xl leading-none">&times;</button>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-6 overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+
+                <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
+                  <span className="text-blue-600 font-semibold block text-xs uppercase tracking-wider mb-1">Date</span>
+                  <span className="font-bold text-gray-800 text-base">{selectedReceipt.transaction_date}</span>
+                </div>
+
+                <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 shadow-sm hover:shadow-md transition-shadow">
+                  <span className="text-indigo-600 font-semibold block text-xs uppercase tracking-wider mb-1">Voucher Name</span>
+                  <span className="font-bold text-gray-800 text-base">{selectedReceipt.voucher_name}</span>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center">
+                  <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Voucher Type</span>
+                  <div>
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${selectedReceipt.voucher_type === 'Received' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                      {selectedReceipt.voucher_type}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+                  <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Ledger</span>
+                  <span className="font-bold text-gray-800 text-base">{selectedReceipt.ledger_name}</span>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+                  <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Ledger Type</span>
+                  <span className="font-bold text-gray-800 text-base">{selectedReceipt.ledger_type || '-'}</span>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+                  <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Paid To / Received From</span>
+                  <span className="font-bold text-gray-800 text-base">{selectedReceipt.paid_to || '-'}</span>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center">
+                  <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Payment Mode</span>
+                  <div>
+                    {selectedReceipt.payment_mode === 'Cash' ? <span className="bg-orange-100 text-orange-700 font-bold px-3 py-1 rounded-full text-xs">CASH</span> : <span className="bg-purple-100 text-purple-700 font-bold px-3 py-1 rounded-full text-xs">UPI</span>}
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow">
+                  <span className="text-emerald-700 font-semibold block text-xs uppercase tracking-wider mb-1">Amount</span>
+                  <span className="font-bold text-emerald-700 text-xl">₹{Number(selectedReceipt.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow md:col-span-2">
+                  <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Description</span>
+                  <span className="font-medium text-gray-700 whitespace-pre-wrap">{selectedReceipt.description || '-'}</span>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+                  <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Created By</span>
+                  <span className="font-bold text-gray-800 text-base">{selectedReceipt.created_by || '-'}</span>
+                </div>
+
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 shadow-sm hover:shadow-md transition-shadow">
+                  <span className="text-amber-700 font-semibold block text-xs uppercase tracking-wider mb-1">Approved By</span>
+                  <span className="font-bold text-amber-900 text-base">{selectedReceipt.approved_by || '-'}</span>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow md:col-span-2">
+                  <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Academic Year</span>
+                  <span className="font-bold text-gray-800 text-base">{selectedReceipt.academic_year || '-'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 px-6 py-4 border-t flex justify-end">
+              <button onClick={() => setSelectedReceipt(null)} className="px-6 py-2 bg-white text-gray-700 font-semibold border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 hover:text-gray-900 transition-colors focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                Close Details
+              </button>
+            </div>
           </div>
         </div>
       )}
