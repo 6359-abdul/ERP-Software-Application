@@ -64,6 +64,7 @@ const PettyCash: React.FC = () => {
       setLedgers(response.data);
     } catch (err: any) {
       console.error('Error fetching ledgers', err);
+      setError('Failed to load ledgers. Please refresh the page.');
     }
   };
 
@@ -88,7 +89,7 @@ const PettyCash: React.FC = () => {
     fetchTransactions();
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
@@ -159,7 +160,7 @@ const PettyCash: React.FC = () => {
 
           <div className="flex flex-col">
             <label className="text-sm text-gray-600 mb-1">Date</label>
-            <input type="date" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} className="border p-2 rounded" required />
+            <input type="date" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} max={new Date().toISOString().split('T')[0]} className="border p-2 rounded" required />
           </div>
 
           <div className="flex flex-col">
@@ -217,7 +218,7 @@ const PettyCash: React.FC = () => {
 
           <div className="flex flex-col">
             <label className="text-sm text-gray-600 mb-1">Description</label>
-            <textarea name="description" value={formData.description} onChange={handleInputChange as any} className="border p-2 rounded h-10" placeholder="Details"></textarea>
+            <textarea name="description" value={formData.description} onChange={handleInputChange} className="border p-2 rounded h-10" placeholder="Details"></textarea>
           </div>
 
           <div className="flex flex-col">

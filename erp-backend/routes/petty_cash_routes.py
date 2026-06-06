@@ -52,9 +52,13 @@ def create_ledger(current_user):
                 "message": "Ledger already exists"
             }), 400
             
+        ledger_type = data.get('ledger_type')
+        if ledger_type not in ('Direct', 'Indirect'):
+            return jsonify({"message": "ledger_type must be 'Direct' or 'Indirect'"}), 400
+            
         ledger = PettyCashLedger(
             ledger_name=ledger_name,
-            ledger_type=data['ledger_type']
+            ledger_type=ledger_type
         )
         db.session.add(ledger)
         db.session.commit()
@@ -85,6 +89,8 @@ def update_ledger(current_user, ledger_id):
             ledger.ledger_name = ledger_name
             
         if 'ledger_type' in data:
+            if data['ledger_type'] not in ('Direct', 'Indirect'):
+                return jsonify({"message": "ledger_type must be 'Direct' or 'Indirect'"}), 400
             ledger.ledger_type = data['ledger_type']
         if 'is_active' in data:
             ledger.is_active = data['is_active']
@@ -265,19 +271,40 @@ def create_transaction(current_user):
             data['transaction_date'],
             '%Y-%m-%d'
         ).date()
+        voucher_type = data.get('voucher_type')
+        if voucher_type not in ('Payment','Received'):
+            return jsonify({"message":"Voucher type must be Payment or Received"}),400
+        payment_mode = data.get('payment_mode')
+        if payment_mode not in ('Cash','UPI'):
+            return jsonify({"message":"Payment mode must be Cash or UPI"}),400    
+        voucher_name = data.get('voucher_name')
+        if not voucher_name or not str(voucher_name).strip():
+            return jsonify({"message": "Voucher Name is required"}), 400
             
+        paid_to = data.get('paid_to')
+        if not paid_to or not str(paid_to).strip():
+            return jsonify({"message": "Paid To / Received From is required"}), 400
+            
+        description = data.get('description')
+        if not description or not str(description).strip():
+            return jsonify({"message": "Description is required"}), 400
+            
+        approved_by = data.get('approved_by')
+        if not approved_by or not str(approved_by).strip():
+            return jsonify({"message": "Approved By is required"}), 400
+
         txn = PettyCash(
             branch_id=branch_id,
             transaction_date=transaction_date,
-            voucher_name=data['voucher_name'],
-            voucher_type=data['voucher_type'],
+            voucher_name=voucher_name,
+            voucher_type=voucher_type,
             ledger_id=ledger.id,
-            paid_to=data.get('paid_to'),
+            paid_to=paid_to,
             amount=amount,
-            payment_mode=data['payment_mode'],
+            payment_mode=payment_mode,
             academic_year=academic_year,
-            description=data.get('description'),
-            approved_by=data.get('approved_by')
+            description=description,
+            approved_by=approved_by
         )
         db.session.add(txn)
         db.session.commit()
@@ -305,8 +332,14 @@ def update_transaction(current_user, txn_id):
                 '%Y-%m-%d'
             ).date()
         if 'voucher_name' in data:
+            if not data['voucher_name'] or not str(data['voucher_name']).strip():
+                return jsonify({"message": "Voucher Name is required"}), 400
             txn.voucher_name = data['voucher_name']
         if 'voucher_type' in data:
+            if data['voucher_type'] not in ('Payment', 'Received'):
+                return jsonify({
+                    "message": "Invalid voucher type"
+                }), 400
             txn.voucher_type = data['voucher_type']
         if 'ledger_id' in data:
             ledger = PettyCashLedger.query.get(data['ledger_id'])
@@ -316,6 +349,8 @@ def update_transaction(current_user, txn_id):
                 }), 400
             txn.ledger_id = ledger.id
         if 'paid_to' in data:
+            if not data['paid_to'] or not str(data['paid_to']).strip():
+                return jsonify({"message": "Paid To is required"}), 400
             txn.paid_to = data['paid_to']
         if 'amount' in data:
             amount = float(data['amount'])
@@ -325,10 +360,16 @@ def update_transaction(current_user, txn_id):
                 }), 400
             txn.amount = amount
         if 'payment_mode' in data:
+            if data['payment_mode'] not in ('Cash','UPI'):
+                return jsonify({"message":"Payment mode must be 'Cash' or 'UPI'"}),400
             txn.payment_mode = data['payment_mode']
         if 'description' in data:
+            if not data['description'] or not str(data['description']).strip():
+                return jsonify({"message": "Description is required"}), 400
             txn.description = data['description']
         if 'approved_by' in data:
+            if not data['approved_by'] or not str(data['approved_by']).strip():
+                return jsonify({"message": "Approved By is required"}), 400
             txn.approved_by = data['approved_by']
             
         db.session.commit()

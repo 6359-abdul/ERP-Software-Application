@@ -31,6 +31,7 @@ def upgrade():
     sa.ForeignKeyConstraint(['updated_by'], ['users.user_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('uq_ledger_name_lower', 'petty_cash_ledger', [sa.text('LOWER(ledger_name)')], unique=True)
     op.create_table('petty_cash',
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
     sa.Column('branch_id', sa.Integer(), nullable=False),
