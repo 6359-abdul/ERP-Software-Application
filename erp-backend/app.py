@@ -150,6 +150,9 @@ def create_app():
     from routes.petty_cash_routes import petty_cash_bp
     app.register_blueprint(petty_cash_bp, url_prefix="/api/petty-cash")
 
+    from routes.petty_cash_report_routes import petty_cash_report_bp
+    app.register_blueprint(petty_cash_report_bp, url_prefix="/api/petty-cash-report")
+
     # -----------------------------
     # SERVE UPLOADS (legacy - kept for backward compatibility)
     # -----------------------------
@@ -212,7 +215,7 @@ if __name__ == "__main__":
     from sqlalchemy import inspect, text
     with app.app_context():
         upgrade()
-        print("✅ Database upgraded.")
+        print("[SUCCESS] Database upgraded.")
 
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"

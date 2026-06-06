@@ -32,6 +32,8 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
             navigateTo('update-student-fee-structure');
         } else if (item === 'Update Rebate Date') {
             navigateTo('update-rebate-date');
+        } else if (item === 'Petty-Cash Report') {
+            navigateTo('petty-cash-report');
         }
         setOpenDropdown(null);
     };
@@ -54,7 +56,7 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
             { name: 'Paid Concession Report', action: () => console.log('Paid Concession Report') },
             { name: 'Expected Concession Report', action: () => console.log('Expected Concession Report') },
         ],
-        refund: ['Refund/TC Requests', 'Refund Fee', 'Refundable Fees Refund Report', 'Refundable Fees Deposit Report', 'Refund Report', 'Refund Cancel Report', 'Adjust Fee', 'Adjust Fee Report', 'Nullify Fee', 'Nullify Fee Report'],
+        reports: ['Fee Report', 'Fee Summary Report', 'Fee Due Report', 'Fee Concession Report', 'Deleted Receipts', 'Petty-Cash Report', 'Adjust Fee Report', 'Nullify Fee', 'Nullify Fee Report'],
         voucher: ['Create Voucher', 'Voucher List', 'Transport Voucher'],
     };
 
@@ -125,7 +127,7 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
                             Collect Fee {/* Nothing but Take Fee - user reqeust to change the name */}
                         </button>
                         {isAdmin && renderDropdown('concession', dropdownItems.concession)}
-                        {isAdmin && renderDropdown('refund', dropdownItems.refund)}
+                        {isAdmin && renderDropdown('reports', dropdownItems.reports)}
                         {/*{renderDropdown('voucher', dropdownItems.voucher)}*/}
                         {/*<button className={buttonStyle}>Bulk Fee Payment</button>*/}
                     </div>

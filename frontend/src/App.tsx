@@ -32,7 +32,8 @@ export type Page =
   | "student-document-management"
   | "document-management"
   | "staff-support"
-  | "petty-cash";
+  | "petty-cash"
+  | "petty-cash-report";
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
