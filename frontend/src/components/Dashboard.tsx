@@ -25,6 +25,8 @@ import FeeReports from './FeeReports';
 import Configuration from './Configuration';
 import DocumentManagement from './DocumentManagement';
 import CreateStudent from './CreateStudent';
+import PettyCash from './PettyCash';
+import PettyCashReport from './PettyCashReport';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
 
 
@@ -87,6 +89,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           {currentPage === 'configuration' && <Configuration navigateTo={navigateTo} />}
           {currentPage === 'document-management' && <DocumentManagement />}
           {currentPage === 'create-student' && <CreateStudent mode="create" onCancel={() => navigateTo('dashboard')} onSave={() => navigateTo('student-administration')} />}
+          {currentPage === 'petty-cash' && <PettyCash />}
+          {currentPage === 'petty-cash-report' && <PettyCashReport />}
         </main>
       </div>
     </div>

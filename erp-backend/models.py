@@ -849,6 +849,60 @@ class StudentHifzProgress(db.Model, AuditMixin):
     )
 
 # ----------------------------------------------------------
+# PETTY CASH
+# ----------------------------------------------------------
+
+class PettyCashLedger(db.Model, AuditMixin):
+    __tablename__ = "petty_cash_ledger"
+    __audit_module__ = "PETTY_CASH"
+    
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    ledger_name = db.Column(db.String(255), nullable=False)
+    ledger_type = db.Column(db.Enum('Direct', 'Indirect'), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, server_default=db.text('1'))
+
+
+class PettyCash(db.Model, AuditMixin):
+    __tablename__ = "petty_cash"
+    __audit_module__ = "PETTY_CASH"
+    
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False)
+    transaction_date = db.Column(db.Date, nullable=False)
+    voucher_name = db.Column(db.String(255), nullable=False)
+    voucher_type = db.Column(db.Enum('Payment', 'Received'), nullable=False)
+    ledger_id = db.Column(db.BigInteger, db.ForeignKey('petty_cash_ledger.id'), nullable=False)
+    paid_to = db.Column(db.String(255))
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    payment_mode = db.Column(db.Enum('Cash', 'UPI'), nullable=False)
+    academic_year = db.Column(db.String(20), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    approved_by = db.Column(db.String(100), nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, server_default=db.text('1'), default=True)
+
+    __table_args__ = (
+        db.Index('idx_petty_cash_branch_year', 'branch_id', 'academic_year'),
+        db.Index('idx_petty_cash_date', 'transaction_date'),
+    )
+
+    # Relationships
+    branch = db.relationship("Branch")
+    ledger = db.relationship("PettyCashLedger")
+    items = db.relationship("PettyCashVoucherItem", backref="petty_cash_voucher", cascade="all, delete-orphan", lazy=True)
+
+
+class PettyCashVoucherItem(db.Model, AuditMixin):
+    __tablename__ = "petty_cash_voucher_items"
+    __audit_module__ = "PETTY_CASH"
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    petty_cash_id = db.Column(db.BigInteger, db.ForeignKey('petty_cash.id'), nullable=False)
+    item_name = db.Column(db.String(255), nullable=False)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+
+
+# ----------------------------------------------------------
 # GLOBAL AUDIT EVENT LISTENERS
 # ----------------------------------------------------------
 
