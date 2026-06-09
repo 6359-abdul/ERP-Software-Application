@@ -26,7 +26,7 @@ const DeletedReceiptsReport: React.FC = () => {
         }
     };
 
-    const filteredReceipts = receipts.filter(r => 
+    const filteredReceipts = receipts.filter(r =>
         (r.student_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.admission_no || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.receipt_no || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -59,14 +59,16 @@ const DeletedReceiptsReport: React.FC = () => {
         const doc = new jsPDF("l", "mm", "a4");
         doc.setFontSize(16);
         doc.text("Deleted Receipts Report", 14, 15);
-        
-        const tableColumn = ["S.No", "Student Name", "Adm No.", "Class", "Rcpt No", "Amount", "Mode", "Deleted By", "Deleted At", "Reason"];
+
+        const tableColumn = ["S.No", "Student Name", "Adm No.", "Class", "Branch", "Rcpt No", "Fee Type", "Amount", "Mode", "Deleted By", "Deleted At", "Reason"];
         const tableRows = filteredReceipts.map((r, idx) => [
             idx + 1,
             r.student_name,
             r.admission_no,
             `${r.class} ${r.section}`,
+            r.branch,
             r.receipt_no,
+            r.fee_type_str,
             r.amount_paid,
             r.mode,
             r.deleted_by,
@@ -79,7 +81,7 @@ const DeletedReceiptsReport: React.FC = () => {
             body: tableRows,
             startY: 25,
             theme: 'grid',
-            styles: { fontSize: 8 }
+            styles: { fontSize: 7 }
         });
         doc.save("Deleted_Receipts_Report.pdf");
     };

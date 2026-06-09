@@ -30,9 +30,16 @@ import DocumentManagement from './DocumentManagement';
 import CreateStudent from './CreateStudent';
 import PettyCash from './PettyCash';
 import PettyCashReport from './PettyCashReport';
+import FinancialLayout from './FinancialLayout';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
 
-
+const financialPages = [
+  'fee', 'fee-type', 'class-fee-structure', 'assign-special-fee',
+  'fee-installments', 'take-fee', 'concession-master', 'student-concession',
+  'update-student-fee-structure', 'update-rebate-date', 'fee-reports',
+  'deleted-receipts', 'fee-concession-report', 'adjust-fee-report',
+  'petty-cash', 'petty-cash-report'
+];
 
 interface DashboardProps {
   onLogout: () => void;
@@ -69,34 +76,41 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         <main className="flex-1">
           {currentPage === 'dashboard' && <MainContent navigateTo={navigateTo} />}
           {currentPage === 'profile' && <Profile />}
-          {currentPage === 'fee' && <Fee navigateTo={navigateTo} />}
-          {currentPage === 'fee-type' && <FeeType />}
-          {currentPage === 'class-fee-structure' && <ClassFeeStructure />}
-          {currentPage === 'assign-special-fee' && <AssignSpecialFee />}
-          {currentPage === 'fee-installments' && <FeeInstallments />}
-          {currentPage === 'take-fee' && <TakeFee navigateTo={navigateTo} />}
-          {currentPage === 'administration' && <Administration navigateTo={navigateTo} />}
-          {currentPage === 'academic' && <AcademicManagement navigateTo={navigateTo} />}
-          {currentPage === 'academics' && <Academics />}
-          {currentPage === 'setup' && <SetupSchool navigateTo={navigateTo} />}
-          {currentPage === 'classes-management' && <ClassesManagement navigateTo={navigateTo} />}
-          {currentPage === 'student-attendance' && <StudentAttendance navigateTo={navigateTo} />}
-          {currentPage === 'attendance-report' && <StudentAttendance navigateTo={navigateTo} defaultTab="absent-report" />}
-          {currentPage === 'student-administration' && <StudentAdministration navigateTo={navigateTo} />}
-          {currentPage === 'staff-support' && <StaffSupport />}
-          {currentPage === 'concession-master' && <ConcessionMaster />}
-          {currentPage === 'student-concession' && <StudentConcession />}
-          {currentPage === 'update-student-fee-structure' && <UpdateStudentFeeStructure />}
-          {currentPage === 'update-rebate-date' && <UpdateRebateDate />}
-          {currentPage === 'fee-reports' && <FeeReports />}
-          {currentPage === 'deleted-receipts' && <DeletedReceiptsReport />}
-          {currentPage === 'fee-concession-report' && <FeeConcessionReport />}
-          {currentPage === 'adjust-fee-report' && <AdjustFeeReport />}
-          {currentPage === 'configuration' && <Configuration navigateTo={navigateTo} />}
-          {currentPage === 'document-management' && <DocumentManagement />}
-          {currentPage === 'create-student' && <CreateStudent mode="create" onCancel={() => navigateTo('dashboard')} onSave={() => navigateTo('student-administration')} />}
-          {currentPage === 'petty-cash' && <PettyCash />}
-          {currentPage === 'petty-cash-report' && <PettyCashReport />}
+          {financialPages.includes(currentPage) ? (
+            <FinancialLayout currentPage={currentPage} navigateTo={navigateTo}>
+              {currentPage === 'fee' && <Fee navigateTo={navigateTo} />}
+              {currentPage === 'fee-type' && <FeeType />}
+              {currentPage === 'class-fee-structure' && <ClassFeeStructure />}
+              {currentPage === 'assign-special-fee' && <AssignSpecialFee />}
+              {currentPage === 'fee-installments' && <FeeInstallments />}
+              {currentPage === 'take-fee' && <TakeFee navigateTo={navigateTo} />}
+              {currentPage === 'concession-master' && <ConcessionMaster />}
+              {currentPage === 'student-concession' && <StudentConcession />}
+              {currentPage === 'update-student-fee-structure' && <UpdateStudentFeeStructure />}
+              {currentPage === 'update-rebate-date' && <UpdateRebateDate />}
+              {currentPage === 'fee-reports' && <FeeReports />}
+              {currentPage === 'deleted-receipts' && <DeletedReceiptsReport />}
+              {currentPage === 'fee-concession-report' && <FeeConcessionReport />}
+              {currentPage === 'adjust-fee-report' && <AdjustFeeReport />}
+              {currentPage === 'petty-cash' && <PettyCash />}
+              {currentPage === 'petty-cash-report' && <PettyCashReport />}
+            </FinancialLayout>
+          ) : (
+            <>
+              {currentPage === 'administration' && <Administration navigateTo={navigateTo} />}
+              {currentPage === 'academic' && <AcademicManagement navigateTo={navigateTo} />}
+              {currentPage === 'academics' && <Academics />}
+              {currentPage === 'setup' && <SetupSchool navigateTo={navigateTo} />}
+              {currentPage === 'classes-management' && <ClassesManagement navigateTo={navigateTo} />}
+              {currentPage === 'student-attendance' && <StudentAttendance navigateTo={navigateTo} />}
+              {currentPage === 'attendance-report' && <StudentAttendance navigateTo={navigateTo} defaultTab="absent-report" />}
+              {currentPage === 'student-administration' && <StudentAdministration navigateTo={navigateTo} />}
+              {currentPage === 'staff-support' && <StaffSupport />}
+              {currentPage === 'configuration' && <Configuration navigateTo={navigateTo} />}
+              {currentPage === 'document-management' && <DocumentManagement />}
+              {currentPage === 'create-student' && <CreateStudent mode="create" onCancel={() => navigateTo('dashboard')} onSave={() => navigateTo('student-administration')} />}
+            </>
+          )}
         </main>
       </div>
     </div>

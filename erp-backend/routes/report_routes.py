@@ -807,7 +807,20 @@ def get_concession_details(current_user, student_id):
     try:
         h_year, err, code = require_academic_year()
         if err: return err, code
+        #Branch Authorization Check
+        if current_user.role == 'Admin':
+            target_branch = request.headers.get("X-Branch", "All")
+        else:
+            target_branch = current_user.branch
         
+        #Verify student belongs to accessible branch
+        student = Student.query.filter_by(student_id = student_id, academic_year=h_year).first()
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
+        
+        if target_branch not in ['All', 'AllBranches'] and student.branch != target_branch:
+            return jsonify({"error": "Student does not belong to accessible branch"}), 403
+            
         from models import FeeType, FeeInstallment
         
         # Fetch the student fee records where concession > 0

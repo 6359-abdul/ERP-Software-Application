@@ -71,30 +71,23 @@ const formatDateDDMMYYYY = (dateStr: string | undefined | null): string => {
 // Shared Components
 // --------------------------------------------------------------------------
 
-const StatCard = ({ label, value, color = 'blue' }: any) => {
-    const colors: any = {
-        blue: 'bg-blue-50 text-blue-800 border-blue-200',
-        green: 'bg-green-50 text-green-800 border-green-200',
-        red: 'bg-red-50 text-red-800 border-red-200',
-        purple: 'bg-purple-50 text-purple-800 border-purple-200',
-        orange: 'bg-orange-50 text-orange-800 border-orange-200',
-    };
-    const c = colors[color] || colors.blue;
-
+const StatCard = ({ label, value, subtext }: any) => {
     return (
-        <div className={`p-4 rounded-lg border ${c} shadow-sm`}>
-            <p className="text-xs opacity-80 uppercase tracking-wide font-semibold">{label}</p>
-            <p className="text-xl font-bold mt-1">
-                {typeof value === 'number' ? `₹${value.toLocaleString('en-IN')}` : value}
-            </p>
+        <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-center">
+            <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-gradient-to-br from-slate-50 to-slate-100 rounded-full opacity-50"></div>
+            <p className="text-sm text-slate-500 font-medium mb-1 z-10">{label}</p>
+            <p className="text-3xl font-bold text-slate-800 z-10">
+                {typeof value === 'number' && (label.toLowerCase().includes('amount') || label.toLowerCase().includes('total')) ? `₹${value.toLocaleString('en-IN')}` : value}
+            </p>            {subtext && <p className="text-xs text-slate-400 mt-2 z-10">{subtext}</p>}
         </div>
     );
 };
 
 // Reusable Filter Wrapper
 const FilterContainer = ({ children }: { children: React.ReactNode }) => (
-    <div className="bg-white p-4 rounded shadow-sm border border-gray-200 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 mb-6 shadow-sm mx-4 mt-4">
+        <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wider">Filters</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {children}
         </div>
     </div>
@@ -237,13 +230,23 @@ const filterData = (data: any[], filters: any) => {
 const calculateSummary = (receipts: any[]) => {
     const total = receipts.reduce((sum, r) => sum + Number(r.amount_paid || r.amount || 0), 0);
     const modeMap: Record<string, number> = {};
-    // Key will be "user|branch" to ensure accurate multi-branch reporting
+    const modeCount: Record<string, number> = {};
     const userMap: Record<string, { user: string, count: number, amount: number, branch: string }> = {};
+
+    let cashTransactionsCount = 0;
+    let digitalTransactionsCount = 0;
 
     receipts.forEach(r => {
         const amt = Number(r.amount_paid || r.amount || 0);
         const m = r.mode || 'Unknown';
         modeMap[m] = (modeMap[m] || 0) + amt;
+        modeCount[m] = (modeCount[m] || 0) + 1;
+
+        if (m.toLowerCase() === 'cash') {
+            cashTransactionsCount++;
+        } else if (['upi', 'card', 'bank transfer', 'online'].includes(m.toLowerCase())) {
+            digitalTransactionsCount++;
+        }
 
         const u = r.collected_by || 'Unknown';
         const b = r.branch || '-';
@@ -257,68 +260,77 @@ const calculateSummary = (receipts: any[]) => {
     });
 
     const collectedBySummary = Object.values(userMap);
-    return { total, modeMap, collectedBySummary };
+    return { total, modeMap, modeCount, cashTransactionsCount, digitalTransactionsCount, collectedBySummary };
 };
 
-// Reusable Summary Tables Component
 const SummaryTables = ({ modeSummary, collectedBySummary, totalCollection }: {
     modeSummary: Record<string, number>;
     collectedBySummary: any[];
     totalCollection: number;
 }) => (
-    <div className="flex flex-col md:flex-row gap-6 mt-4 px-4 pb-6">
+    <div className="flex flex-col lg:flex-row gap-6 mt-8 px-4 pb-6">
         {/* Payment Mode Table */}
-        <div className="flex-1">
-            <h4 className="font-semibold text-gray-700 mb-2">Payment Mode Summary</h4>
-            <table className="w-full border text-sm">
-                <thead className="bg-gray-100">
-                    <tr>
-                        <th className="px-4 py-2 text-left font-semibold">Payment Mode</th>
-                        <th className="px-4 py-2 text-right font-semibold">Amount</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y">
-                    {Object.entries(modeSummary || {}).map(([mode, amt]: any) => (
-                        <tr key={mode}>
-                            <td className="px-4 py-2">{mode}</td>
-                            <td className="px-4 py-2 text-right font-medium">₹{Number(amt).toLocaleString()}</td>
+        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
+                <h4 className="font-bold text-slate-800">Payment Mode Summary</h4>
+            </div>
+            <div className="p-0">
+                <table className="w-full text-sm">
+                    <thead className="bg-white">
+                        <tr className="text-slate-500 border-b border-slate-100">
+                            <th className="px-6 py-3 text-left font-semibold">Payment Mode</th>
+                            <th className="px-6 py-3 text-right font-semibold">Amount</th>
                         </tr>
-                    ))}
-                    <tr className="bg-blue-50 font-bold">
-                        <td className="px-4 py-2">Total</td>
-                        <td className="px-4 py-2 text-right">₹{totalCollection.toLocaleString()}</td>
-                    </tr>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                        {Object.entries(modeSummary || {}).map(([mode, amt]: any) => (
+                            <tr key={mode} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-6 py-4 font-medium text-slate-700">{mode}</td>
+                                <td className="px-6 py-4 text-right text-slate-600">₹{Number(amt).toLocaleString()}</td>
+                            </tr>
+                        ))}
+                        <tr className="bg-slate-50/50">
+                            <td className="px-6 py-4 font-bold text-slate-800">Total</td>
+                            <td className="px-6 py-4 text-right font-bold text-slate-800 text-lg">₹{totalCollection.toLocaleString()}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         {/* Collected By Table */}
-        <div className="flex-1">
-            <h4 className="font-semibold text-gray-700 mb-2">Collected By Summary</h4>
-            <table className="w-full border text-sm">
-                <thead className="bg-gray-100">
-                    <tr>
-                        <th className="px-4 py-2 text-left font-semibold">Collected By</th>
-                        <th className="px-4 py-2 text-left font-semibold">Branch</th>
-                        <th className="px-4 py-2 text-center font-semibold">Count</th>
-                        <th className="px-4 py-2 text-right font-semibold">Amount</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y">
-                    {Array.isArray(collectedBySummary) && collectedBySummary.map((row: any, idx: number) => (
-                        <tr key={idx}>
-                            <td className="px-4 py-2">{row.user}</td>
-                            <td className="px-4 py-2">{row.branch}</td>
-                            <td className="px-4 py-2 text-center">{row.count}</td>
-                            <td className="px-4 py-2 text-right font-medium">₹{Number(row.amount).toLocaleString()}</td>
+        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
+                <h4 className="font-bold text-slate-800">Collected By Summary</h4>
+            </div>
+            <div className="p-0 overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead className="bg-white">
+                        <tr className="text-slate-500 border-b border-slate-100">
+                            <th className="px-6 py-3 text-left font-semibold">Collected By</th>
+                            <th className="px-6 py-3 text-left font-semibold">Branch</th>
+                            <th className="px-6 py-3 text-center font-semibold">Count</th>
+                            <th className="px-6 py-3 text-right font-semibold">Amount</th>
                         </tr>
-                    ))}
-                    <tr className="bg-blue-50 font-bold">
-                        <td colSpan={3} className="px-4 py-2 text-right">Total</td>
-                        <td className="px-4 py-2 text-right">₹{totalCollection.toLocaleString()}</td>
-                    </tr>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                        {Array.isArray(collectedBySummary) && collectedBySummary.map((row: any, idx: number) => (
+                            <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-6 py-4 font-medium text-slate-700">{row.user}</td>
+                                <td className="px-6 py-4 text-slate-600">{row.branch}</td>
+                                <td className="px-6 py-4 text-center text-slate-600">
+                                    <span className="bg-slate-100 px-2.5 py-1 rounded-full text-xs font-semibold">{row.count}</span>
+                                </td>
+                                <td className="px-6 py-4 text-right text-slate-600">₹{Number(row.amount).toLocaleString()}</td>
+                            </tr>
+                        ))}
+                        <tr className="bg-slate-50/50">
+                            <td colSpan={3} className="px-6 py-4 text-right font-bold text-slate-800">Total</td>
+                            <td className="px-6 py-4 text-right font-bold text-slate-800 text-lg">₹{totalCollection.toLocaleString()}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 );
@@ -339,8 +351,14 @@ const FullReceiptsTable: React.FC<{
 
     if (!receipts || receipts.length === 0) {
         return (
-            <div className="bg-red-50 text-red-500 text-center py-8 border rounded mt-4 font-medium">
-                No Records Found
+            <div className="bg-white text-center py-16 border border-slate-100 rounded-2xl mt-4 mx-4 shadow-sm flex flex-col items-center justify-center">
+                <div className="bg-slate-50 p-4 rounded-full mb-4">
+                    <svg className="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-slate-700 mb-1">No collections recorded yet.</h3>
+                <p className="text-slate-500 text-sm">Try changing the filters or collect a new fee.</p>
             </div>
         );
     }
@@ -349,82 +367,84 @@ const FullReceiptsTable: React.FC<{
     const currentReceipts = receipts.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
     return (
-        <div className="bg-white border rounded shadow-sm overflow-x-auto mt-4 mx-4">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50 text-gray-700">
-                    <tr>
-                        <th className="px-3 py-2 text-left font-semibold">S.No</th>
-                        <th className="px-3 py-2 text-left font-semibold">Student Name</th>
-                        <th className="px-3 py-2 text-left font-semibold">Adm No.</th>
-                        <th className="px-3 py-2 text-left font-semibold">Class</th>
-                        <th className="px-3 py-2 text-left font-semibold">Branch</th>
-                        <th className="px-3 py-2 text-left font-semibold">Rcpt No</th>
-                        {showAllColumns && <th className="px-3 py-2 text-left font-semibold">Fee Type</th>}
-                        {showAllColumns && <th className="px-3 py-2 text-right font-semibold">Tot.Amt</th>}
-                        {showAllColumns && <th className="px-3 py-2 text-right font-semibold">Concession</th>}
-                        {showAllColumns && <th className="px-3 py-2 text-right font-semibold">Pay Amt</th>}
-                        <th className="px-3 py-2 text-right font-semibold">Paid</th>
-                        <th className="px-3 py-2 text-right font-semibold">Due</th>
-                        <th className="px-3 py-2 text-left font-semibold">Mode</th>
-                        <th className="px-3 py-2 text-left font-semibold">Trans ID</th>
-                        {showAllColumns && <th className="px-3 py-2 text-left font-semibold">Note</th>}
-                        <th className="px-3 py-2 text-left font-semibold">Date/Time</th>
-                        <th className="px-3 py-2 text-left font-semibold">Taken By</th>
-                        <th className="px-3 py-2 text-center font-semibold">Action</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                    {currentReceipts.map((r: any, idx: number) => {
-                        const sNo = ((currentPage - 1) * rowsPerPage) + idx + 1;
-                        return (
-                            <tr key={idx} className="hover:bg-gray-50 h-[45px]">
-                                <td className="px-3 py-2 text-gray-500 font-medium">{sNo}</td>
-                                <td className="px-3 py-2 font-medium">{r.student_name}</td>
-                                <td className="px-3 py-2 text-blue-600">{r.admission_no}</td>
-                                <td className="px-3 py-2">{r.class} {r.section}</td>
-                                <td className="px-3 py-2 text-gray-600">{r.branch}</td>
-                                <td className="px-3 py-2">{r.receipt_no}</td>
-                                {showAllColumns && <td className="px-3 py-2 max-w-[200px] truncate" title={r.fee_type_str}>{r.fee_type_str || '-'}</td>}
-                                {showAllColumns && <td className="px-3 py-2 text-right">₹{(r.gross_amount || 0).toLocaleString()}</td>}
-                                {showAllColumns && <td className="px-3 py-2 text-right">₹{(r.concession || 0).toLocaleString()}</td>}
-                                {showAllColumns && <td className="px-3 py-2 text-right">₹{(r.net_payable || 0).toLocaleString()}</td>}
-                                <td className="px-3 py-2 text-right font-bold text-gray-800">₹{(r.amount_paid || r.amount || 0).toLocaleString()}</td>
-                                <td className="px-3 py-2 text-right text-red-500">₹{(r.due_amount || 0).toLocaleString()}</td>
-                                <td className="px-3 py-2">{r.mode}</td>
-                                <td className="px-3 py-2 text-xs max-w-[150px]">
-                                    {r.mode === 'Cheque' ? (
-                                        <div className="truncate" title={`Chq: ${r.cheque_no || '-'} | ${r.bank_name || '-'} | ${r.cheque_date || '-'}`}>
-                                            <div>{r.cheque_no || '-'}</div>
-                                            <div className="text-gray-400">{r.bank_name || '-'}</div>
-                                            <div className="text-gray-400">{r.cheque_date || '-'}</div>
-                                        </div>
-                                    ) : (
-                                        <div className="truncate" title={r.transaction_id}>{r.transaction_id || '-'}</div>
-                                    )}
-                                </td>                                {showAllColumns && <td className="px-3 py-2 text-xs truncate max-w-[150px]" title={r.note}>{r.note || '-'}</td>}
-                                <td className="px-3 py-2 text-xs text-gray-500">
-                                    {r.date} <br /> {r.time}
-                                </td>
-                                <td className="px-3 py-2">{r.collected_by}</td>
-                                <td className="px-3 py-2 text-center">
-                                    <button
-                                        onClick={() => onViewReceipt(r.receipt_no)}
-                                        className="text-white bg-violet-600 hover:bg-violet-700 px-3 py-1 rounded text-xs"
-                                    >
-                                        View
-                                    </button>
-                                </td>
-                            </tr>
-                        );
-                    })}
-                    {/* Add empty rows to maintain height */}
-                    {currentReceipts.length < rowsPerPage && Array.from({ length: rowsPerPage - currentReceipts.length }).map((_, i) => (
-                        <tr key={`empty-${i}`} className="h-[45px]">
-                            <td colSpan={18}>&nbsp;</td>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mx-4 mt-6">
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-100 text-slate-600">
+                        <tr>
+                            <th className="px-3 py-2 text-left font-semibold">S.No</th>
+                            <th className="px-3 py-2 text-left font-semibold">Student Name</th>
+                            <th className="px-3 py-2 text-left font-semibold">Adm No.</th>
+                            <th className="px-3 py-2 text-left font-semibold">Class</th>
+                            <th className="px-3 py-2 text-left font-semibold">Branch</th>
+                            <th className="px-3 py-2 text-left font-semibold">Rcpt No</th>
+                            {showAllColumns && <th className="px-3 py-2 text-left font-semibold">Fee Type</th>}
+                            {showAllColumns && <th className="px-3 py-2 text-right font-semibold">Tot.Amt</th>}
+                            {showAllColumns && <th className="px-3 py-2 text-right font-semibold">Concession</th>}
+                            {showAllColumns && <th className="px-3 py-2 text-right font-semibold">Pay Amt</th>}
+                            <th className="px-3 py-2 text-right font-semibold">Paid</th>
+                            <th className="px-3 py-2 text-right font-semibold">Due</th>
+                            <th className="px-3 py-2 text-left font-semibold">Mode</th>
+                            <th className="px-3 py-2 text-left font-semibold">Trans ID</th>
+                            {showAllColumns && <th className="px-3 py-2 text-left font-semibold">Note</th>}
+                            <th className="px-3 py-2 text-left font-semibold">Date/Time</th>
+                            <th className="px-3 py-2 text-left font-semibold">Taken By</th>
+                            <th className="px-3 py-2 text-center font-semibold">Action</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {currentReceipts.map((r: any, idx: number) => {
+                            const sNo = ((currentPage - 1) * rowsPerPage) + idx + 1;
+                            return (
+                                <tr key={idx} className="hover:bg-gray-50 h-[45px]">
+                                    <td className="px-3 py-2 text-gray-500 font-medium">{sNo}</td>
+                                    <td className="px-3 py-2 font-medium">{r.student_name}</td>
+                                    <td className="px-3 py-2 text-blue-600">{r.admission_no}</td>
+                                    <td className="px-3 py-2">{r.class} {r.section}</td>
+                                    <td className="px-3 py-2 text-gray-600">{r.branch}</td>
+                                    <td className="px-3 py-2">{r.receipt_no}</td>
+                                    {showAllColumns && <td className="px-3 py-2 max-w-[200px] truncate" title={r.fee_type_str}>{r.fee_type_str || '-'}</td>}
+                                    {showAllColumns && <td className="px-3 py-2 text-right">₹{(r.gross_amount || 0).toLocaleString()}</td>}
+                                    {showAllColumns && <td className="px-3 py-2 text-right">₹{(r.concession || 0).toLocaleString()}</td>}
+                                    {showAllColumns && <td className="px-3 py-2 text-right">₹{(r.net_payable || 0).toLocaleString()}</td>}
+                                    <td className="px-3 py-2 text-right font-bold text-gray-800">₹{(r.amount_paid || r.amount || 0).toLocaleString()}</td>
+                                    <td className="px-3 py-2 text-right text-red-500">₹{(r.due_amount || 0).toLocaleString()}</td>
+                                    <td className="px-3 py-2">{r.mode}</td>
+                                    <td className="px-3 py-2 text-xs max-w-[150px]">
+                                        {r.mode === 'Cheque' ? (
+                                            <div className="truncate" title={`Chq: ${r.cheque_no || '-'} | ${r.bank_name || '-'} | ${r.cheque_date || '-'}`}>
+                                                <div>{r.cheque_no || '-'}</div>
+                                                <div className="text-gray-400">{r.bank_name || '-'}</div>
+                                                <div className="text-gray-400">{r.cheque_date || '-'}</div>
+                                            </div>
+                                        ) : (
+                                            <div className="truncate" title={r.transaction_id}>{r.transaction_id || '-'}</div>
+                                        )}
+                                    </td>                                {showAllColumns && <td className="px-3 py-2 text-xs truncate max-w-[150px]" title={r.note}>{r.note || '-'}</td>}
+                                    <td className="px-3 py-2 text-xs text-gray-500">
+                                        {r.date} <br /> {r.time}
+                                    </td>
+                                    <td className="px-3 py-2">{r.collected_by}</td>
+                                    <td className="px-3 py-2 text-center">
+                                        <button
+                                            onClick={() => onViewReceipt(r.receipt_no)}
+                                            className="text-white bg-violet-600 hover:bg-violet-700 px-3 py-1 rounded text-xs"
+                                        >
+                                            View
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                        {/* Add empty rows to maintain height */}
+                        {currentReceipts.length < rowsPerPage && Array.from({ length: rowsPerPage - currentReceipts.length }).map((_, i) => (
+                            <tr key={`empty-${i}`} className="h-[45px]">
+                                <td colSpan={18}>&nbsp;</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
             <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -671,34 +691,36 @@ export const TodayCollection: React.FC<ReportProps> = ({ onViewReceipt }) => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4 px-4">
+            <div className="flex flex-wrap gap-3 mb-6 px-4 items-center">
                 <button
                     onClick={handleRefresh}
-                    className="bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
+                    className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    REFRESH DATA
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    Refresh
                 </button>
                 <div className="flex-grow"></div>
                 <button
                     onClick={() => downloadExcelReport(filteredReceipts, 'Today_Collection')}
-                    className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700 flex items-center gap-2"
+                    className="bg-white border border-slate-200 text-green-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    Download Excel
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Export Excel
                 </button>
                 <button
                     onClick={() => downloadPDFReport(filteredReceipts, "Today's Collection Report", 'Today_Collection')}
-                    className="bg-red-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-red-700 flex items-center gap-2"
+                    className="bg-white border border-slate-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    Download PDF
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    Export PDF
                 </button>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-4">
-                <StatCard label="Total Collection" value={summary.total} color="green" />
-                {Object.entries(summary.modeMap || {}).map(([mode, amount]: any) => (
-                    <StatCard key={mode} label={mode} value={Number(amount)} color="blue" />
-                ))}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 mb-8">
+                <StatCard label="Total Collected Today" value={summary.total} />
+                <StatCard label="Cash Transactions" value={summary.cashTransactionsCount || 0} subtext="Total count" />
+                <StatCard label="Digital/Online Transactions" value={summary.digitalTransactionsCount || 0} subtext="Total count" />
             </div>
 
             {/* Full Table */}
@@ -906,25 +928,28 @@ export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt, forcedStatus
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4 px-4">
+            <div className="flex flex-wrap gap-3 mb-6 px-4 items-center">
                 <button
                     onClick={handleSearch}
-                    className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
+                    className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    🔍 Search Report
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    Search Report
                 </button>
                 <div className="flex-grow"></div>
                 <button
                     onClick={() => downloadExcelReport(filteredReceipts, 'Daily_Fee_Report')}
-                    className="bg-green-500 text-white px-3 py-1.5 rounded text-sm hover:bg-green-600"
+                    className="bg-white border border-slate-200 text-green-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📊 Excel
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Export Excel
                 </button>
                 <button
                     onClick={() => downloadPDFReport(filteredReceipts, 'Daily Fee Report', 'Daily_Fee_Report')}
-                    className="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600"
+                    className="bg-white border border-slate-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📄 PDF
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    Export PDF
                 </button>
             </div>
 
@@ -934,11 +959,10 @@ export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt, forcedStatus
             {rawData && (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 px-4">
-                        <StatCard label="Total Collection" value={summary.total} color="green" />
-                        {Object.entries(summary.modeMap || {}).map(([mode, amount]: any) => (
-                            <StatCard key={mode} label={mode} value={Number(amount)} color="blue" />
-                        ))}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 px-4">
+                        <StatCard label="Total Collection" value={summary.total} />
+                        <StatCard label="Cash Transactions" value={summary.cashTransactionsCount || 0} subtext="Total count" />
+                        <StatCard label="Digital/Online Transactions" value={summary.digitalTransactionsCount || 0} subtext="Total count" />
                     </div>
 
                     <FullReceiptsTable receipts={filteredReceipts} onViewReceipt={onViewReceipt} />
@@ -1144,25 +1168,28 @@ export const MonthlyReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4 px-4">
+            <div className="flex flex-wrap gap-3 mb-6 px-4 items-center">
                 <button
                     onClick={handleSearch}
-                    className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
+                    className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    🔍 Search Report
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    Search Report
                 </button>
                 <div className="flex-grow"></div>
                 <button
                     onClick={() => downloadExcelReport(filteredReceipts, `Monthly_Report_${monthName}_${year}`)}
-                    className="bg-green-500 text-white px-3 py-1.5 rounded text-sm hover:bg-green-600"
+                    className="bg-white border border-slate-200 text-green-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📊 Excel
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Export Excel
                 </button>
                 <button
                     onClick={() => downloadPDFReport(filteredReceipts, `Monthly Report - ${monthName} ${year}`, `Monthly_Report_${monthName}_${year}`)}
-                    className="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600"
+                    className="bg-white border border-slate-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📄 PDF
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    Export PDF
                 </button>
             </div>
 
@@ -1172,11 +1199,10 @@ export const MonthlyReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
             {rawData && (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 px-4">
-                        <StatCard label="Total Collection" value={summary.total} color="green" />
-                        {Object.entries(summary.modeMap || {}).map(([mode, amount]: any) => (
-                            <StatCard key={mode} label={mode} value={Number(amount)} color="blue" />
-                        ))}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 px-4">
+                        <StatCard label="Total Collection" value={summary.total} />
+                        <StatCard label="Cash Transactions" value={summary.cashTransactionsCount || 0} subtext="Total count" />
+                        <StatCard label="Digital/Online Transactions" value={summary.digitalTransactionsCount || 0} subtext="Total count" />
                     </div>
 
                     <FullReceiptsTable receipts={filteredReceipts} onViewReceipt={onViewReceipt} />
@@ -1357,25 +1383,28 @@ export const ClassWiseReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4 px-4">
+            <div className="flex flex-wrap gap-3 mb-6 px-4 items-center">
                 <button
                     onClick={fetchReport}
-                    className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
+                    className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    🔍 Search Report
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    Search Report
                 </button>
                 <div className="flex-grow"></div>
                 <button
                     onClick={() => downloadExcelReport(filteredReceipts, `ClassWise_Report_${className}`)}
-                    className="bg-green-500 text-white px-3 py-1.5 rounded text-sm hover:bg-green-600"
+                    className="bg-white border border-slate-200 text-green-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📊 Excel
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Export Excel
                 </button>
                 <button
                     onClick={() => downloadPDFReport(filteredReceipts, `Class ${className} Fee Report`, `ClassWise_Report_${className}`)}
-                    className="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600"
+                    className="bg-white border border-slate-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📄 PDF
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    Export PDF
                 </button>
             </div>
 
@@ -1385,20 +1414,11 @@ export const ClassWiseReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
             {rawData && (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-4">
-                        {/* Show raw demand/due only if no strict filter that invalidates them? 
-                           Actually, if we filter by 'Cash', Total Demand is still the class's total demand.
-                           Collected is the 'Cash' collected.
-                           Due is still 'Total Demand - All Collected'.
-                           So rawData.collected is 'Total All Modes'.
-                           filteredCollected (summary.total) is 'Total Filtered Mode'.
-                           Showing 'Due' from rawData is okay.
-                           Showing 'Collected' from summary.total is correct for the view.
-                        */}
-                        <StatCard label="Total Demand" value={rawData.total_fee} color="blue" />
-                        <StatCard label="Collected (Filtered)" value={summary.total} color="green" />
-                        <StatCard label="Due Amount" value={rawData.due} color="red" />
-                        <StatCard label="Collection %" value={`${rawData.total_fee ? ((summary.total / rawData.total_fee) * 100).toFixed(1) : 0}%`} color="purple" />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 px-4 mb-8">
+                        <StatCard label="Total Demand" value={rawData.total_fee} />
+                        <StatCard label="Collected (Filtered)" value={summary.total} />
+                        <StatCard label="Due Amount" value={rawData.due} />
+                        <StatCard label="Collection %" value={`${rawData.total_fee ? ((summary.total / rawData.total_fee) * 100).toFixed(1) : 0}%`} />
                     </div>
 
                     {/* Full Table */}
@@ -1571,25 +1591,28 @@ export const InstallmentWiseReport: React.FC<ReportProps> = ({ onViewReceipt }) 
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4 px-4">
+            <div className="flex flex-wrap gap-3 mb-6 px-4 items-center">
                 <button
                     onClick={fetchReport}
-                    className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
+                    className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    🔍 Search Report
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    Search Report
                 </button>
                 <div className="flex-grow"></div>
                 <button
                     onClick={() => downloadExcelReport(filteredReceipts, `Installment_Report_${installment}`)}
-                    className="bg-green-500 text-white px-3 py-1.5 rounded text-sm hover:bg-green-600"
+                    className="bg-white border border-slate-200 text-green-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📊 Excel
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Export Excel
                 </button>
                 <button
                     onClick={() => downloadPDFReport(filteredReceipts, `${installment} - Fee Report`, `Installment_Report_${installment}`)}
-                    className="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600"
+                    className="bg-white border border-slate-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📄 PDF
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    Export PDF
                 </button>
             </div>
 
@@ -1599,12 +1622,12 @@ export const InstallmentWiseReport: React.FC<ReportProps> = ({ onViewReceipt }) 
             {rawData && (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 px-4">
-                        <StatCard label="Total Demand" value={rawData.total_demand} color="blue" />
-                        <StatCard label="Collected (Filtered)" value={summary.total} color="green" />
-                        <StatCard label="Due Amount" value={rawData.due} color="red" />
-                        <StatCard label="Paid Students" value={`${rawData.paid_students} / ${rawData.total_students}`} color="purple" />
-                        <StatCard label="Collection %" value={`${rawData.total_demand ? ((summary.total / rawData.total_demand) * 100).toFixed(1) : 0}%`} color="orange" />
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 px-4 mb-8">
+                        <StatCard label="Total Demand" value={rawData.total_demand} />
+                        <StatCard label="Collected (Filtered)" value={summary.total} />
+                        <StatCard label="Due Amount" value={rawData.due} />
+                        <StatCard label="Paid Students" value={`${rawData.paid_students} / ${rawData.total_students}`} />
+                        <StatCard label="Collection %" value={`${rawData.total_demand ? ((summary.total / rawData.total_demand) * 100).toFixed(1) : 0}%`} />
                     </div>
 
                     {/* Full Table */}
@@ -1828,25 +1851,28 @@ export const DueReport: React.FC = () => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4 px-4">
+            <div className="flex flex-wrap gap-3 mb-6 px-4 items-center">
                 <button
                     onClick={fetchReport}
-                    className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
+                    className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    🔍 Search Report
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    Search Report
                 </button>
                 <div className="flex-grow"></div>
                 <button
                     onClick={downloadExcel}
-                    className="bg-green-500 text-white px-3 py-1.5 rounded text-sm hover:bg-green-600"
+                    className="bg-white border border-slate-200 text-green-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📊 Excel
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Export Excel
                 </button>
                 <button
                     onClick={downloadPDF}
-                    className="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600"
+                    className="bg-white border border-slate-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📄 PDF
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    Export PDF
                 </button>
             </div>
 
@@ -1854,86 +1880,88 @@ export const DueReport: React.FC = () => {
             {error && <div className="text-red-500 text-center py-4">{error}</div>}
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-4">
-                <StatCard label="Total Students with Dues" value={filteredData.length} color="blue" />
-                <StatCard label="Total Fee Demand" value={totalFee} color="purple" />
-                <StatCard label="Total Due Amount" value={totalDue} color="red" />
-                <StatCard label="Avg Due per Student" value={filteredData.length ? Math.round(totalDue / filteredData.length) : 0} color="orange" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 px-4 mb-8">
+                <StatCard label="Total Students with Dues" value={filteredData.length} />
+                <StatCard label="Total Fee Demand" value={totalFee} />
+                <StatCard label="Total Due Amount" value={totalDue} />
+                <StatCard label="Avg Due per Student" value={filteredData.length ? Math.round(totalDue / filteredData.length) : 0} />
             </div>
 
             {/* Due Table */}
-            <div className="bg-white border rounded-lg overflow-hidden shadow-sm mx-4">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">S.No</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Student Name</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Adm No.</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Father Name</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Mobile</th>
-                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Total Fee</th>
-                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Paid</th>
-                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Due Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {filteredData.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mx-4 mb-6">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-100 text-slate-600">
                             <tr>
-                                <td colSpan={9} className="bg-green-50 text-green-600 text-center py-8 font-medium">
-                                    🎉 No students with pending dues!
-                                </td>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">S.No</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Student Name</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Adm No.</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Father Name</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Mobile</th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">Total Fee</th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">Paid</th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">Due Amount</th>
                             </tr>
-                        ) : (
-                            <>
-                                {filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((s, idx) => {
-                                    const sNo = ((currentPage - 1) * rowsPerPage) + idx + 1;
-                                    return (
-                                        <tr key={s.student_id || idx} className="hover:bg-gray-50 h-[45px]">
-                                            <td className="px-4 py-3 text-gray-500">{sNo}</td>
-                                            <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
-                                            <td className="px-4 py-3 text-blue-600">{s.admission_no || s.adm_no || s.admissionNo || '-'}</td>
-                                            <td className="px-4 py-3">{s.class} {s.section}</td>
-                                            <td className="px-4 py-3 text-gray-600">{s.father_name || s.father || s.parent_name || '-'}</td>
-                                            <td className="px-4 py-3">
-                                                <a href={`tel:${s.father_mobile}`} className="text-blue-600 hover:underline">
-                                                    {s.father_mobile}
-                                                </a>
-                                            </td>
-                                            <td className="px-4 py-3 text-right">₹{s.total_fee?.toLocaleString('en-IN')}</td>
-                                            <td className="px-4 py-3 text-right text-green-600">
-                                                ₹{(s.paid_amount || (s.total_fee - s.due_amount))?.toLocaleString('en-IN')}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-bold text-red-600">
-                                                ₹{s.due_amount?.toLocaleString('en-IN')}
-                                            </td>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {filteredData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={9} className="bg-green-50 text-green-600 text-center py-8 font-medium">
+                                        🎉 No students with pending dues!
+                                    </td>
+                                </tr>
+                            ) : (
+                                <>
+                                    {filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((s, idx) => {
+                                        const sNo = ((currentPage - 1) * rowsPerPage) + idx + 1;
+                                        return (
+                                            <tr key={s.student_id || idx} className="hover:bg-gray-50 h-[45px]">
+                                                <td className="px-4 py-3 text-gray-500">{sNo}</td>
+                                                <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
+                                                <td className="px-4 py-3 text-blue-600">{s.admission_no || s.adm_no || s.admissionNo || '-'}</td>
+                                                <td className="px-4 py-3">{s.class} {s.section}</td>
+                                                <td className="px-4 py-3 text-gray-600">{s.father_name || s.father || s.parent_name || '-'}</td>
+                                                <td className="px-4 py-3">
+                                                    <a href={`tel:${s.father_mobile}`} className="text-blue-600 hover:underline">
+                                                        {s.father_mobile}
+                                                    </a>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">₹{s.total_fee?.toLocaleString('en-IN')}</td>
+                                                <td className="px-4 py-3 text-right text-green-600">
+                                                    ₹{(s.paid_amount || (s.total_fee - s.due_amount))?.toLocaleString('en-IN')}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-bold text-red-600">
+                                                    ₹{s.due_amount?.toLocaleString('en-IN')}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {/* Empty rows for stability */}
+                                    {Array.from({ length: rowsPerPage - (filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).length) }).map((_, i) => (
+                                        <tr key={`empty-${i}`} className="h-[45px]">
+                                            <td colSpan={9}>&nbsp;</td>
                                         </tr>
-                                    );
-                                })}
-                                {/* Empty rows for stability */}
-                                {Array.from({ length: rowsPerPage - (filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).length) }).map((_, i) => (
-                                    <tr key={`empty-${i}`} className="h-[45px]">
-                                        <td colSpan={9}>&nbsp;</td>
-                                    </tr>
-                                ))}
-                            </>
+                                    ))}
+                                </>
+                            )}
+                        </tbody>
+                        {filteredData.length > 0 && (
+                            <tfoot className="bg-gray-100 font-bold border-t-2 border-gray-200">
+                                <tr>
+                                    <td colSpan={6} className="px-4 py-3 text-right">Total:</td>
+                                    <td className="px-4 py-3 text-right">₹{totalFee.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 py-3 text-right text-green-600">
+                                        ₹{(totalFee - totalDue).toLocaleString('en-IN')}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-red-600">
+                                        ₹{totalDue.toLocaleString('en-IN')}
+                                    </td>
+                                </tr>
+                            </tfoot>
                         )}
-                    </tbody>
-                    {filteredData.length > 0 && (
-                        <tfoot className="bg-gray-100 font-bold border-t-2 border-gray-200">
-                            <tr>
-                                <td colSpan={6} className="px-4 py-3 text-right">Total:</td>
-                                <td className="px-4 py-3 text-right">₹{totalFee.toLocaleString('en-IN')}</td>
-                                <td className="px-4 py-3 text-right text-green-600">
-                                    ₹{(totalFee - totalDue).toLocaleString('en-IN')}
-                                </td>
-                                <td className="px-4 py-3 text-right text-red-600">
-                                    ₹{totalDue.toLocaleString('en-IN')}
-                                </td>
-                            </tr>
-                        </tfoot>
-                    )}
-                </table>
+                    </table>
+                </div>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={Math.ceil(filteredData.length / rowsPerPage)}
@@ -1945,9 +1973,9 @@ export const DueReport: React.FC = () => {
 
             {/* Class-wise Due Summary */}
             {filteredData.length > 0 && (
-                <div className="bg-white p-4 rounded-lg border mt-4 mx-4 mb-6">
-                    <h4 className="font-semibold mb-3 text-gray-700">Class-wise Due Summary</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm mt-4 mx-4 mb-6">
+                    <h4 className="font-semibold mb-4 text-slate-800">Class-wise Due Summary</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                         {Object.entries(
                             filteredData.reduce((acc: any, s) => {
                                 const key = `${s.class} ${s.section || ''}`;
@@ -1955,9 +1983,9 @@ export const DueReport: React.FC = () => {
                                 return acc;
                             }, {})
                         ).map(([cls, amt]: any) => (
-                            <div key={cls} className="bg-red-50 p-3 rounded border border-red-100">
-                                <p className="text-xs text-gray-500">{cls}</p>
-                                <p className="font-bold text-red-600">₹{Number(amt).toLocaleString('en-IN')}</p>
+                            <div key={cls} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                <p className="text-xs text-slate-500 font-medium mb-1">{cls}</p>
+                                <p className="font-bold text-red-600 text-lg">₹{Number(amt).toLocaleString('en-IN')}</p>
                             </div>
                         ))}
                     </div>
@@ -2170,25 +2198,28 @@ export const LateFeeDueReport: React.FC = () => {
             </FilterContainer>
 
             {/* Actions Row */}
-            <div className="flex gap-2 mb-4 px-4">
+            <div className="flex flex-wrap gap-3 mb-6 px-4 items-center">
                 <button
                     onClick={fetchReport}
-                    className="bg-indigo-700 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-800 flex items-center gap-2"
+                    className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    🔍 Search Report
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    Search Report
                 </button>
                 <div className="flex-grow"></div>
                 <button
                     onClick={downloadExcel}
-                    className="bg-green-500 text-white px-3 py-1.5 rounded text-sm hover:bg-green-600"
+                    className="bg-white border border-slate-200 text-green-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📊 Excel
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Export Excel
                 </button>
                 <button
                     onClick={downloadPDF}
-                    className="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600"
+                    className="bg-white border border-slate-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors"
                 >
-                    📄 PDF
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    Export PDF
                 </button>
             </div>
 
@@ -2196,86 +2227,88 @@ export const LateFeeDueReport: React.FC = () => {
             {error && <div className="text-red-500 text-center py-4">{error}</div>}
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-4">
-                <StatCard label="Total Students with Dues" value={filteredData.length} color="blue" />
-                <StatCard label="Total Fee Demand" value={totalFee} color="purple" />
-                <StatCard label="Total Due Amount" value={totalDue} color="red" />
-                <StatCard label="Avg Due per Student" value={filteredData.length ? Math.round(totalDue / filteredData.length) : 0} color="orange" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 px-4 mb-8">
+                <StatCard label="Total Students with Dues" value={filteredData.length} />
+                <StatCard label="Total Fee Demand" value={totalFee} />
+                <StatCard label="Total Due Amount" value={totalDue} />
+                <StatCard label="Avg Due per Student" value={filteredData.length ? Math.round(totalDue / filteredData.length) : 0} />
             </div>
 
             {/* Late Fee Due Table */}
-            <div className="bg-white border rounded-lg overflow-hidden shadow-sm mx-4">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">S.No</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Student Name</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Adm No.</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Father Name</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Mobile</th>
-                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Total Fee</th>
-                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Paid</th>
-                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Due Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {filteredData.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mx-4 mb-6">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-100 text-slate-600">
                             <tr>
-                                <td colSpan={9} className="bg-green-50 text-green-600 text-center py-8 font-medium">
-                                    🎉 No students with pending dues!
-                                </td>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">S.No</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Student Name</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Adm No.</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Father Name</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Mobile</th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">Total Fee</th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">Paid</th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">Due Amount</th>
                             </tr>
-                        ) : (
-                            <>
-                                {filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((s, idx) => {
-                                    const sNo = ((currentPage - 1) * rowsPerPage) + idx + 1;
-                                    return (
-                                        <tr key={s.student_id || idx} className="hover:bg-gray-50 h-[45px]">
-                                            <td className="px-4 py-3 text-gray-500">{sNo}</td>
-                                            <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
-                                            <td className="px-4 py-3 text-blue-600">{s.admission_no || s.adm_no || s.admissionNo || '-'}</td>
-                                            <td className="px-4 py-3">{s.class} {s.section}</td>
-                                            <td className="px-4 py-3 text-gray-600">{s.father_name || s.father || s.parent_name || '-'}</td>
-                                            <td className="px-4 py-3">
-                                                <a href={`tel:${s.father_mobile}`} className="text-blue-600 hover:underline">
-                                                    {s.father_mobile}
-                                                </a>
-                                            </td>
-                                            <td className="px-4 py-3 text-right">₹{s.total_fee?.toLocaleString('en-IN')}</td>
-                                            <td className="px-4 py-3 text-right text-green-600">
-                                                ₹{(s.paid_amount || (s.total_fee - s.due_amount))?.toLocaleString('en-IN')}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-bold text-red-600">
-                                                ₹{s.due_amount?.toLocaleString('en-IN')}
-                                            </td>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {filteredData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={9} className="bg-green-50 text-green-600 text-center py-8 font-medium">
+                                        🎉 No students with pending dues!
+                                    </td>
+                                </tr>
+                            ) : (
+                                <>
+                                    {filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((s, idx) => {
+                                        const sNo = ((currentPage - 1) * rowsPerPage) + idx + 1;
+                                        return (
+                                            <tr key={s.student_id || idx} className="hover:bg-gray-50 h-[45px]">
+                                                <td className="px-4 py-3 text-gray-500">{sNo}</td>
+                                                <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
+                                                <td className="px-4 py-3 text-blue-600">{s.admission_no || s.adm_no || s.admissionNo || '-'}</td>
+                                                <td className="px-4 py-3">{s.class} {s.section}</td>
+                                                <td className="px-4 py-3 text-gray-600">{s.father_name || s.father || s.parent_name || '-'}</td>
+                                                <td className="px-4 py-3">
+                                                    <a href={`tel:${s.father_mobile}`} className="text-blue-600 hover:underline">
+                                                        {s.father_mobile}
+                                                    </a>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">₹{s.total_fee?.toLocaleString('en-IN')}</td>
+                                                <td className="px-4 py-3 text-right text-green-600">
+                                                    ₹{(s.paid_amount || (s.total_fee - s.due_amount))?.toLocaleString('en-IN')}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-bold text-red-600">
+                                                    ₹{s.due_amount?.toLocaleString('en-IN')}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {/* Empty rows for stability */}
+                                    {Array.from({ length: rowsPerPage - (filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).length) }).map((_, i) => (
+                                        <tr key={`empty-${i}`} className="h-[45px]">
+                                            <td colSpan={9}>&nbsp;</td>
                                         </tr>
-                                    );
-                                })}
-                                {/* Empty rows for stability */}
-                                {Array.from({ length: rowsPerPage - (filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).length) }).map((_, i) => (
-                                    <tr key={`empty-${i}`} className="h-[45px]">
-                                        <td colSpan={9}>&nbsp;</td>
-                                    </tr>
-                                ))}
-                            </>
+                                    ))}
+                                </>
+                            )}
+                        </tbody>
+                        {filteredData.length > 0 && (
+                            <tfoot className="bg-gray-100 font-bold border-t-2 border-gray-200">
+                                <tr>
+                                    <td colSpan={6} className="px-4 py-3 text-right">Total:</td>
+                                    <td className="px-4 py-3 text-right">₹{totalFee.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 py-3 text-right text-green-600">
+                                        ₹{(totalFee - totalDue).toLocaleString('en-IN')}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-red-600">
+                                        ₹{totalDue.toLocaleString('en-IN')}
+                                    </td>
+                                </tr>
+                            </tfoot>
                         )}
-                    </tbody>
-                    {filteredData.length > 0 && (
-                        <tfoot className="bg-gray-100 font-bold border-t-2 border-gray-200">
-                            <tr>
-                                <td colSpan={6} className="px-4 py-3 text-right">Total:</td>
-                                <td className="px-4 py-3 text-right">₹{totalFee.toLocaleString('en-IN')}</td>
-                                <td className="px-4 py-3 text-right text-green-600">
-                                    ₹{(totalFee - totalDue).toLocaleString('en-IN')}
-                                </td>
-                                <td className="px-4 py-3 text-right text-red-600">
-                                    ₹{totalDue.toLocaleString('en-IN')}
-                                </td>
-                            </tr>
-                        </tfoot>
-                    )}
-                </table>
+                    </table>
+                </div>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={Math.ceil(filteredData.length / rowsPerPage)}
@@ -2287,9 +2320,9 @@ export const LateFeeDueReport: React.FC = () => {
 
             {/* Class-wise Due Summary */}
             {filteredData.length > 0 && (
-                <div className="bg-white p-4 rounded-lg border mt-4 mx-4 mb-6">
-                    <h4 className="font-semibold mb-3 text-gray-700">Class-wise Due Summary</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm mt-4 mx-4 mb-6">
+                    <h4 className="font-semibold mb-4 text-slate-800">Class-wise Due Summary</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                         {Object.entries(
                             filteredData.reduce((acc: any, s) => {
                                 const key = `${s.class} ${s.section || ''}`;
@@ -2297,9 +2330,9 @@ export const LateFeeDueReport: React.FC = () => {
                                 return acc;
                             }, {})
                         ).map(([cls, amt]: any) => (
-                            <div key={cls} className="bg-red-50 p-3 rounded border border-red-100">
-                                <p className="text-xs text-gray-500">{cls}</p>
-                                <p className="font-bold text-red-600">₹{Number(amt).toLocaleString('en-IN')}</p>
+                            <div key={cls} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                <p className="text-xs text-slate-500 font-medium mb-1">{cls}</p>
+                                <p className="font-bold text-red-600 text-lg">₹{Number(amt).toLocaleString('en-IN')}</p>
                             </div>
                         ))}
                     </div>
@@ -2307,7 +2340,7 @@ export const LateFeeDueReport: React.FC = () => {
             )}
         </div>
     );
-    
+
 
 };
 // --------------------------------------------------------------------------
@@ -2337,48 +2370,48 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
 
     // Check admin role
     // NEW (Robust Detection)
-const getUserRole = (): string => {
-    // Check direct keys
-    const directRole = localStorage.getItem('userRole') || 
-                       localStorage.getItem('role') || 
-                       localStorage.getItem('user_role');
-    if (directRole) return directRole.toLowerCase();
+    const getUserRole = (): string => {
+        // Check direct keys
+        const directRole = localStorage.getItem('userRole') ||
+            localStorage.getItem('role') ||
+            localStorage.getItem('user_role');
+        if (directRole) return directRole.toLowerCase();
 
-    // Check JSON user objects
-    const possibleKeys = ['user', 'currentUser', 'authUser', 'userData', 'loggedInUser'];
-    for (const key of possibleKeys) {
+        // Check JSON user objects
+        const possibleKeys = ['user', 'currentUser', 'authUser', 'userData', 'loggedInUser'];
+        for (const key of possibleKeys) {
+            try {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    const role = parsed?.role || parsed?.userRole || parsed?.user_role;
+                    if (role) return String(role).toLowerCase();
+                }
+            } catch {
+                // Not JSON, skip
+            }
+        }
+
+        // Try to decode JWT token
         try {
-            const data = localStorage.getItem(key);
-            if (data) {
-                const parsed = JSON.parse(data);
-                const role = parsed?.role || parsed?.userRole || parsed?.user_role;
+            const token = localStorage.getItem('token') || localStorage.getItem('access_token') || localStorage.getItem('authToken');
+            if (token) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const role = payload?.role || payload?.user_role;
                 if (role) return String(role).toLowerCase();
             }
         } catch {
-            // Not JSON, skip
+            // Invalid token
         }
-    }
 
-    // Try to decode JWT token
-    try {
-        const token = localStorage.getItem('token') || localStorage.getItem('access_token') || localStorage.getItem('authToken');
-        if (token) {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const role = payload?.role || payload?.user_role;
-            if (role) return String(role).toLowerCase();
-        }
-    } catch {
-        // Invalid token
-    }
+        return '';
+    };
 
-    return '';
-};
+    const userRole = getUserRole();
+    const isAdmin = userRole === 'admin' || userRole === 'superadmin' || userRole === 'super_admin';
 
-const userRole = getUserRole();
-const isAdmin = userRole === 'admin' || userRole === 'superadmin' || userRole === 'super_admin';
-
-// DEBUG: Remove after testing
-console.log('Detected user role:', userRole, '| isAdmin:', isAdmin);
+    // DEBUG: Remove after testing
+    console.log('Detected user role:', userRole, '| isAdmin:', isAdmin);
 
     const paymentModes = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque"];
 
@@ -2647,12 +2680,11 @@ console.log('Detected user role:', userRole, '| isAdmin:', isAdmin);
                                             <td className="px-3 py-2 text-right font-bold">₹{(r.amount_paid || r.amount || 0).toLocaleString()}</td>
                                             <td className="px-3 py-2 text-right text-red-500">₹{(r.due_amount || 0).toLocaleString()}</td>
                                             <td className="px-3 py-2">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                    r.mode === 'Cash' ? 'bg-green-100 text-green-700' :
-                                                    r.mode === 'UPI' ? 'bg-purple-100 text-purple-700' :
-                                                    r.mode === 'Cheque' ? 'bg-orange-100 text-orange-700' :
-                                                    'bg-blue-100 text-blue-700'
-                                                }`}>
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${r.mode === 'Cash' ? 'bg-green-100 text-green-700' :
+                                                        r.mode === 'UPI' ? 'bg-purple-100 text-purple-700' :
+                                                            r.mode === 'Cheque' ? 'bg-orange-100 text-orange-700' :
+                                                                'bg-blue-100 text-blue-700'
+                                                    }`}>
                                                     {r.mode}
                                                 </span>
                                             </td>

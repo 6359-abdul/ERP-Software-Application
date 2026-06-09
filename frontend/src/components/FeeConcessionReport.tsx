@@ -44,7 +44,7 @@ const FeeConcessionReport: React.FC = () => {
         }
     };
 
-    const filteredConcessions = concessions.filter(r => 
+    const filteredConcessions = concessions.filter(r =>
         (r.student_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.admission_no || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -75,13 +75,14 @@ const FeeConcessionReport: React.FC = () => {
         const doc = new jsPDF("l", "mm", "a4");
         doc.setFontSize(16);
         doc.text("Fee Concession Report", 14, 15);
-        
-        const tableColumn = ["S.No", "Student Name", "Adm No.", "Class", "Contact", "Type", "Assigned By", "Gross", "Concession", "Paid"];
+
+        const tableColumn = ["S.No", "Student Name", "Adm No.", "Class", "Branch", "Contact", "Type", "Assigned By", "Gross", "Concession", "Paid"];
         const tableRows = filteredConcessions.map((r, idx) => [
             idx + 1,
             r.student_name,
             r.admission_no,
             `${r.class} ${r.section}`,
+            r.branch,
             r.phone,
             r.fee_type_name,
             r.assigned_by,
@@ -192,7 +193,7 @@ const FeeConcessionReport: React.FC = () => {
                                         <td className="px-3 py-2 text-right font-semibold text-green-600">₹{(r.total_concession || 0).toLocaleString()}</td>
                                         <td className="px-3 py-2 text-right font-semibold text-blue-600">₹{(r.total_paid || 0).toLocaleString()}</td>
                                         <td className="px-3 py-2 text-center">
-                                            <button 
+                                            <button
                                                 onClick={() => handleViewDetails(r.student_id, r.student_name)}
                                                 className="bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 px-3 py-1 rounded shadow-sm flex items-center justify-center mx-auto transition-colors"
                                             >
@@ -217,14 +218,14 @@ const FeeConcessionReport: React.FC = () => {
                                 <h3 className="text-xl font-bold text-gray-800">Concession Details</h3>
                                 <p className="text-sm text-gray-600 mt-1">Student: <span className="font-semibold text-blue-600">{selectedStudent.name}</span></p>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setSelectedStudent(null)}
                                 className="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
-                        
+
                         <div className="p-4 flex-1 overflow-auto">
                             {loadingDetails ? (
                                 <div className="py-12 text-center text-gray-500 flex flex-col items-center">
@@ -267,18 +268,18 @@ const FeeConcessionReport: React.FC = () => {
                                     <tfoot className="bg-gray-50 border-t font-semibold">
                                         <tr>
                                             <td colSpan={2} className="px-4 py-3 text-right">Total:</td>
-                                            <td className="px-4 py-3 text-right">₹{details.reduce((s,d)=>s+d.total_fee,0).toLocaleString()}</td>
-                                            <td className="px-4 py-3 text-right text-blue-600">₹{details.reduce((s,d)=>s+d.paid,0).toLocaleString()}</td>
-                                            <td className="px-4 py-3 text-right text-purple-600">₹{details.reduce((s,d)=>s+d.concession,0).toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-right">₹{details.reduce((s, d) => s + d.total_fee, 0).toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-right text-blue-600">₹{details.reduce((s, d) => s + d.paid, 0).toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-right text-purple-600">₹{details.reduce((s, d) => s + d.concession, 0).toLocaleString()}</td>
                                             <td></td>
                                         </tr>
                                     </tfoot>
                                 </table>
                             )}
                         </div>
-                        
+
                         <div className="p-4 border-t bg-gray-50 text-right">
-                            <button 
+                            <button
                                 onClick={() => setSelectedStudent(null)}
                                 className="bg-gray-600 text-white px-5 py-2 rounded shadow hover:bg-gray-700 transition-colors"
                             >
