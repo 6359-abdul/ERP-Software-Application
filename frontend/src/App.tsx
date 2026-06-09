@@ -33,7 +33,10 @@ export type Page =
   | "document-management"
   | "staff-support"
   | "petty-cash"
-  | "petty-cash-report";
+  | "petty-cash-report"
+  | "deleted-receipts"
+  | "fee-concession-report"
+  | "adjust-fee-report";
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
