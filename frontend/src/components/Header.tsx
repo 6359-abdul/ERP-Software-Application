@@ -191,7 +191,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
   }, [user.role]);
 
   return (
-    <header className="bg-[#009746] text-white shadow-lg z-10">
+    <header className="bg-[#009746] text-white shadow-lg z-50 relative">
       <nav className="container-fluid mx-auto px-4">
         {/* ... (existing nav structure) ... */}
         <div className="flex items-center justify-between h-16">

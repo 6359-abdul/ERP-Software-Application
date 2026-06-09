@@ -454,7 +454,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             headers: { Authorization: `Bearer ${response.data.token}` },
           });
           const yearsList = yearsRes.data.academic_years || [];
-          if (yearsList.length > 0) localStorage.setItem('academicYear', yearsList[0].name);
+          if (yearsList.length > 0) {
+            const targetYear = '2026-2027';
+            const hasTarget = yearsList.some((y: any) => y.name === targetYear);
+            localStorage.setItem('academicYear', hasTarget ? targetYear : yearsList[0].name);
+          }
         } catch (err) {
           console.warn('Could not fetch academic years during login', err);
         }
