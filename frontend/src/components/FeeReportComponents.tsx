@@ -1881,10 +1881,13 @@ export const DueReport: React.FC = () => {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 px-4 mb-8">
-                <StatCard label="Total Students with Dues" value={filteredData.length} />
+                <StatCard label="Total Students with Dues" value={String(filteredData.length)} />
                 <StatCard label="Total Fee Demand" value={totalFee} />
                 <StatCard label="Total Due Amount" value={totalDue} />
-                <StatCard label="Avg Due per Student" value={filteredData.length ? Math.round(totalDue / filteredData.length) : 0} />
+                <StatCard
+                    label="Avg Due per Student"
+                    value={`₹${(filteredData.length ? Math.round(totalDue / filteredData.length) : 0).toLocaleString('en-IN')}`}
+                />
             </div>
 
             {/* Due Table */}
@@ -2228,10 +2231,13 @@ export const LateFeeDueReport: React.FC = () => {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 px-4 mb-8">
-                <StatCard label="Total Students with Dues" value={filteredData.length} />
+                <StatCard label="Total Students with Dues" value={String(filteredData.length)} />
                 <StatCard label="Total Fee Demand" value={totalFee} />
                 <StatCard label="Total Due Amount" value={totalDue} />
-                <StatCard label="Avg Due per Student" value={filteredData.length ? Math.round(totalDue / filteredData.length) : 0} />
+                <StatCard
+                    label="Avg Due per Student"
+                    value={`₹${(filteredData.length ? Math.round(totalDue / filteredData.length) : 0).toLocaleString('en-IN')}`}
+                />
             </div>
 
             {/* Late Fee Due Table */}
@@ -2681,9 +2687,9 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
                                             <td className="px-3 py-2 text-right text-red-500">₹{(r.due_amount || 0).toLocaleString()}</td>
                                             <td className="px-3 py-2">
                                                 <span className={`px-2 py-1 rounded text-xs font-medium ${r.mode === 'Cash' ? 'bg-green-100 text-green-700' :
-                                                        r.mode === 'UPI' ? 'bg-purple-100 text-purple-700' :
-                                                            r.mode === 'Cheque' ? 'bg-orange-100 text-orange-700' :
-                                                                'bg-blue-100 text-blue-700'
+                                                    r.mode === 'UPI' ? 'bg-purple-100 text-purple-700' :
+                                                        r.mode === 'Cheque' ? 'bg-orange-100 text-orange-700' :
+                                                            'bg-blue-100 text-blue-700'
                                                     }`}>
                                                     {r.mode}
                                                 </span>
