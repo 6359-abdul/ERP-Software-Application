@@ -34,6 +34,12 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
             navigateTo('update-rebate-date');
         } else if (item === 'Petty-Cash Report') {
             navigateTo('petty-cash-report');
+        } else if (item === 'Deleted Receipts') {
+            navigateTo('deleted-receipts');
+        } else if (item === 'Fee Concession Report') {
+            navigateTo('fee-concession-report');
+        } else if (item === 'Adjust Fee Report') {
+            navigateTo('adjust-fee-report');
         }
         setOpenDropdown(null);
     };

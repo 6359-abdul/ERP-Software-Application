@@ -22,6 +22,9 @@ import StudentConcession from './StudentConcession';
 import UpdateStudentFeeStructure from './UpdateStudentFeeStructure';
 import UpdateRebateDate from './UpdateRebateDate';
 import FeeReports from './FeeReports';
+import DeletedReceiptsReport from './DeletedReceiptsReport';
+import FeeConcessionReport from './FeeConcessionReport';
+import AdjustFeeReport from './AdjustFeeReport';
 import Configuration from './Configuration';
 import DocumentManagement from './DocumentManagement';
 import CreateStudent from './CreateStudent';
@@ -86,6 +89,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           {currentPage === 'update-student-fee-structure' && <UpdateStudentFeeStructure />}
           {currentPage === 'update-rebate-date' && <UpdateRebateDate />}
           {currentPage === 'fee-reports' && <FeeReports />}
+          {currentPage === 'deleted-receipts' && <DeletedReceiptsReport />}
+          {currentPage === 'fee-concession-report' && <FeeConcessionReport />}
+          {currentPage === 'adjust-fee-report' && <AdjustFeeReport />}
           {currentPage === 'configuration' && <Configuration navigateTo={navigateTo} />}
           {currentPage === 'document-management' && <DocumentManagement />}
           {currentPage === 'create-student' && <CreateStudent mode="create" onCancel={() => navigateTo('dashboard')} onSave={() => navigateTo('student-administration')} />}

@@ -31,6 +31,8 @@ export interface Receipt {
 
 interface ReportProps {
     onViewReceipt: (receiptNo: string) => void;
+    forcedStatus?: 'A' | 'I' | 'All';
+    forcedConcession?: boolean;
 }
 // --------------------------------------------------------------------------
 // Date Formatting Helper
@@ -715,7 +717,7 @@ export const TodayCollection: React.FC<ReportProps> = ({ onViewReceipt }) => {
 // --------------------------------------------------------------------------
 // Daily Report (ENHANCED)
 // --------------------------------------------------------------------------
-export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
+export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt, forcedStatus, forcedConcession }) => {
     const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [rawData, setRawData] = useState<any>(null); // Store API response
@@ -789,6 +791,8 @@ export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt }) => {
                 mode: 'All',
                 collected_by: 'All'
             });
+            if (forcedStatus) params.append('status', forcedStatus);
+            if (forcedConcession) params.append('has_concession', 'true');
             const res = await api.get(`/reports/fees/daily?${params.toString()}`);
             setRawData(res.data);
         } catch (err: any) {
