@@ -334,6 +334,18 @@ def update_student(current_user, student_id):
 
         data = request.json or {}
 
+        # Aadhar number duplication check
+        aadhar = data.get("Adharcardno")
+        if aadhar:
+            aadhar = str(aadhar).strip()
+            if aadhar:
+                #Validate Aadhar number format
+                if not aadhar.isdigit() or len(aadhar) !=12:
+                    return jsonify({"error":"Aadhar Number must be exactly 12 digits."}),400 
+                existing_student = Student.query.filter_by(Adharcardno=aadhar).first()
+                if existing_student and existing_student.student_id != student_id:
+                    return jsonify({"error": f"A student with Aadhar number {aadhar} already exists."}), 400
+
         # -------- EXPLICIT FIELD MAPPING --------
         # Map frontend field names to backend model attributes
         field_mapping = {
@@ -547,6 +559,13 @@ def create_student(current_user):
     data = request.json or {}
     
     try:
+        # Aadhar number duplication check
+        aadhar = data.get("Adharcardno")
+        if aadhar:
+            aadhar = str(aadhar).strip()
+            if aadhar and Student.query.filter_by(Adharcardno=aadhar).first():
+                return jsonify({"error": f"A student with Aadhar number {aadhar} already exists."}), 400
+
         s = Student()
         
         # -------------------------------------------------------------
@@ -829,6 +848,19 @@ def upload_students_csv(current_user):
             if existing_students := Student.query.filter(Student.admission_no.in_(admission_nos_in_file)).all():
                 found_admissions = [s.admission_no for s in existing_students]
                 return jsonify({"error": f"Admission Numbers already exist in database: {found_admissions}. Import aborted to prevent corruption."}), 400
+
+        # 3. Validate Aadhar numbers in file
+        aadhar_nos_in_file = [str(r.get('Adharcardno', '')).strip() for r in data if r.get('Adharcardno') and str(r.get('Adharcardno', '')).strip()]
+        if len(aadhar_nos_in_file) != len(set(aadhar_nos_in_file)):
+             from collections import Counter
+             c = Counter(aadhar_nos_in_file)
+             duplicates = [k for k, v in c.items() if v > 1]
+             return jsonify({"error": f"Duplicate Aadhar Numbers found in uploaded file: {duplicates}"}), 400
+
+        if aadhar_nos_in_file:
+            if existing_students := Student.query.filter(Student.Adharcardno.in_(aadhar_nos_in_file)).all():
+                found_aadhars = [s.Adharcardno for s in existing_students]
+                return jsonify({"error": f"Aadhar Numbers already exist in database: {found_aadhars}. Import aborted to prevent corruption."}), 400
         # ---------------------------------------------------------
         
         for row_num, row in enumerate(data, start=2):
