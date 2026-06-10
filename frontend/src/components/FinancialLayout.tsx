@@ -37,7 +37,16 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
         { name: 'Petty-Cash Report', page: 'petty-cash-report' as Page, icon: <DocumentReportIcon className="w-4 h-4" /> },
       ]
     },
-    { name: 'Petty Cash', page: 'petty-cash' as Page, icon: <FinancialIcon className="w-5 h-5" /> },
+    {
+      name: 'Petty Cash',
+      id: 'pettyCash',
+      icon: <FinancialIcon className="w-5 h-5" />,
+      subItems: [
+        { name: 'Petty Cash Entry', page: 'petty-cash' as Page, icon: <ReceiptIcon className="w-4 h-4" /> },
+        { name: 'Fund Allocation', page: 'fund-allocation' as Page, icon: <DocumentIcon className="w-4 h-4" /> },
+        { name: 'Month Wise Ledger', page: 'month-wise-ledger' as Page, icon: <ChartBarIcon className="w-4 h-4" /> },
+      ]
+    },
     {
       name: 'Concessions',
       id: 'concessions',

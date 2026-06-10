@@ -1,7 +1,7 @@
 # petty_cash_report.py
 import logging
 from flask import Blueprint, request, jsonify, send_file
-from models import db, PettyCash, PettyCashLedger, User, Branch
+from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashFundAllocation
 from helpers import token_required
 from datetime import datetime
 from sqlalchemy import extract, func
@@ -414,3 +414,187 @@ def export_excel(current_user):
     except Exception as e:
         logger.error(f"Error exporting petty cash excel: {str(e)}")
         return jsonify({"message": str(e)}), 500
+
+# -----------------------------
+# MONTH-WISE LEDGER
+# -----------------------------
+@petty_cash_report_bp.route('/month-wise-ledger', methods=['GET'])
+@token_required
+def month_wise_ledger(current_user):
+    try:
+        academic_year = request.headers.get("X-Academic-Year", "2024-2025")
+        
+        if current_user.role in ("Admin", "Accountant"):
+            branch_id = request.args.get("branch_id") or request.headers.get("X-Branch") or current_user.branch
+            from routes.petty_cash_routes import resolve_branch_id
+            branch_id = resolve_branch_id(branch_id)
+        else:
+            from routes.petty_cash_routes import resolve_branch_id
+            branch_id = resolve_branch_id(current_user.branch)
+
+        if not branch_id:
+            return jsonify({"message": "Valid Branch required"}), 400
+
+        fy_start_year = int(academic_year.split('-')[0])
+        months = [
+            ("Apr", fy_start_year, 4),
+            ("May", fy_start_year, 5),
+            ("Jun", fy_start_year, 6),
+            ("Jul", fy_start_year, 7),
+            ("Aug", fy_start_year, 8),
+            ("Sep", fy_start_year, 9),
+            ("Oct", fy_start_year, 10),
+            ("Nov", fy_start_year, 11),
+            ("Dec", fy_start_year, 12),
+            ("Jan", fy_start_year + 1, 1),
+            ("Feb", fy_start_year + 1, 2),
+            ("Mar", fy_start_year + 1, 3),
+        ]
+
+        # Calculate Opening Balance: everything strictly before April of fy_start_year
+        # Note: Usually Opening Balance is brought forward from previous years. 
+        # We can sum all allocations < fy_start_year-04-01 minus all expenses < fy_start_year-04-01
+        start_date = datetime(fy_start_year, 4, 1).date()
+        
+        prev_allocations = db.session.query(func.coalesce(func.sum(PettyCashFundAllocation.amount), 0)).filter(
+            PettyCashFundAllocation.branch_id == branch_id,
+            PettyCashFundAllocation.allocation_date < start_date,
+            PettyCashFundAllocation.is_active == True
+        ).scalar() or 0
+        
+        prev_expenses = db.session.query(func.coalesce(func.sum(PettyCash.amount), 0)).filter(
+            PettyCash.branch_id == branch_id,
+            PettyCash.transaction_date < start_date,
+            PettyCash.voucher_type.in_(['Payment', 'Payments']),
+            PettyCash.is_active == True
+        ).scalar() or 0
+        
+        opening_balance = float(prev_allocations) - float(prev_expenses)
+        
+        result = []
+        running_balance = opening_balance
+        
+        # We add the opening balance as the first row
+        result.append({
+            "particulars": "Opening Balance",
+            "debit": 0,
+            "credit": 0,
+            "cash_in_hand": running_balance,
+            "is_opening": True
+        })
+        
+        # Current Year Transactions
+        for label, yr, mn in months:
+            # Allocations for month
+            debit = db.session.query(func.coalesce(func.sum(PettyCashFundAllocation.amount), 0)).filter(
+                PettyCashFundAllocation.branch_id == branch_id,
+                PettyCashFundAllocation.academic_year == academic_year,
+                PettyCashFundAllocation.is_active == True,
+                extract('month', PettyCashFundAllocation.allocation_date) == mn,
+                extract('year', PettyCashFundAllocation.allocation_date) == yr
+            ).scalar() or 0
+            
+            # Expenses for month
+            credit = db.session.query(func.coalesce(func.sum(PettyCash.amount), 0)).filter(
+                PettyCash.branch_id == branch_id,
+                PettyCash.academic_year == academic_year,
+                PettyCash.voucher_type.in_(['Payment', 'Payments']),
+                PettyCash.is_active == True,
+                extract('month', PettyCash.transaction_date) == mn,
+                extract('year', PettyCash.transaction_date) == yr
+            ).scalar() or 0
+            
+            debit = float(debit)
+            credit = float(credit)
+            
+            running_balance = running_balance + debit - credit
+            
+            # Use label "Apr-2026" etc
+            month_label = f"{label}-{yr}"
+            
+            result.append({
+                "particulars": month_label,
+                "debit": debit,
+                "credit": credit,
+                "cash_in_hand": running_balance,
+                "is_opening": False
+            })
+
+        return jsonify(result), 200
+    except Exception as e:
+        logger.error(f"Error in month wise ledger: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
+
+# -----------------------------
+# DETAILED LEDGER
+# -----------------------------
+@petty_cash_report_bp.route('/ledger-details', methods=['GET'])
+@token_required
+def ledger_details(current_user):
+    try:
+        academic_year = request.headers.get("X-Academic-Year", "2024-2025")
+        
+        if current_user.role in ("Admin", "Accountant"):
+            branch_id = request.args.get("branch_id") or request.headers.get("X-Branch") or current_user.branch
+            from routes.petty_cash_routes import resolve_branch_id
+            branch_id = resolve_branch_id(branch_id)
+        else:
+            from routes.petty_cash_routes import resolve_branch_id
+            branch_id = resolve_branch_id(current_user.branch)
+
+        if not branch_id:
+            return jsonify({"message": "Valid Branch required"}), 400
+
+        # Fetch Allocations
+        allocations = PettyCashFundAllocation.query.filter_by(
+            branch_id=branch_id, 
+            academic_year=academic_year, 
+            is_active=True
+        ).all()
+        
+        # Fetch Expenses
+        expenses = PettyCash.query.filter_by(
+            branch_id=branch_id, 
+            academic_year=academic_year, 
+            is_active=True
+        ).all()
+        
+        combined = []
+        
+        for a in allocations:
+            combined.append({
+                "date_obj": a.allocation_date,
+                "date": a.allocation_date.isoformat(),
+                "voucher_no": f"ALLOC-{a.id}",
+                "voucher_type": "Fund Allocation",
+                "ledger_name": "Head Office Account",
+                "narration": a.remarks or "Fund Allocated to Branch",
+                "debit": float(a.amount),
+                "credit": 0.0
+            })
+            
+        for e in expenses:
+            # We map 'Received' as Debit and 'Payment' as Credit
+            is_debit = e.voucher_type == 'Received'
+            combined.append({
+                "date_obj": e.transaction_date,
+                "date": e.transaction_date.isoformat(),
+                "voucher_no": e.voucher_name,
+                "voucher_type": e.voucher_type,
+                "ledger_name": e.ledger.ledger_name if e.ledger else "",
+                "narration": e.description or "",
+                "debit": float(e.amount) if is_debit else 0.0,
+                "credit": 0.0 if is_debit else float(e.amount)
+            })
+            
+        # Sort by date
+        combined.sort(key=lambda x: x["date_obj"])
+        
+        # Clean up date_obj and add running balance if we want, but frontend can do running balance easily too.
+        # Actually frontend might want S.No which is just index + 1
+        return jsonify([{k: v for k, v in row.items() if k != "date_obj"} for row in combined]), 200
+        
+    except Exception as e:
+        logger.error(f"Error in ledger details: {str(e)}")
+        return jsonify({"message": str(e)}), 500

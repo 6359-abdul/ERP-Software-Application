@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify, g
-from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashVoucherItem
+from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashVoucherItem, PettyCashFundAllocation
 from helpers import token_required
 from datetime import datetime
 from sqlalchemy import extract
@@ -189,21 +189,31 @@ def get_transactions_summary(current_user):
             return jsonify({"total_payment": 0, "total_received": 0, "net_amount": 0}), 200
 
         query = PettyCash.query.filter_by(branch_id=branch_id, academic_year=academic_year, is_active=True)
+        alloc_query = PettyCashFundAllocation.query.filter_by(branch_id=branch_id, academic_year=academic_year, is_active=True)
         
         if month:
             query = query.filter(extract('month', PettyCash.transaction_date) == int(month))
+            alloc_query = alloc_query.filter(extract('month', PettyCashFundAllocation.allocation_date) == int(month))
         if year:
             query = query.filter(extract('year', PettyCash.transaction_date) == int(year))
+            alloc_query = alloc_query.filter(extract('year', PettyCashFundAllocation.allocation_date) == int(year))
         
         transactions = query.all()
+        allocations = alloc_query.all()
         
-        total_payment = sum(float(t.amount) for t in transactions if t.voucher_type == 'Payment')
+        total_payment = sum(float(t.amount) for t in transactions if t.voucher_type in ('Payment', 'Payments'))
         total_received = sum(float(t.amount) for t in transactions if t.voucher_type == 'Received')
+        total_allocated = sum(float(a.amount) for a in allocations)
+        
+        # New logic: Cash in hand = Total Allocated - Total Expense
+        # We also add total_received back just in case the UI wants to see old logic, but net_amount is now allocated - payment
+        net_amount = total_allocated - total_payment
         
         return jsonify({
             "total_payment": total_payment,
             "total_received": total_received,
-            "net_amount": total_received - total_payment
+            "total_allocated": total_allocated,
+            "net_amount": net_amount
         }), 200
     except Exception as e:
         logger.error(f"Error getting petty cash summary: {str(e)}")
@@ -284,6 +294,19 @@ def create_transaction(current_user):
         voucher_type = data.get('voucher_type')
         if voucher_type not in ('Payment','Received'):
             return jsonify({"message":"Voucher type must be Payment or Received"}),400
+            
+        if voucher_type == 'Payment':
+            total_allocated = db.session.query(db.func.sum(PettyCashFundAllocation.amount))\
+                .filter_by(branch_id=branch_id, academic_year=academic_year, is_active=True).scalar() or 0
+                
+            total_spent = db.session.query(db.func.sum(PettyCash.amount))\
+                .filter(PettyCash.branch_id == branch_id, PettyCash.academic_year == academic_year, PettyCash.voucher_type.in_(['Payment', 'Payments']), PettyCash.is_active == True).scalar() or 0
+                
+            cash_in_hand = float(total_allocated) - float(total_spent)
+            
+            if total_amount > cash_in_hand:
+                return jsonify({"message": f"Insufficient petty cash balance. Available: {cash_in_hand:.2f}"}), 400
+
         payment_mode = data.get('payment_mode')
         if payment_mode not in ('Cash','UPI'):
             return jsonify({"message":"Payment mode must be Cash or UPI"}),400    
@@ -409,6 +432,20 @@ def update_transaction(current_user, txn_id):
                 )
                 db.session.add(v_item)
                 
+            # Validate against available cash if this is a payment
+            current_voucher_type = data.get('voucher_type', txn.voucher_type)
+            if current_voucher_type in ('Payment', 'Payments'):
+                total_allocated = db.session.query(db.func.sum(PettyCashFundAllocation.amount))\
+                    .filter_by(branch_id=txn.branch_id, academic_year=txn.academic_year, is_active=True).scalar() or 0
+                    
+                total_spent = db.session.query(db.func.sum(PettyCash.amount))\
+                    .filter(PettyCash.branch_id == txn.branch_id, PettyCash.academic_year == txn.academic_year, PettyCash.voucher_type.in_(['Payment', 'Payments']), PettyCash.is_active == True, PettyCash.id != txn.id).scalar() or 0
+                    
+                cash_in_hand = float(total_allocated) - float(total_spent)
+                
+                if total_amount > cash_in_hand:
+                    return jsonify({"message": f"Insufficient petty cash balance. Available: {cash_in_hand:.2f}"}), 400
+
             txn.amount = total_amount
         if 'payment_mode' in data:
             if data['payment_mode'] not in ('Cash','UPI'):
@@ -443,4 +480,83 @@ def delete_transaction(current_user, txn_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error deleting transaction: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
+# -----------------------------
+# FUND ALLOCATIONS
+# -----------------------------
+
+@petty_cash_bp.route('/allocations', methods=['GET'])
+@token_required
+def get_allocations(current_user):
+    try:
+        academic_year = request.headers.get("X-Academic-Year", "2024-2025")
+        
+        # User branch enforcement
+        if current_user.role != "Admin" and current_user.role != "Accountant":
+            branch_id = resolve_branch_id(current_user.branch)
+        else:
+            branch_val = request.args.get('branch_id') or request.headers.get('X-Branch') or current_user.branch
+            branch_id = resolve_branch_id(branch_val)
+            
+        if branch_id:
+            query = PettyCashFundAllocation.query.filter_by(branch_id=branch_id, academic_year=academic_year, is_active=True)
+        else:
+            query = PettyCashFundAllocation.query.filter_by(academic_year=academic_year, is_active=True)
+            
+        allocations = query.order_by(PettyCashFundAllocation.allocation_date.desc()).all()
+        
+        result = []
+        for a in allocations:
+            result.append({
+                "id": a.id,
+                "branch_id": a.branch_id,
+                "branch_name": a.branch.branch_name if a.branch else "",
+                "allocation_date": a.allocation_date.isoformat(),
+                "amount": float(a.amount),
+                "remarks": a.remarks or "",
+                "approved_by": a.approved_by or "",
+                "academic_year": a.academic_year
+            })
+            
+        return jsonify(result), 200
+    except Exception as e:
+        logger.error(f"Error getting petty cash allocations: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
+@petty_cash_bp.route('/allocations', methods=['POST'])
+@token_required
+def create_allocation(current_user):
+    try:
+        data = request.json
+        academic_year = request.headers.get("X-Academic-Year", "2024-2025")
+        
+        branch_id = data.get('branch_id')
+        if not branch_id:
+            return jsonify({"message": "Branch is required"}), 400
+            
+        allocation_date = datetime.strptime(data['allocation_date'], '%Y-%m-%d').date()
+        
+        try:
+            amount = float(data.get('amount', 0))
+        except (ValueError, TypeError):
+            return jsonify({"message": "Invalid amount"}), 400
+
+        if amount <= 0:
+            return jsonify({"message": "Amount must be greater than zero"}), 400
+            
+        allocation = PettyCashFundAllocation(
+            branch_id=branch_id,
+            allocation_date=allocation_date,
+            amount=amount,
+            remarks=data.get('remarks'),
+            approved_by=data.get('approved_by'),
+            academic_year=academic_year
+        )
+        db.session.add(allocation)
+        db.session.commit()
+        return jsonify({"message": "Allocation created successfully", "id": allocation.id}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating petty cash allocation: {str(e)}")
         return jsonify({"message": str(e)}), 500

@@ -46,6 +46,8 @@ const PettyCash: React.FC = () => {
   // Accordion state - group by month
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
+  const [summary, setSummary] = useState({ total_allocated: 0, total_payment: 0, net_amount: 0 });
+
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAccountant = user.role === 'Admin' || user.role === 'Accountant';
 
@@ -80,6 +82,9 @@ const PettyCash: React.FC = () => {
     try {
       const response = await api.get('/petty-cash');
       setTransactions(response.data);
+
+      const summaryResponse = await api.get('/petty-cash/summary');
+      setSummary(summaryResponse.data);
 
       // Auto-expand current month
       const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -160,6 +165,33 @@ const PettyCash: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+
+      {/* Cash In Hand Summary Section */}
+      <div className="bg-white rounded-lg shadow print:hidden border-l-4 border-blue-600">
+        <div className="p-4 flex flex-col md:flex-row items-center justify-between">
+          <div className="flex items-center space-x-4 mb-4 md:mb-0">
+            <div className="bg-blue-50 p-3 rounded-full">
+              <span className="text-2xl">💰</span>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium uppercase tracking-wider">Cash In Hand</p>
+              <h3 className={`text-3xl font-bold ${summary.net_amount < 0 ? 'text-red-600' : 'text-blue-700'}`}>
+                ₹ {summary.net_amount.toFixed(2)}
+              </h3>
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-8">
+            <div className="text-right md:text-left">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Allocated</p>
+              <p className="text-lg font-semibold text-emerald-600">₹ {summary.total_allocated?.toFixed(2) || '0.00'}</p>
+            </div>
+            <div className="text-right md:text-left">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Spent</p>
+              <p className="text-lg font-semibold text-rose-600">₹ {summary.total_payment?.toFixed(2) || '0.00'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Form Section */}
       <div className="bg-white rounded-lg shadow p-6 print:hidden">
