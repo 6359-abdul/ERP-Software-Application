@@ -207,21 +207,13 @@ def branch_expense_details(current_user):
                 "approved_by": t.approved_by or "",
             }
 
-            if getattr(t, 'items', None) and len(t.items) > 0:
-                for item in t.items:
-                    row = dict(base_row)
-                    row["sno"] = sno
-                    row["ledger_name"] = item.item_name or ""
-                    row["amount"] = float(item.amount)
-                    result.append(row)
-                    sno += 1
-            else:
-                row = dict(base_row)
-                row["sno"] = sno
-                row["ledger_name"] = ""
-                row["amount"] = float(t.amount)
-                result.append(row)
-                sno += 1
+            item_names = ", ".join([i.item_name for i in t.items]) if getattr(t, 'items', None) and len(t.items) > 0 else (t.voucher_name or "")
+            row = dict(base_row)
+            row["sno"] = sno
+            row["ledger_name"] = item_names
+            row["amount"] = float(t.amount)
+            result.append(row)
+            sno += 1
 
         return jsonify(result), 200
     except Exception as e:
@@ -597,4 +589,4 @@ def ledger_details(current_user):
         
     except Exception as e:
         logger.error(f"Error in ledger details: {str(e)}")
-        return jsonify({"message": str(e)}), 500
+        return jsonify({"message": str(e)}), 500
