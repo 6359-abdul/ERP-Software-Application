@@ -560,6 +560,7 @@ def ledger_details(current_user):
                 "date": a.allocation_date.isoformat(),
                 "voucher_no": f"ALLOC-{a.id}",
                 "voucher_type": "Fund Allocation",
+                "ledger_type": "Direct",
                 "ledger_name": "Head Office Account",
                 "narration": a.remarks or "Fund Allocated to Branch",
                 "debit": float(a.amount),
@@ -569,15 +570,26 @@ def ledger_details(current_user):
         for e in expenses:
             # We map 'Received' as Debit and 'Payment' as Credit
             is_debit = e.voucher_type == 'Received'
+            
+            items_list = []
+            if getattr(e, 'items', None):
+                for i in e.items:
+                    items_list.append({
+                        "item_name": i.item_name,
+                        "amount": float(i.amount)
+                    })
+
             combined.append({
                 "date_obj": e.transaction_date,
                 "date": e.transaction_date.isoformat(),
                 "voucher_no": e.voucher_name,
                 "voucher_type": e.voucher_type,
+                "ledger_type": e.ledger.ledger_type if e.ledger else "",
                 "ledger_name": e.ledger.ledger_name if e.ledger else "",
                 "narration": e.description or "",
                 "debit": float(e.amount) if is_debit else 0.0,
-                "credit": 0.0 if is_debit else float(e.amount)
+                "credit": 0.0 if is_debit else float(e.amount),
+                "items": items_list
             })
             
         # Sort by date
