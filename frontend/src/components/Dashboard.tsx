@@ -76,8 +76,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           canGoForward={canGoForward}
         />
         <main className="flex-1">
-          {currentPage === 'dashboard' && <MainContent navigateTo={navigateTo} />}
-          {currentPage === 'profile' && <Profile />}
           {financialPages.includes(currentPage) ? (
             <FinancialLayout currentPage={currentPage} navigateTo={navigateTo}>
               {currentPage === 'fee' && <Fee navigateTo={navigateTo} />}
@@ -104,6 +102,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
               {currentPage === 'administration' && <Administration navigateTo={navigateTo} />}
               {currentPage === 'academic' && <AcademicManagement navigateTo={navigateTo} />}
               {currentPage === 'academics' && <Academics />}
+              {currentPage === 'dashboard' && <MainContent navigateTo={navigateTo} />}
+              {currentPage === 'profile' && <Profile />}
               {currentPage === 'setup' && <SetupSchool navigateTo={navigateTo} />}
               {currentPage === 'classes-management' && <ClassesManagement navigateTo={navigateTo} />}
               {currentPage === 'student-attendance' && <StudentAttendance navigateTo={navigateTo} />}
