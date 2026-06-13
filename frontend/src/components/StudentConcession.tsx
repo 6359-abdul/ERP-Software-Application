@@ -74,7 +74,7 @@ const StudentConcession: React.FC = () => {
         const userStr = localStorage.getItem('user');
         if (userStr) {
             const u = JSON.parse(userStr);
-            setIsAdmin(u.role === 'Admin');
+            setIsAdmin(u.role === 'Admin' || u.role === 'Director');
         }
     }, []);
 

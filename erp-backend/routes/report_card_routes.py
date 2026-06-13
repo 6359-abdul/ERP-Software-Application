@@ -47,7 +47,7 @@ def _build_hifz_graph_for_report(student_id):
         logger.warning(f"Could not build Hifz graph for student_id={student_id}: {e}")
         return []
 def resolve_branch_scope(current_user, requested_branch=None):
-    if current_user.role == "Admin" or current_user.branch == "All":
+    if current_user.role == "Admin" or current_user.role == "Director" or current_user.branch == "All":
         return requested_branch
 
     if requested_branch and requested_branch not in ["All", "All Branches", current_user.branch]:
@@ -67,7 +67,7 @@ def resolve_branch_scope(current_user, requested_branch=None):
 
 
 def ensure_student_branch_access(current_user, student_branch):
-    if current_user.role == "Admin" or current_user.branch == "All":
+    if current_user.role == "Admin" or current_user.role == "Director" or current_user.branch == "All":
         return True
     if not student_branch:
         return False

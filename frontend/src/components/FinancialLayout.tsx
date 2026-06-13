@@ -60,7 +60,7 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
 
   const activeMenu = menuItems.find(item => item.name === activeTab);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdmin = user.role === 'Admin';
+  const isAdmin = (user.role === 'Admin' || user.role === 'Director');
 
   // When inside an actual component page, hide the Financial Header completely
   if (currentPage !== 'fee') {

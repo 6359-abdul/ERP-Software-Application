@@ -877,7 +877,9 @@ class PettyCash(db.Model, AuditMixin):
     payment_mode = db.Column(db.Enum('Cash', 'UPI'), nullable=False)
     academic_year = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    approved_by = db.Column(db.String(100), nullable=True)
+    approval_status = db.Column(db.Enum('Pending', 'Approved', 'Rejected'), server_default='Pending', default='Pending')
+    approved_by = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, server_default=db.text('1'), default=True)
 
     __table_args__ = (

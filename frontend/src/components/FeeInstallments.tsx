@@ -172,7 +172,7 @@ const FeeInstallments: React.FC = () => {
 
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const isAdminUser = user.role === 'Admin';
+        const isAdminUser = (user.role === 'Admin' || user.role === 'Director');
 
         let globalBranch = localStorage.getItem('currentBranch') || 'All';
         if (!isAdminUser && user.branch && user.branch !== 'All' && user.branch !== 'All Branches') {

@@ -213,7 +213,7 @@ def get_students(current_user):
         # Branch Filtering (Unified Logic)
         branch_filter = None
         
-        if current_user.role != 'Admin':
+        if current_user.role not in ('Admin', 'Director'):
              req_branch = h_branch 
              
              has_access = False
@@ -329,7 +329,7 @@ def update_student(current_user, student_id):
             return jsonify({"error": "Student not found"}), 404
 
         # Permission check
-        if current_user.role != 'Admin' and current_user.branch != 'All' and student.branch != current_user.branch:
+        if current_user.role not in ('Admin', 'Director') and current_user.branch != 'All' and student.branch != current_user.branch:
             return jsonify({"error": "Unauthorized"}), 403
 
         data = request.json or {}
@@ -996,7 +996,7 @@ def get_student_history(current_user, student_id):
             return jsonify({"error": "Student not found"}), 404
             
         # Permission check
-        if current_user.role != 'Admin' and current_user.branch != 'All' and student.branch != current_user.branch:
+        if current_user.role not in ('Admin', 'Director') and current_user.branch != 'All' and student.branch != current_user.branch:
              return jsonify({"error": "Unauthorized"}), 403
              
         records = StudentAcademicRecord.query.filter_by(student_id=student_id).order_by(StudentAcademicRecord.created_at.desc()).all()
@@ -1048,7 +1048,7 @@ def promote_students_bulk(current_user):
         if not_found := [sid for sid in student_ids if sid not in student_map]:
             errors.append(f"Students not found: {', '.join(map(str, not_found))}")
 
-        if current_user.role != 'Admin' and current_user.branch != 'All':
+        if current_user.role not in ('Admin', 'Director') and current_user.branch != 'All':
             for sid in list(student_map.keys()):
                 student = student_map[sid]
                 if student.branch != current_user.branch:
@@ -1190,7 +1190,7 @@ def demote_students_bulk(current_user):
     if source_year == restore_year:
         return jsonify({"error": "source_year and restore_year cannot be the same"}), 400
         
-    if current_user.role != 'Admin':
+    if current_user.role not in ('Admin', 'Director'):
         return jsonify({"error": "Demotion not allowed"}), 403
 
     success_count = 0
@@ -1204,7 +1204,7 @@ def demote_students_bulk(current_user):
         if not_found := [sid for sid in student_ids if sid not in student_map]:
             errors.append(f"Students not found: {', '.join(map(str, not_found))}")
 
-        if current_user.role != "Admin" and current_user.branch != "All":
+        if current_user.role not in ('Admin', 'Director') and current_user.branch != "All":
             for sid in list(student_map.keys()):
                 if student_map[sid].branch != current_user.branch:
                     errors.append(f"Unauthorized for student {student_map[sid].admission_no}")
@@ -1310,7 +1310,7 @@ def change_section_bulk(current_user):
         students = Student.query.filter(Student.student_id.in_(student_ids)).all()
         student_map = {s.student_id: s for s in students}
 
-        if current_user.role != "Admin" and current_user.branch != "All":
+        if current_user.role not in ('Admin', 'Director') and current_user.branch != "All":
             for sid in list(student_map.keys()):
                 if student_map[sid].branch != current_user.branch:
                     errors.append(f"Unauthorized for student {student_map[sid].admission_no}")
@@ -1392,7 +1392,7 @@ def get_student_summary(current_user):
             base_q = db.session.query(Student, None)
 
         # 2. Apply Branch Filter
-        if current_user.role != 'Admin':
+        if current_user.role not in ('Admin', 'Director'):
              target_branch = current_user.branch
         else:
              target_branch = request.headers.get("X-Branch") or request.args.get("branch")

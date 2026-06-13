@@ -49,9 +49,9 @@ const AssignSpecialFee: React.FC = () => {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         const globalBranch = localStorage.getItem('currentBranch');
 
-        setIsAdmin(user.role === 'Admin');
+        setIsAdmin(user.role === 'Admin' || user.role === 'Director');
 
-        if (user.role === 'Admin') {
+        if (user.role === 'Admin' || user.role === 'Director') {
             if (globalBranch && globalBranch !== 'All') {
                 setSelectedBranch(globalBranch);
                 setIsBranchLocked(true);

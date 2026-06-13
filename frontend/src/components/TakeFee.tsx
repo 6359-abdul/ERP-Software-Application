@@ -221,7 +221,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
     let isAdmin = false;
     try {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        isAdmin = user.role === 'Admin';
+        isAdmin = (user.role === 'Admin' || user.role === 'Director');
     } catch {
         // Malformed JSON in localStorage; default to non-admin
     }

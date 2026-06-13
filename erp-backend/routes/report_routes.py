@@ -86,7 +86,7 @@ def report_fee_today(current_user):
     h_year, err, code = require_academic_year()
     if err: return err, code
     
-    if current_user.role == 'Admin':
+    if current_user.role == 'Admin' or current_user.role == 'Director':
         target_branch = request.headers.get("X-Branch", "All")
     else:
          target_branch = current_user.branch
@@ -132,7 +132,7 @@ def report_fee_daily(current_user):
     h_year, err, code = require_academic_year()
     if err: return err, code
     
-    if current_user.role == 'Admin':
+    if current_user.role == 'Admin' or current_user.role == 'Director':
         target_branch = request.headers.get("X-Branch", "All")
     else:
         target_branch = current_user.branch
@@ -247,7 +247,7 @@ def report_fee_monthly(current_user):
         if err: return err, code
         
         # Strict Branch Logic
-        if current_user.role == 'Admin':
+        if current_user.role == 'Admin' or current_user.role == 'Director':
             target_branch = request.headers.get("X-Branch", "All")
         else:
              target_branch = current_user.branch
@@ -266,7 +266,7 @@ def report_fee_monthly(current_user):
         
         if target_branch and target_branch not in ['All', 'AllBranches']:
             query = query.filter(FeePayment.branch == target_branch)
-        elif current_user.role != 'Admin':
+        elif current_user.role not in ('Admin', 'Director') and current_user.role != 'Director':
              return jsonify({
                 "period": f"{month}-{year}",
                 "total_collection": 0,
@@ -311,7 +311,7 @@ def report_fee_class_wise(current_user):
         if err: return err, code
         
         # Strict Branch Logic
-        if current_user.role == 'Admin':
+        if current_user.role == 'Admin' or current_user.role == 'Director':
             target_branch = request.headers.get("X-Branch", "All")
         else:
              target_branch = current_user.branch
@@ -322,7 +322,7 @@ def report_fee_class_wise(current_user):
             return jsonify({"error": "Class required"}), 400
             
         # Security Check
-        if current_user.role != 'Admin' and (not target_branch or target_branch in ['All', 'AllBranches']):
+        if current_user.role not in ('Admin', 'Director') and (not target_branch or target_branch in ['All', 'AllBranches']):
              return jsonify({
                 "class": class_name, "total_fee": 0, "collected": 0, "due": 0, "receipts": []
             }), 200
@@ -389,7 +389,7 @@ def report_fee_installment_wise(current_user):
         if err: return err, code
         
         # Strict Branch Logic
-        if current_user.role == 'Admin':
+        if current_user.role == 'Admin' or current_user.role == 'Director':
             target_branch = request.headers.get("X-Branch", "All")
         else:
              target_branch = current_user.branch
@@ -400,7 +400,7 @@ def report_fee_installment_wise(current_user):
              return jsonify({"error": "Installment name required"}), 400
 
         # Security Check
-        if current_user.role != 'Admin' and (not target_branch or target_branch in ['All', 'AllBranches']):
+        if current_user.role not in ('Admin', 'Director') and (not target_branch or target_branch in ['All', 'AllBranches']):
              return jsonify({
                 "installment": installment, "total_demand": 0, "collected": 0, "due": 0, 
                 "total_students": 0, "paid_students": 0, "pending_students": 0, "receipts": []
@@ -481,13 +481,13 @@ def report_fee_due(current_user):
         if err: return err, code
         
         # Strict Branch Logic
-        if current_user.role == 'Admin':
+        if current_user.role == 'Admin' or current_user.role == 'Director':
             target_branch = request.headers.get("X-Branch", "All")
         else:
              target_branch = current_user.branch
         
         # Security Check
-        if current_user.role != 'Admin' and (not target_branch or target_branch in ['All', 'AllBranches']):
+        if current_user.role not in ('Admin', 'Director') and (not target_branch or target_branch in ['All', 'AllBranches']):
              return jsonify([]), 200
 
         # Query StudentFees grouped by Student
@@ -538,13 +538,13 @@ def report_fee_late_due(current_user):
         if err: return err, code
         
         # Strict Branch Logic
-        if current_user.role == 'Admin':
+        if current_user.role == 'Admin' or current_user.role == 'Director':
             target_branch = request.headers.get("X-Branch", "All")
         else:
              target_branch = current_user.branch
         
         # Security Check
-        if current_user.role != 'Admin' and (not target_branch or target_branch in ['All', 'AllBranches']):
+        if current_user.role not in ('Admin', 'Director') and (not target_branch or target_branch in ['All', 'AllBranches']):
              return jsonify([]), 200
 
         # Query StudentFees grouped by Student
@@ -606,7 +606,7 @@ def get_receipt_data(current_user, receipt_no):
         query = query.filter_by(academic_year=h_year)
 
         # Strict Branch Logic
-        if current_user.role == 'Admin':
+        if current_user.role == 'Admin' or current_user.role == 'Director':
             target_branch = request.headers.get("X-Branch", "All")
         else:
              target_branch = current_user.branch
@@ -680,7 +680,7 @@ def report_deleted_receipts(current_user):
         h_year, err, code = require_academic_year()
         if err: return err, code
         
-        if current_user.role == 'Admin':
+        if current_user.role == 'Admin' or current_user.role == 'Director':
             target_branch = request.headers.get("X-Branch", "All")
         else:
              target_branch = current_user.branch
@@ -743,7 +743,7 @@ def report_concession(current_user):
         h_year, err, code = require_academic_year()
         if err: return err, code
         
-        if current_user.role == 'Admin':
+        if current_user.role == 'Admin' or current_user.role == 'Director':
             target_branch = request.headers.get("X-Branch", "All")
         else:
              target_branch = current_user.branch
@@ -808,7 +808,7 @@ def get_concession_details(current_user, student_id):
         h_year, err, code = require_academic_year()
         if err: return err, code
         #Branch Authorization Check
-        if current_user.role == 'Admin':
+        if current_user.role == 'Admin' or current_user.role == 'Director':
             target_branch = request.headers.get("X-Branch", "All")
         else:
             target_branch = current_user.branch

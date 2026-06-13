@@ -4,11 +4,17 @@ from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashVouche
 from helpers import token_required
 from datetime import datetime
 from sqlalchemy import extract
+from sqlalchemy import extract
+
+def get_username_safe(user_id):
+    if not user_id:
+        return ""
+    if str(user_id).isdigit():
+        user = User.query.get(int(user_id))
+        return user.username if user else str(user_id)
+    return str(user_id)
 
 petty_cash_bp = Blueprint('petty_cash_bp', __name__)
-logger = logging.getLogger(__name__)
-
-# -----------------------------
 # LEDGERS
 # -----------------------------
 
@@ -125,7 +131,7 @@ def get_transactions(current_user):
         
         # User branch enforcement
         # If normal user, force their branch
-        if current_user.role != "Admin" and current_user.role != "Accountant":
+        if current_user.role not in ('Admin', 'Director') and current_user.role != "Accountant" and current_user.role != "Director":
             branch_id = resolve_branch_id(current_user.branch)
         else:
             # Frontend passes it via query or header
@@ -160,8 +166,10 @@ def get_transactions(current_user):
                 "payment_mode": t.payment_mode,
                 "academic_year": t.academic_year,
                 "description": t.description or "",
-                "approved_by": t.approved_by or "",
-                "created_by": User.query.get(t.created_by).username if t.created_by else "",
+                "approval_status": getattr(t, 'approval_status', 'Pending'),
+                "approved_by": get_username_safe(getattr(t, 'approved_by', None)),
+                "approved_at": getattr(t, 'approved_at', None).isoformat() if getattr(t, 'approved_at', None) else None,
+                "created_by": get_username_safe(getattr(t, 'created_by', None)),
                 "items": [{"item_name": item.item_name, "amount": float(item.amount)} for item in t.items]
             })
             
@@ -179,7 +187,7 @@ def get_transactions_summary(current_user):
         year = request.args.get("year")
         
         # User branch enforcement
-        if current_user.role != "Admin" and current_user.role != "Accountant":
+        if current_user.role not in ('Admin', 'Director') and current_user.role != "Director" and current_user.role != "Accountant":
             branch_id = resolve_branch_id(current_user.branch)
         else:
             branch_val = request.args.get('branch_id') or request.args.get('branch') or request.headers.get('X-Branch') or current_user.branch
@@ -241,8 +249,10 @@ def get_transaction(current_user, txn_id):
             "payment_mode": t.payment_mode,
             "academic_year": t.academic_year,
             "description": t.description or "",
-            "approved_by": t.approved_by or "",
-            "created_by": User.query.get(t.created_by).username if t.created_by else "",
+            "approval_status": getattr(t, 'approval_status', 'Pending'),
+            "approved_by": get_username_safe(getattr(t, 'approved_by', None)),
+            "approved_at": getattr(t, 'approved_at', None).isoformat() if getattr(t, 'approved_at', None) else None,
+            "created_by": get_username_safe(getattr(t, 'created_by', None)),
             "items": [{"item_name": item.item_name, "amount": float(item.amount)} for item in t.items]
         }), 200
     except Exception as e:
@@ -256,7 +266,7 @@ def create_transaction(current_user):
         data = request.json
         academic_year = request.headers.get("X-Academic-Year", "2024-2025")
         
-        if current_user.role != "Admin" and current_user.role != "Accountant":
+        if current_user.role not in ('Admin', 'Director') and current_user.role != "Director" and current_user.role != "Accountant":
             branch_id = resolve_branch_id(current_user.branch)
         else:
             # We don't trust the body for branch anymore, checking headers or user object is better.
@@ -321,10 +331,6 @@ def create_transaction(current_user):
         description = data.get('description')
         if not description or not str(description).strip():
             return jsonify({"message": "Description is required"}), 400
-            
-        approved_by = data.get('approved_by')
-        if not approved_by or not str(approved_by).strip():
-            return jsonify({"message": "Approved By is required"}), 400
 
         txn = PettyCash(
             branch_id=branch_id,
@@ -336,8 +342,8 @@ def create_transaction(current_user):
             amount=total_amount,
             payment_mode=payment_mode,
             academic_year=academic_year,
-            description=description,
-            approved_by=approved_by
+            description=description
+            # approval_status defaults to Pending, approved_by and approved_at are NULL
         )
         db.session.add(txn)
         db.session.flush()
@@ -482,6 +488,33 @@ def delete_transaction(current_user, txn_id):
         logger.error(f"Error deleting transaction: {str(e)}")
         return jsonify({"message": str(e)}), 500
 
+@petty_cash_bp.route('/<int:txn_id>/approve', methods=['PUT'])
+@token_required
+def approve_transaction(current_user, txn_id):
+    try:
+        if current_user.role != 'Director':
+            return jsonify({"message": "Only Director can approve petty cash transactions"}), 403
+            
+        data = request.json
+        status = data.get('status')
+        if status not in ('Approved', 'Rejected'):
+            return jsonify({"message": "Status must be Approved or Rejected"}), 400
+            
+        txn = PettyCash.query.get_or_404(txn_id)
+        if not txn.is_active:
+            return jsonify({"message": "Transaction not found"}), 404
+            
+        txn.approval_status = status
+        txn.approved_by = current_user.user_id
+        txn.approved_at = datetime.now()
+        
+        db.session.commit()
+        return jsonify({"message": f"Transaction {status.lower()} successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error approving transaction: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
 # -----------------------------
 # FUND ALLOCATIONS
 # -----------------------------
@@ -493,7 +526,7 @@ def get_allocations(current_user):
         academic_year = request.headers.get("X-Academic-Year", "2024-2025")
         
         # User branch enforcement
-        if current_user.role != "Admin" and current_user.role != "Accountant":
+        if current_user.role not in ('Admin', 'Director') and current_user.role != "Director" and current_user.role != "Accountant":
             branch_id = resolve_branch_id(current_user.branch)
         else:
             branch_val = request.args.get('branch_id') or request.headers.get('X-Branch') or current_user.branch

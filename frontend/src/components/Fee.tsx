@@ -98,7 +98,7 @@ const Fee: React.FC<FeeProps> = ({ navigateTo }) => {
     );
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isAdmin = user.role === 'Admin';
+    const isAdmin = (user.role === 'Admin' || user.role === 'Director');
 
     return (
         <div className="w-full h-full flex flex-col">

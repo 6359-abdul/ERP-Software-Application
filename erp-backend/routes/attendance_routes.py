@@ -24,7 +24,7 @@ def get_attendance(current_user):
         if err: return err, code
         
         # Branch Permissions Logic
-        if current_user.role != 'Admin':
+        if current_user.role not in ('Admin', 'Director'):
              # Enforce user's branch
              if current_user.branch and current_user.branch != 'All':
                   h_branch = current_user.branch
@@ -47,7 +47,7 @@ def get_attendance(current_user):
         )
         
         # STRICT BRANCH SEGREGATION
-        if current_user.role != 'Admin':
+        if current_user.role not in ('Admin', 'Director'):
              if current_user.branch and current_user.branch != 'All':
                   q = q.filter(Student.branch == current_user.branch)
         else:
@@ -175,7 +175,7 @@ def save_attendance(current_user):
             except Exception as e:
                 locked_students.add(att["student_id"])
         
-        if current_user.role != 'Admin':
+        if current_user.role not in ('Admin', 'Director'):
              h_branch = current_user.branch
 
         # 1. Collect IDs and Dates for Bulk Fetch
@@ -353,7 +353,7 @@ def generate_template(current_user):
         h_year, err, code = require_academic_year()
         if err: return err, code
         
-        if current_user.role != 'Admin':
+        if current_user.role not in ('Admin', 'Director'):
              h_branch = current_user.branch
 
         q = db.session.query(Student, StudentAcademicRecord).join(
@@ -368,7 +368,7 @@ def generate_template(current_user):
             q = q.filter(StudentAcademicRecord.section == section)
             
         # Branch Logic
-        if current_user.role != 'Admin' or (h_branch and h_branch != "All"):
+        if current_user.role not in ('Admin', 'Director') or (h_branch and h_branch != "All"):
              q = q.filter(Student.branch == h_branch)
         
         results = q.order_by(StudentAcademicRecord.roll_number).all()
@@ -512,7 +512,7 @@ def upload_attendance(current_user):
         h_year, err, code = require_academic_year()
         if err: return err, code
         h_branch = request.headers.get("X-Branch") or "Main"
-        if current_user.role != 'Admin': h_branch = current_user.branch
+        if current_user.role not in ('Admin', 'Director'): h_branch = current_user.branch
 
         # 1. Collect IDs and Dates
         student_ids = set([x['student_id'] for x in attendance_list])

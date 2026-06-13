@@ -74,7 +74,7 @@ const Profile: React.FC = () => {
         fetchUserProfile();
 
         // Branch locking logic
-        if (user.role === 'Admin') {
+        if (user.role === 'Admin' || user.role === 'Director') {
             if (globalBranch && globalBranch !== 'All') {
                 setSelectedBranches([globalBranch]);
             } else {

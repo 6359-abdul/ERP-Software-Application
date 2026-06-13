@@ -131,7 +131,7 @@ def verify_current_password(current_user):
 @bp.route("/api/debug-user/<string:username>", methods=["GET"])
 @token_required
 def debug_user(current_user, username):
-    if current_user.role != "Admin":
+    if current_user.role not in ('Admin', 'Director'):
         return jsonify({"error": "Unauthorized"}), 403
     user = User.query.filter_by(username=username).first()
     if not user:
@@ -241,7 +241,7 @@ def create_user(current_user):
 @bp.route("/api/setup/migrate-users", methods=["POST"])
 @token_required
 def migrate_users_to_new_system(current_user):
-    if current_user.role != "Admin":
+    if current_user.role not in ('Admin', 'Director'):
         return jsonify({"error": "Unauthorized"}), 403
     try:
         users = User.query.all()

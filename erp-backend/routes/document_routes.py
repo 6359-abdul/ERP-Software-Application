@@ -38,7 +38,7 @@ def get_media_base():
 def can_access_student(current_user, student):
     if not student:
         return False
-    if current_user.role == 'Admin' or current_user.branch == 'All':
+    if current_user.role == 'Admin' or current_user.role == 'Director' or current_user.branch == 'All':
         return True
     if student.branch == current_user.branch:
         return True
@@ -85,7 +85,7 @@ def get_document_types(current_user):
 @document_routes.route('/types', methods=['POST'])
 @token_required
 def create_document_type(current_user):
-    if current_user.role != 'Admin':
+    if current_user.role not in ('Admin', 'Director'):
         return jsonify({"message": "Access denied. Only Admins can manage document categories."}), 403
     try:
         data = request.json
@@ -112,7 +112,7 @@ def create_document_type(current_user):
 @document_routes.route('/types/<int:id>', methods=['PUT'])
 @token_required
 def update_document_type(current_user, id):
-    if current_user.role != 'Admin':
+    if current_user.role not in ('Admin', 'Director'):
         return jsonify({"message": "Access denied. Only Admins can manage document categories."}), 403
     try:
         data = request.json

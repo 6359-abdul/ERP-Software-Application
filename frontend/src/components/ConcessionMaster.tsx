@@ -78,7 +78,7 @@ const ConcessionMaster: React.FC = () => {
     // Fetch Data on load
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const isBranchUser = user.role !== 'Admin';
+        const isBranchUser = user.role !== 'Admin' && user.role !== 'Director';
 
         let initialBranch = "All";
         if (isBranchUser && user.branch) {
@@ -138,7 +138,7 @@ const ConcessionMaster: React.FC = () => {
             // If User: Show all returned (Backend filters strictly)
 
             let filtered = allConcessions;
-            if (user.role === 'Admin') {
+            if (user.role === 'Admin' || user.role === 'Director') {
                 filtered = globalBranch === 'All' || globalBranch === 'All Branches'
                     ? allConcessions
                     : allConcessions.filter((c: ConcessionGroup) => c.branch === globalBranch || c.branch === 'All');

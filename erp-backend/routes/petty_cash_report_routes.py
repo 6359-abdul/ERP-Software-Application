@@ -45,7 +45,7 @@ def branch_wise_expenses(current_user):
         ]
 
         # Get all branches accessible to the user
-        if current_user.role in ("Admin", "Accountant"):
+        if current_user.role in ("Admin", "Accountant", "Director"):
             branches = Branch.query.all()
         else:
             b = Branch.query.filter_by(branch_name=current_user.branch).first()
@@ -114,7 +114,7 @@ def ledger_head_expenses(current_user):
 
         if branch_id_param and branch_id_param != 'All':
             query = query.filter(PettyCash.branch_id == int(branch_id_param))
-        elif current_user.role not in ("Admin", "Accountant"):
+        elif current_user.role not in ("Admin", "Accountant","Director"):
             b = Branch.query.filter_by(branch_name=current_user.branch).first()
             if b:
                 query = query.filter(PettyCash.branch_id == b.id)
@@ -168,7 +168,7 @@ def branch_expense_details(current_user):
 
         if branch_id and branch_id != 'All':
             query = query.filter(PettyCash.branch_id == int(branch_id))
-        elif current_user.role not in ("Admin", "Accountant"):
+        elif current_user.role not in ("Admin", "Accountant","Director"):
             b = Branch.query.filter_by(branch_name=current_user.branch).first()
             if b:
                 query = query.filter(PettyCash.branch_id == b.id)
@@ -416,7 +416,7 @@ def month_wise_ledger(current_user):
     try:
         academic_year = request.headers.get("X-Academic-Year", "2024-2025")
         
-        if current_user.role in ("Admin", "Accountant"):
+        if current_user.role in ("Admin", "Accountant","Director"):
             branch_id = request.args.get("branch_id") or request.headers.get("X-Branch") or current_user.branch
             from routes.petty_cash_routes import resolve_branch_id
             branch_id = resolve_branch_id(branch_id)
@@ -527,7 +527,7 @@ def ledger_details(current_user):
     try:
         academic_year = request.headers.get("X-Academic-Year", "2024-2025")
         
-        if current_user.role in ("Admin", "Accountant"):
+        if current_user.role in ("Admin", "Accountant","Director"):
             branch_id = request.args.get("branch_id") or request.headers.get("X-Branch") or current_user.branch
             from routes.petty_cash_routes import resolve_branch_id
             branch_id = resolve_branch_id(branch_id)
