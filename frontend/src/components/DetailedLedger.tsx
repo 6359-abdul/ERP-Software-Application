@@ -12,6 +12,7 @@ interface LedgerDetailRow {
     narration: string;
     debit: number;
     credit: number;
+    cash_in_hand?: number;
     items?: { item_name: string; amount: number }[];
 }
 
@@ -87,9 +88,17 @@ const DetailedLedger: React.FC<DetailedLedgerProps> = ({ filterMonth }) => {
         }
     }, [selectedBranch, academicYear]);
 
+    const processedData = React.useMemo(() => {
+        let runningBalance = 0;
+        return detailsData.map(row => {
+            runningBalance += (row.debit || 0) - (row.credit || 0);
+            return { ...row, cash_in_hand: runningBalance };
+        });
+    }, [detailsData]);
+
     const filteredData = React.useMemo(() => {
-        if (!filterMonth) return detailsData;
-        return detailsData.filter(row => {
+        if (!filterMonth) return processedData;
+        return processedData.filter(row => {
             // row.date is like "2026-06-01"
             const parts = row.date.split('-');
             if (parts.length >= 3) {
@@ -101,14 +110,14 @@ const DetailedLedger: React.FC<DetailedLedgerProps> = ({ filterMonth }) => {
             }
             return true;
         });
-    }, [detailsData, filterMonth]);
+    }, [processedData, filterMonth]);
 
     const handleExcelExport = () => {
         const totalDebit = filteredData.reduce((sum, r) => sum + r.debit, 0);
         const totalCredit = filteredData.reduce((sum, r) => sum + r.credit, 0);
 
         const wsData = [
-            ["S.No", "Voucher Date", "Voucher No", "Ledger Type", "Ledger Head", "Narration", "Debit (Dr)", "Credit (Cr)"],
+            ["S.No", "Voucher Date", "Voucher No", "Ledger Type", "Ledger Head", "Narration", "Debit (Dr)", "Credit (Cr)", "Cash in Hand"],
             ...filteredData.map((row, idx) => [
                 idx + 1,
                 row.date,
@@ -117,9 +126,10 @@ const DetailedLedger: React.FC<DetailedLedgerProps> = ({ filterMonth }) => {
                 row.ledger_name,
                 row.narration,
                 row.debit > 0 ? row.debit : '-',
-                row.credit > 0 ? row.credit : '-'
+                row.credit > 0 ? row.credit : '-',
+                row.cash_in_hand ? row.cash_in_hand.toFixed(2) : '-'
             ]),
-            ["", "", "", "", "", "Total:", totalDebit, totalCredit]
+            ["", "", "", "", "", "Total:", totalDebit, totalCredit, ""]
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -133,6 +143,7 @@ const DetailedLedger: React.FC<DetailedLedgerProps> = ({ filterMonth }) => {
             { wch: 15 },
             { wch: 20 },
             { wch: 30 },
+            { wch: 15 },
             { wch: 15 },
             { wch: 15 }
         ];
@@ -196,17 +207,18 @@ const DetailedLedger: React.FC<DetailedLedgerProps> = ({ filterMonth }) => {
                                 <th className="p-3 border font-semibold text-gray-700">Narration</th>
                                 <th className="p-3 border font-semibold text-gray-700 text-right">Debit (Dr)</th>
                                 <th className="p-3 border font-semibold text-gray-700 text-right">Credit (Cr)</th>
+                                <th className="p-3 border font-semibold text-gray-700 text-right">Cash in Hand</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredData.length === 0 && !loading && (
                                 <tr>
-                                    <td colSpan={7} className="text-center p-6 text-gray-500">No transactions found.</td>
+                                    <td colSpan={9} className="text-center p-6 text-gray-500">No transactions found.</td>
                                 </tr>
                             )}
                             {loading && (
                                 <tr>
-                                    <td colSpan={7} className="text-center p-6 text-gray-500">Loading details...</td>
+                                    <td colSpan={9} className="text-center p-6 text-gray-500">Loading details...</td>
                                 </tr>
                             )}
                             {filteredData.map((row, idx) => (
@@ -231,6 +243,9 @@ const DetailedLedger: React.FC<DetailedLedgerProps> = ({ filterMonth }) => {
                                     <td className="p-3 border text-right text-rose-600">
                                         {row.credit > 0 ? row.credit.toFixed(2) : '-'}
                                     </td>
+                                    <td className="p-3 border text-right font-medium text-gray-800">
+                                        {row.cash_in_hand !== undefined ? row.cash_in_hand.toFixed(2) : '-'}
+                                    </td>
                                 </tr>
                             ))}
                             {filteredData.length > 0 && (
@@ -241,6 +256,9 @@ const DetailedLedger: React.FC<DetailedLedgerProps> = ({ filterMonth }) => {
                                     </td>
                                     <td className="p-3 border text-right text-rose-700">
                                         {filteredData.reduce((sum, row) => sum + row.credit, 0).toFixed(2)}
+                                    </td>
+                                    <td className="p-3 border text-right font-bold text-gray-800">
+                                        {filteredData.length > 0 ? (filteredData[filteredData.length - 1].cash_in_hand?.toFixed(2) || '-') : '-'}
                                     </td>
                                 </tr>
                             )}

@@ -11,6 +11,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 petty_cash_report_bp = Blueprint('petty_cash_report_bp', __name__)
 logger = logging.getLogger(__name__)
+from routes.petty_cash_routes import get_username_safe
 
 
 # -----------------------------
@@ -65,6 +66,7 @@ def branch_wise_expenses(current_user):
                         PettyCash.branch_id == branch.id,
                         PettyCash.academic_year == academic_year,
                         PettyCash.is_active == True,
+                        PettyCash.approval_status == 'Approved',
                         extract('month', PettyCash.transaction_date) == mn,
                         extract('year', PettyCash.transaction_date) == yr
                     ).scalar()
@@ -109,7 +111,8 @@ def ledger_head_expenses(current_user):
         query = PettyCash.query.filter(
             PettyCash.academic_year == academic_year,
             PettyCash.voucher_type.in_(['Payment', 'Payments']),
-            PettyCash.is_active == True
+            PettyCash.is_active == True,
+            PettyCash.approval_status == 'Approved'
         )
 
         if branch_id_param and branch_id_param != 'All':
@@ -163,7 +166,8 @@ def branch_expense_details(current_user):
         query = PettyCash.query.filter(
             PettyCash.academic_year == academic_year,
             PettyCash.voucher_type.in_(['Payment', 'Payments']),
-            PettyCash.is_active == True
+            PettyCash.is_active == True,
+            PettyCash.approval_status == 'Approved'
         )
 
         if branch_id and branch_id != 'All':
@@ -204,7 +208,7 @@ def branch_expense_details(current_user):
                 "paid_to": t.paid_to or "",
                 "description": t.description or "",
                 "created_by": creator.username if creator else "",
-                "approved_by": t.approved_by or "",
+                "approved_by": get_username_safe(t.approved_by),
             }
 
             item_names = ", ".join([i.item_name for i in t.items]) if getattr(t, 'items', None) and len(t.items) > 0 else (t.voucher_name or "")
@@ -238,7 +242,8 @@ def export_excel(current_user):
         query = PettyCash.query.filter(
             PettyCash.academic_year == academic_year,
             PettyCash.voucher_type.in_(['Payment', 'Payments']),
-            PettyCash.is_active == True
+            PettyCash.is_active == True,
+            PettyCash.approval_status == 'Approved'
         )
 
         if branch_id and branch_id != 'All':
@@ -458,7 +463,8 @@ def month_wise_ledger(current_user):
             PettyCash.branch_id == branch_id,
             PettyCash.transaction_date < start_date,
             PettyCash.voucher_type.in_(['Payment', 'Payments']),
-            PettyCash.is_active == True
+            PettyCash.is_active == True,
+            PettyCash.approval_status == 'Approved'
         ).scalar() or 0
         
         opening_balance = float(prev_allocations) - float(prev_expenses)
@@ -492,6 +498,7 @@ def month_wise_ledger(current_user):
                 PettyCash.academic_year == academic_year,
                 PettyCash.voucher_type.in_(['Payment', 'Payments']),
                 PettyCash.is_active == True,
+                PettyCash.approval_status == 'Approved',
                 extract('month', PettyCash.transaction_date) == mn,
                 extract('year', PettyCash.transaction_date) == yr
             ).scalar() or 0
@@ -549,7 +556,8 @@ def ledger_details(current_user):
         expenses = PettyCash.query.filter_by(
             branch_id=branch_id, 
             academic_year=academic_year, 
-            is_active=True
+            is_active=True,
+            approval_status='Approved'
         ).all()
         
         combined = []

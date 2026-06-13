@@ -209,8 +209,8 @@ def get_transactions_summary(current_user):
         transactions = query.all()
         allocations = alloc_query.all()
         
-        total_payment = sum(float(t.amount) for t in transactions if t.voucher_type in ('Payment', 'Payments'))
-        total_received = sum(float(t.amount) for t in transactions if t.voucher_type == 'Received')
+        total_payment = sum(float(t.amount) for t in transactions if t.voucher_type in ('Payment', 'Payments') and getattr(t, 'approval_status', 'Pending') == 'Approved')
+        total_received = sum(float(t.amount) for t in transactions if t.voucher_type == 'Received' and getattr(t, 'approval_status', 'Pending') == 'Approved')
         total_allocated = sum(float(a.amount) for a in allocations)
         
         # New logic: Cash in hand = Total Allocated - Total Expense
