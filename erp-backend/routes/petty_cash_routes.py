@@ -39,7 +39,7 @@ def get_petty_cash_entry_range():
 
 def is_petty_cash_negative_allowed():
     """
-    Fetch the PettyCashNegative parameter from ParameterTable.
+    Fetch the PettyCashNegative or pettychasnegitve parameter from ParameterTable.
     Returns True if negative balance is allowed, False otherwise.
     Defaults to False (strict mode).
     """
@@ -48,9 +48,16 @@ def is_petty_cash_negative_allowed():
             parameter_name='PettyCashNegative',
             is_active=True
         ).first()
+
+        if not param:
+            param = ParameterTable.query.filter_by(
+                parameter_name='PettyCashNegitve',
+                is_active=True
+            ).first()
+
         if param and param.parameter_value:
             val = str(param.parameter_value).strip().lower()
-            if val in ('true', '1', 'yes', 'y'):
+            if val in ('true', '1', 'yes', 'y', 'ture'):
                 return True
         return False
     except Exception:
