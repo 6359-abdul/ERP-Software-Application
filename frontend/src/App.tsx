@@ -36,7 +36,9 @@ export type Page =
   | "petty-cash-report"
   | "deleted-receipts"
   | "fee-concession-report"
-  | "adjust-fee-report";
+  | "adjust-fee-report"
+  | "fund-allocation"
+  | "month-wise-ledger";
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {

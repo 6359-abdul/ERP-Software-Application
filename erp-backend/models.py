@@ -877,7 +877,9 @@ class PettyCash(db.Model, AuditMixin):
     payment_mode = db.Column(db.Enum('Cash', 'UPI'), nullable=False)
     academic_year = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    approved_by = db.Column(db.String(100), nullable=True)
+    approval_status = db.Column(db.Enum('Pending', 'Approved', 'Rejected'), server_default='Pending', default='Pending')
+    approved_by = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, server_default=db.text('1'), default=True)
 
     __table_args__ = (
@@ -901,7 +903,36 @@ class PettyCashVoucherItem(db.Model, AuditMixin):
     amount = db.Column(db.Numeric(12, 2), nullable=False)
 
 
+class PettyCashFundAllocation(db.Model, AuditMixin):
+    __tablename__ = "petty_cash_fund_allocations"
+    __audit_module__ = "PETTY_CASH"
 
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False)
+    allocation_date = db.Column(db.Date, nullable=False)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    remarks = db.Column(db.Text, nullable=True)
+    approved_by = db.Column(db.String(100), nullable=True)
+    academic_year = db.Column(db.String(20), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+
+    branch = db.relationship("Branch")
+
+# Parameter Table
+
+class ParameterTable(db.Model, AuditMixin):
+    __tablename__ = "parameter_table"
+    __audit_module__ = "PARAMETER_TABLE"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    #branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)
+    parameter_name = db.Column(db.String(255), nullable=False)
+    parameter_value = db.Column(db.String(255), nullable=False)
+    parameter_type = db.Column(db.String(255), nullable=False)
+    parameter_description = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)      
+
+    # branch = db.relationship("Branch")
 # ----------------------------------------------------------
 # GLOBAL AUDIT EVENT LISTENERS
 # ----------------------------------------------------------

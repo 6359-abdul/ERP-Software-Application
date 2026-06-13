@@ -299,7 +299,7 @@ const ClassesManagement: React.FC<ClassesManagementProps> = ({ navigateTo }) => 
 
     // Check Role Access
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role;
-    if (userRole !== 'Admin') {
+    if (userRole !== 'Admin' && userRole !== 'Director') {
         return (
             <div className="flex flex-col items-center justify-center h-[80vh]">
                 <div className="text-center">

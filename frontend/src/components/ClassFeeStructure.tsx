@@ -87,7 +87,7 @@ const ClassFeeStructure: React.FC = () => {
 
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        setIsAdmin(user.role === 'Admin');
+        setIsAdmin(user.role === 'Admin' || user.role === 'Director');
 
         if (user.location) {
             setSelectedLocation(user.location);

@@ -29,8 +29,11 @@ interface PettyCashTxn {
   description?: string;
   created_by?: string;
   approved_by?: string;
+  approval_status?: string;
+  approved_at?: string;
   items?: PettyCashItem[];
 }
+
 
 const PettyCash: React.FC = () => {
   const [transactions, setTransactions] = useState<PettyCashTxn[]>([]);
@@ -46,8 +49,10 @@ const PettyCash: React.FC = () => {
   // Accordion state - group by month
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
+  const [summary, setSummary] = useState({ total_allocated: 0, total_payment: 0, net_amount: 0 });
+
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAccountant = user.role === 'Admin' || user.role === 'Accountant';
+  const isAccountant = user.role === 'Admin' || user.role === 'Director' || user.role === 'Accountant';
 
   const [formData, setFormData] = useState<PettyCashTxn & { items: PettyCashItem[] }>({
     transaction_date: new Date().toISOString().split('T')[0],
@@ -59,7 +64,6 @@ const PettyCash: React.FC = () => {
     items: [{ item_name: '', amount: '' }],
     payment_mode: 'Cash',
     description: '',
-    approved_by: '',
   });
 
   // Need to track ledger type for the form to filter ledgers
@@ -81,6 +85,9 @@ const PettyCash: React.FC = () => {
       const response = await api.get('/petty-cash');
       setTransactions(response.data);
 
+      const summaryResponse = await api.get('/petty-cash/summary');
+      setSummary(summaryResponse.data);
+
       // Auto-expand current month
       const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
       setExpandedMonths(prev => ({ ...prev, [currentMonth]: true }));
@@ -90,10 +97,25 @@ const PettyCash: React.FC = () => {
       setLoading(false);
     }
   };
+  const [config, setConfig] = useState({
+    entry_range_days: 7,
+    min_date: '',
+    max_date: new Date().toISOString().split('T')[0],
+    negative_allowed: false  // <-- add this
+  });
+  const fetchConfig = async () => {
+    try {
+      const response = await api.get('/petty-cash/config');
+      setConfig(response.data);
+    } catch (err: any) {
+      console.error('Error fetching config', err);
+    }
+  };
 
   useEffect(() => {
     fetchLedgers();
     fetchTransactions();
+    fetchConfig();  // <-- Add this line
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -115,7 +137,6 @@ const PettyCash: React.FC = () => {
         items: [{ item_name: '', amount: '' }],
         ledger_id: '',
         description: '',
-        approved_by: '',
       });
       fetchTransactions();
     } catch (err: any) {
@@ -140,6 +161,17 @@ const PettyCash: React.FC = () => {
     setExpandedMonths(prev => ({ ...prev, [monthStr]: !prev[monthStr] }));
   };
 
+  const handleApprove = async (txnId: number, status: 'Approved' | 'Rejected') => {
+    try {
+      await api.put(`/petty-cash/${txnId}/approve`, { status });
+      alert(`Transaction ${status.toLowerCase()} successfully`);
+      setSelectedReceipt(null);
+      fetchTransactions();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update status');
+    }
+  };
+
   const handlePrint = (txn: PettyCashTxn) => {
     setSelectedReceipt(txn);
   };
@@ -161,6 +193,38 @@ const PettyCash: React.FC = () => {
   return (
     <div className="container mx-auto p-6 space-y-6">
 
+      {/* Cash In Hand Summary Section */}
+      <div className="bg-white rounded-lg shadow print:hidden border-l-4 border-blue-600">
+        <div className="p-4 flex flex-col md:flex-row items-center justify-between">
+          <div className="flex items-center space-x-4 mb-4 md:mb-0">
+            <div className="bg-blue-50 p-3 rounded-full">
+              <span className="text-2xl">💰</span>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium uppercase tracking-wider">Cash In Hand</p>
+              <h3 className={`text-3xl font-bold ${summary.net_amount < 0 ? 'text-red-600' : 'text-blue-700'}`}>
+                ₹ {summary.net_amount.toFixed(2)}
+              </h3>
+              {summary.net_amount < 0 && config.negative_allowed && (
+                <p className="text-xs text-orange-600 mt-1 font-medium">
+                  ⚠️ Negative balance allowed by parameter
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-8">
+            <div className="text-right md:text-left">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Allocated</p>
+              <p className="text-lg font-semibold text-emerald-600">₹ {summary.total_allocated?.toFixed(2) || '0.00'}</p>
+            </div>
+            <div className="text-right md:text-left">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Spent</p>
+              <p className="text-lg font-semibold text-rose-600">₹ {summary.total_payment?.toFixed(2) || '0.00'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Form Section */}
       <div className="bg-white rounded-lg shadow p-6 print:hidden">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">New Petty Cash Entry</h2>
@@ -169,7 +233,16 @@ const PettyCash: React.FC = () => {
 
           <div className="flex flex-col">
             <label className="text-sm text-gray-600 mb-1">Date</label>
-            <input type="date" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} max={new Date().toISOString().split('T')[0]} className="border p-2 rounded" required />
+            <input
+              type="date"
+              name="transaction_date"
+              value={formData.transaction_date}
+              onChange={handleInputChange}
+              min={config.min_date}  // <-- dynamically set from parameter
+              max={config.max_date}  // <-- today
+              className="border p-2 rounded"
+              required
+            />
           </div>
 
           <div className="flex flex-col">
@@ -292,42 +365,6 @@ const PettyCash: React.FC = () => {
           </div>
 
           <div className="flex flex-col">
-            <label className="text-sm text-gray-600 mb-1">Approved By</label>
-            <div className="flex items-center space-x-4 h-10 border p-2 rounded">
-              <label className="flex items-center text-sm">
-                <input
-                  type="checkbox"
-                  value="Principal"
-                  checked={formData.approved_by?.includes('Principal')}
-                  onChange={(e) => {
-                    let arr = formData.approved_by ? formData.approved_by.split(',') : [];
-                    if (e.target.checked) arr.push('Principal');
-                    else arr = arr.filter(a => a !== 'Principal');
-                    setFormData({ ...formData, approved_by: arr.join(',') });
-                  }}
-                  className="mr-2"
-                />
-                Principal
-              </label>
-              <label className="flex items-center text-sm">
-                <input
-                  type="checkbox"
-                  value="Director"
-                  checked={formData.approved_by?.includes('Director')}
-                  onChange={(e) => {
-                    let arr = formData.approved_by ? formData.approved_by.split(',') : [];
-                    if (e.target.checked) arr.push('Director');
-                    else arr = arr.filter(a => a !== 'Director');
-                    setFormData({ ...formData, approved_by: arr.join(',') });
-                  }}
-                  className="mr-2"
-                />
-                Director
-              </label>
-            </div>
-          </div>
-
-          <div className="flex flex-col">
             <label className="text-sm text-gray-600 mb-1">Payment Mode</label>
             <select name="payment_mode" value={formData.payment_mode} onChange={handleInputChange} className="border p-2 rounded" required>
               <option value="Cash">Cash</option>
@@ -381,6 +418,7 @@ const PettyCash: React.FC = () => {
                           <th className="px-4 py-2">Paid To</th>
                           <th className="px-4 py-2">Mode</th>
                           <th className="px-4 py-2 text-right">Amount</th>
+                          <th className="px-4 py-2 text-center">Status</th>
                           <th className="px-4 py-2 text-center">Actions</th>
                         </tr>
                       </thead>
@@ -398,6 +436,11 @@ const PettyCash: React.FC = () => {
                             <td className="px-4 py-2">{t.paid_to || '-'}</td>
                             <td className="px-4 py-2">{t.payment_mode}</td>
                             <td className="px-4 py-2 text-right font-medium">₹{Number(t.amount).toFixed(2)}</td>
+                            <td className="px-4 py-2 text-center">
+                              <span className={`px-2 py-1 rounded text-xs ${t.approval_status === 'Approved' ? 'bg-green-100 text-green-800' : t.approval_status === 'Rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                {t.approval_status || 'Pending'}
+                              </span>
+                            </td>
                             <td className="px-4 py-2 text-center">
                               <button onClick={() => setSelectedReceipt(t)} className="text-blue-600 hover:text-blue-800 font-medium px-2 py-1 text-xs border border-blue-600 rounded" title="View Details">
                                 View Details
@@ -548,10 +591,24 @@ const PettyCash: React.FC = () => {
                   <span className="font-bold text-gray-800 text-base">{selectedReceipt.created_by || '-'}</span>
                 </div>
 
+                <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+                  <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Status</span>
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${selectedReceipt.approval_status === 'Approved' ? 'bg-green-100 text-green-700' : selectedReceipt.approval_status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {selectedReceipt.approval_status || 'Pending'}
+                  </span>
+                </div>
+
                 <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 shadow-sm hover:shadow-md transition-shadow">
                   <span className="text-amber-700 font-semibold block text-xs uppercase tracking-wider mb-1">Approved By</span>
                   <span className="font-bold text-amber-900 text-base">{selectedReceipt.approved_by || '-'}</span>
                 </div>
+
+                {selectedReceipt.approved_at && (
+                  <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+                    <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Approved At</span>
+                    <span className="font-bold text-gray-800 text-base">{new Date(selectedReceipt.approved_at).toLocaleString()}</span>
+                  </div>
+                )}
 
                 <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow md:col-span-2">
                   <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Academic Year</span>
@@ -573,13 +630,27 @@ const PettyCash: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="bg-gray-50 px-6 py-4 border-t flex justify-end space-x-3 print:hidden">
-              <button onClick={() => window.print()} className="px-6 py-2 bg-blue-600 text-white font-semibold border border-transparent rounded-lg shadow-sm hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                Print Receipt
-              </button>
-              <button onClick={() => setSelectedReceipt(null)} className="px-6 py-2 bg-white text-gray-700 font-semibold border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 hover:text-gray-900 transition-colors focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                Close Details
-              </button>
+            <div className="bg-gray-50 px-6 py-4 border-t flex justify-between items-center print:hidden">
+              <div>
+                {selectedReceipt.approval_status === 'Pending' && user.role === 'Director' && (
+                  <div className="flex space-x-2">
+                    <button onClick={() => handleApprove(selectedReceipt.id!, 'Approved')} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-sm hover:bg-green-700 transition-colors focus:ring-2 focus:ring-green-500 focus:outline-none">
+                      Approve
+                    </button>
+                    <button onClick={() => handleApprove(selectedReceipt.id!, 'Rejected')} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors focus:ring-2 focus:ring-red-500 focus:outline-none">
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex space-x-3">
+                <button onClick={() => window.print()} className="px-6 py-2 bg-blue-600 text-white font-semibold border border-transparent rounded-lg shadow-sm hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                  Print Receipt
+                </button>
+                <button onClick={() => setSelectedReceipt(null)} className="px-6 py-2 bg-white text-gray-700 font-semibold border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 hover:text-gray-900 transition-colors focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                  Close Details
+                </button>
+              </div>
             </div>
           </div>
         </div>

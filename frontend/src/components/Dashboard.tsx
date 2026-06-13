@@ -30,6 +30,8 @@ import DocumentManagement from './DocumentManagement';
 import CreateStudent from './CreateStudent';
 import PettyCash from './PettyCash';
 import PettyCashReport from './PettyCashReport';
+import FundAllocation from './FundAllocation';
+import MonthWiseLedger from './MonthWiseLedger';
 import FinancialLayout from './FinancialLayout';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
 
@@ -38,7 +40,7 @@ const financialPages = [
   'fee-installments', 'take-fee', 'concession-master', 'student-concession',
   'update-student-fee-structure', 'update-rebate-date', 'fee-reports',
   'deleted-receipts', 'fee-concession-report', 'adjust-fee-report',
-  'petty-cash', 'petty-cash-report'
+  'petty-cash', 'petty-cash-report', 'fund-allocation', 'month-wise-ledger'
 ];
 
 interface DashboardProps {
@@ -94,6 +96,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
               {currentPage === 'adjust-fee-report' && <AdjustFeeReport />}
               {currentPage === 'petty-cash' && <PettyCash />}
               {currentPage === 'petty-cash-report' && <PettyCashReport />}
+              {currentPage === 'fund-allocation' && <FundAllocation />}
+              {currentPage === 'month-wise-ledger' && <MonthWiseLedger />}
             </FinancialLayout>
           ) : (
             <>

@@ -1,14 +1,68 @@
 import logging
 from flask import Blueprint, request, jsonify, g
-from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashVoucherItem
+from datetime import datetime ,timedelta
+from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashVoucherItem, PettyCashFundAllocation, ParameterTable
 from helpers import token_required
 from datetime import datetime
 from sqlalchemy import extract
+from sqlalchemy import extract
 
+def get_username_safe(user_id):
+    if not user_id:
+        return ""
+    if str(user_id).isdigit():
+        user = User.query.get(int(user_id))
+        return user.username if user else str(user_id)
+    return str(user_id)
+
+def get_petty_cash_entry_range():
+    """
+    Fetch the allowed date range (in days) for petty cash entries from ParameterTable.
+    Returns the number of days back from today that transactions can be entered.
+    Defaults to 7 if parameter is missing/invalid.
+    """
+    try:
+        param = ParameterTable.query.filter_by(
+            parameter_name='PettyCashEntryRange',
+            is_active=True
+        ).first()
+        if param and param.parameter_value:
+            try:
+                days = int(param.parameter_value)
+                return max(1, days)  # At least 1 day allowed
+            except (ValueError, TypeError):
+                pass
+    except Exception:
+        pass
+    return 7  # Default fallback
+
+
+def is_petty_cash_negative_allowed():
+    """
+    Fetch the PettyCashNegative or pettychasnegitve parameter from ParameterTable.
+    Returns True if negative balance is allowed, False otherwise.
+    Defaults to False (strict mode).
+    """
+    try:
+        param = ParameterTable.query.filter_by(
+            parameter_name='PettyCashNegative',
+            is_active=True
+        ).first()
+
+        if not param:
+            param = ParameterTable.query.filter_by(
+                parameter_name='PettyCashNegitve',
+                is_active=True
+            ).first()
+
+        if param and param.parameter_value:
+            val = str(param.parameter_value).strip().lower()
+            if val in ('true', '1', 'yes', 'y', 'ture'):
+                return True
+        return False
+    except Exception:
+        return False
 petty_cash_bp = Blueprint('petty_cash_bp', __name__)
-logger = logging.getLogger(__name__)
-
-# -----------------------------
 # LEDGERS
 # -----------------------------
 
@@ -125,7 +179,7 @@ def get_transactions(current_user):
         
         # User branch enforcement
         # If normal user, force their branch
-        if current_user.role != "Admin" and current_user.role != "Accountant":
+        if current_user.role not in ('Admin', 'Director') and current_user.role != "Accountant" and current_user.role != "Director":
             branch_id = resolve_branch_id(current_user.branch)
         else:
             # Frontend passes it via query or header
@@ -160,8 +214,10 @@ def get_transactions(current_user):
                 "payment_mode": t.payment_mode,
                 "academic_year": t.academic_year,
                 "description": t.description or "",
-                "approved_by": t.approved_by or "",
-                "created_by": User.query.get(t.created_by).username if t.created_by else "",
+                "approval_status": getattr(t, 'approval_status', 'Pending'),
+                "approved_by": get_username_safe(getattr(t, 'approved_by', None)),
+                "approved_at": getattr(t, 'approved_at', None).isoformat() if getattr(t, 'approved_at', None) else None,
+                "created_by": get_username_safe(getattr(t, 'created_by', None)),
                 "items": [{"item_name": item.item_name, "amount": float(item.amount)} for item in t.items]
             })
             
@@ -179,7 +235,7 @@ def get_transactions_summary(current_user):
         year = request.args.get("year")
         
         # User branch enforcement
-        if current_user.role != "Admin" and current_user.role != "Accountant":
+        if current_user.role not in ('Admin', 'Director') and current_user.role != "Director" and current_user.role != "Accountant":
             branch_id = resolve_branch_id(current_user.branch)
         else:
             branch_val = request.args.get('branch_id') or request.args.get('branch') or request.headers.get('X-Branch') or current_user.branch
@@ -189,21 +245,31 @@ def get_transactions_summary(current_user):
             return jsonify({"total_payment": 0, "total_received": 0, "net_amount": 0}), 200
 
         query = PettyCash.query.filter_by(branch_id=branch_id, academic_year=academic_year, is_active=True)
+        alloc_query = PettyCashFundAllocation.query.filter_by(branch_id=branch_id, academic_year=academic_year, is_active=True)
         
         if month:
             query = query.filter(extract('month', PettyCash.transaction_date) == int(month))
+            alloc_query = alloc_query.filter(extract('month', PettyCashFundAllocation.allocation_date) == int(month))
         if year:
             query = query.filter(extract('year', PettyCash.transaction_date) == int(year))
+            alloc_query = alloc_query.filter(extract('year', PettyCashFundAllocation.allocation_date) == int(year))
         
         transactions = query.all()
+        allocations = alloc_query.all()
         
-        total_payment = sum(float(t.amount) for t in transactions if t.voucher_type == 'Payment')
-        total_received = sum(float(t.amount) for t in transactions if t.voucher_type == 'Received')
+        total_payment = sum(float(t.amount) for t in transactions if t.voucher_type in ('Payment', 'Payments') and getattr(t, 'approval_status', 'Pending') == 'Approved')
+        total_received = sum(float(t.amount) for t in transactions if t.voucher_type == 'Received' and getattr(t, 'approval_status', 'Pending') == 'Approved')
+        total_allocated = sum(float(a.amount) for a in allocations)
+        
+        # New logic: Cash in hand = Total Allocated - Total Expense
+        # We also add total_received back just in case the UI wants to see old logic, but net_amount is now allocated - payment
+        net_amount = total_allocated - total_payment
         
         return jsonify({
             "total_payment": total_payment,
             "total_received": total_received,
-            "net_amount": total_received - total_payment
+            "total_allocated": total_allocated,
+            "net_amount": net_amount
         }), 200
     except Exception as e:
         logger.error(f"Error getting petty cash summary: {str(e)}")
@@ -231,8 +297,10 @@ def get_transaction(current_user, txn_id):
             "payment_mode": t.payment_mode,
             "academic_year": t.academic_year,
             "description": t.description or "",
-            "approved_by": t.approved_by or "",
-            "created_by": User.query.get(t.created_by).username if t.created_by else "",
+            "approval_status": getattr(t, 'approval_status', 'Pending'),
+            "approved_by": get_username_safe(getattr(t, 'approved_by', None)),
+            "approved_at": getattr(t, 'approved_at', None).isoformat() if getattr(t, 'approved_at', None) else None,
+            "created_by": get_username_safe(getattr(t, 'created_by', None)),
             "items": [{"item_name": item.item_name, "amount": float(item.amount)} for item in t.items]
         }), 200
     except Exception as e:
@@ -246,7 +314,7 @@ def create_transaction(current_user):
         data = request.json
         academic_year = request.headers.get("X-Academic-Year", "2024-2025")
         
-        if current_user.role != "Admin" and current_user.role != "Accountant":
+        if current_user.role not in ('Admin', 'Director') and current_user.role != "Director" and current_user.role != "Accountant":
             branch_id = resolve_branch_id(current_user.branch)
         else:
             # We don't trust the body for branch anymore, checking headers or user object is better.
@@ -281,9 +349,37 @@ def create_transaction(current_user):
             data['transaction_date'],
             '%Y-%m-%d'
         ).date()
+        # === Date Range Validation from ParameterTable ===
+        allowed_days = get_petty_cash_entry_range()
+        min_allowed_date = (datetime.now() - timedelta(days=allowed_days)).date()
+        max_allowed_date = datetime.now().date()
+
+        if transaction_date < min_allowed_date or transaction_date > max_allowed_date:
+            return jsonify({
+                "message": f"Transaction date must be within the last {allowed_days} days. Allowed range: {min_allowed_date} to {max_allowed_date}"
+            }), 400
+        # === End of Date Range Validation ===
+
         voucher_type = data.get('voucher_type')
         if voucher_type not in ('Payment','Received'):
             return jsonify({"message":"Voucher type must be Payment or Received"}),400
+            
+        if voucher_type == 'Payment':
+            total_allocated = db.session.query(db.func.sum(PettyCashFundAllocation.amount))\
+                .filter_by(branch_id=branch_id, academic_year=academic_year, is_active=True).scalar() or 0
+                
+            total_spent = db.session.query(db.func.sum(PettyCash.amount))\
+                .filter(PettyCash.branch_id == branch_id, PettyCash.academic_year == academic_year, PettyCash.voucher_type.in_(['Payment', 'Payments']), PettyCash.is_active == True).scalar() or 0
+        
+            cash_in_hand = float(total_allocated) - float(total_spent)
+    
+            # Check PettyCashNegative parameter from ParameterTable
+            if total_amount > cash_in_hand:
+                if not is_petty_cash_negative_allowed():
+                    return jsonify({"message": f"Insufficient petty cash balance. Available: {cash_in_hand:.2f}"}), 400
+        # else: Negative balance allowed, transaction will proceed
+        # (cash_in_hand will go negative - this is intentional)
+
         payment_mode = data.get('payment_mode')
         if payment_mode not in ('Cash','UPI'):
             return jsonify({"message":"Payment mode must be Cash or UPI"}),400    
@@ -298,10 +394,6 @@ def create_transaction(current_user):
         description = data.get('description')
         if not description or not str(description).strip():
             return jsonify({"message": "Description is required"}), 400
-            
-        approved_by = data.get('approved_by')
-        if not approved_by or not str(approved_by).strip():
-            return jsonify({"message": "Approved By is required"}), 400
 
         txn = PettyCash(
             branch_id=branch_id,
@@ -313,8 +405,8 @@ def create_transaction(current_user):
             amount=total_amount,
             payment_mode=payment_mode,
             academic_year=academic_year,
-            description=description,
-            approved_by=approved_by
+            description=description
+            # approval_status defaults to Pending, approved_by and approved_at are NULL
         )
         db.session.add(txn)
         db.session.flush()
@@ -352,10 +444,23 @@ def update_transaction(current_user, txn_id):
             return jsonify({"message": "Transaction not found"}), 404
         
         if 'transaction_date' in data:
-            txn.transaction_date = datetime.strptime(
+            transaction_date = datetime.strptime(
                 data['transaction_date'],
                 '%Y-%m-%d'
             ).date()
+            # === Date Range Validation from ParameterTable ===
+            allowed_days = get_petty_cash_entry_range()
+            min_allowed_date = (datetime.now() - timedelta(days=allowed_days)).date()
+            max_allowed_date = datetime.now().date()
+
+            if transaction_date < min_allowed_date or transaction_date > max_allowed_date:
+                return jsonify({
+                    "message": f"Transaction date must be within the last {allowed_days} days. Allowed range: {min_allowed_date} to {max_allowed_date}"
+                }), 400
+            # === End of Date Range Validation ===
+
+            txn.transaction_date = transaction_date
+
         if 'voucher_name' in data:
             if not data['voucher_name'] or not str(data['voucher_name']).strip():
                 return jsonify({"message": "Voucher Name is required"}), 400
@@ -409,6 +514,23 @@ def update_transaction(current_user, txn_id):
                 )
                 db.session.add(v_item)
                 
+            # Validate against available cash if this is a payment
+            current_voucher_type = data.get('voucher_type', txn.voucher_type)
+            if current_voucher_type in ('Payment', 'Payments'):
+                total_allocated = db.session.query(db.func.sum(PettyCashFundAllocation.amount))\
+                    .filter_by(branch_id=txn.branch_id, academic_year=txn.academic_year, is_active=True).scalar() or 0
+                    
+                total_spent = db.session.query(db.func.sum(PettyCash.amount))\
+                    .filter(PettyCash.branch_id == txn.branch_id, PettyCash.academic_year == txn.academic_year, PettyCash.voucher_type.in_(['Payment', 'Payments']), PettyCash.is_active == True, PettyCash.id != txn.id).scalar() or 0
+                    
+                cash_in_hand = float(total_allocated) - float(total_spent)
+                
+                # Check PettyCashNegative parameter from ParameterTable
+                if total_amount > cash_in_hand:
+                    if not is_petty_cash_negative_allowed():
+                        return jsonify({"message": f"Insufficient petty cash balance. Available: {cash_in_hand:.2f}"}), 400
+        # else: Negative balance allowed, transaction will proceed
+
             txn.amount = total_amount
         if 'payment_mode' in data:
             if data['payment_mode'] not in ('Cash','UPI'):
@@ -444,3 +566,132 @@ def delete_transaction(current_user, txn_id):
         db.session.rollback()
         logger.error(f"Error deleting transaction: {str(e)}")
         return jsonify({"message": str(e)}), 500
+
+@petty_cash_bp.route('/<int:txn_id>/approve', methods=['PUT'])
+@token_required
+def approve_transaction(current_user, txn_id):
+    try:
+        if current_user.role != 'Director':
+            return jsonify({"message": "Only Director can approve petty cash transactions"}), 403
+            
+        data = request.json
+        status = data.get('status')
+        if status not in ('Approved', 'Rejected'):
+            return jsonify({"message": "Status must be Approved or Rejected"}), 400
+            
+        txn = PettyCash.query.get_or_404(txn_id)
+        if not txn.is_active:
+            return jsonify({"message": "Transaction not found"}), 404
+            
+        txn.approval_status = status
+        txn.approved_by = current_user.user_id
+        txn.approved_at = datetime.now()
+        
+        db.session.commit()
+        return jsonify({"message": f"Transaction {status.lower()} successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error approving transaction: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
+# -----------------------------
+# FUND ALLOCATIONS
+# -----------------------------
+
+@petty_cash_bp.route('/allocations', methods=['GET'])
+@token_required
+def get_allocations(current_user):
+    try:
+        academic_year = request.headers.get("X-Academic-Year", "2024-2025")
+        
+        # User branch enforcement
+        if current_user.role not in ('Admin', 'Director') and current_user.role != "Director" and current_user.role != "Accountant":
+            branch_id = resolve_branch_id(current_user.branch)
+        else:
+            branch_val = request.args.get('branch_id') or request.headers.get('X-Branch') or current_user.branch
+            branch_id = resolve_branch_id(branch_val)
+            
+        if branch_id:
+            query = PettyCashFundAllocation.query.filter_by(branch_id=branch_id, academic_year=academic_year, is_active=True)
+        else:
+            query = PettyCashFundAllocation.query.filter_by(academic_year=academic_year, is_active=True)
+            
+        allocations = query.order_by(PettyCashFundAllocation.allocation_date.desc()).all()
+        
+        result = []
+        for a in allocations:
+            result.append({
+                "id": a.id,
+                "branch_id": a.branch_id,
+                "branch_name": a.branch.branch_name if a.branch else "",
+                "allocation_date": a.allocation_date.isoformat(),
+                "amount": float(a.amount),
+                "remarks": a.remarks or "",
+                "approved_by": a.approved_by or "",
+                "academic_year": a.academic_year
+            })
+            
+        return jsonify(result), 200
+    except Exception as e:
+        logger.error(f"Error getting petty cash allocations: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
+@petty_cash_bp.route('/allocations', methods=['POST'])
+@token_required
+def create_allocation(current_user):
+    try:
+        data = request.json
+        academic_year = request.headers.get("X-Academic-Year", "2024-2025")
+        
+        branch_id = data.get('branch_id')
+        if not branch_id:
+            return jsonify({"message": "Branch is required"}), 400
+            
+        allocation_date = datetime.strptime(data['allocation_date'], '%Y-%m-%d').date()
+        
+        try:
+            amount = float(data.get('amount', 0))
+        except (ValueError, TypeError):
+            return jsonify({"message": "Invalid amount"}), 400
+
+        if amount <= 0:
+            return jsonify({"message": "Amount must be greater than zero"}), 400
+            
+        allocation = PettyCashFundAllocation(
+            branch_id=branch_id,
+            allocation_date=allocation_date,
+            amount=amount,
+            remarks=data.get('remarks'),
+            approved_by=data.get('approved_by'),
+            academic_year=academic_year
+        )
+        db.session.add(allocation)
+        db.session.commit()
+        return jsonify({"message": "Allocation created successfully", "id": allocation.id}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating petty cash allocation: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+@petty_cash_bp.route('/config', methods=['GET'])
+@token_required
+def get_petty_cash_config(current_user):
+    """Return petty cash configuration including entry date range and negative balance allowance"""
+    try:
+        allowed_days = get_petty_cash_entry_range()
+        negative_allowed = is_petty_cash_negative_allowed()
+        min_date = (datetime.now() - timedelta(days=allowed_days)).date().isoformat()
+        max_date = datetime.now().date().isoformat()
+        return jsonify({
+            "entry_range_days": allowed_days,
+            "min_date": min_date,
+            "max_date": max_date,
+            "negative_allowed": negative_allowed
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting petty cash config: {str(e)}")
+        return jsonify({
+            "entry_range_days": 7,
+            "min_date": "",
+            "max_date": datetime.now().date().isoformat(),
+            "negative_allowed": False
+        }), 200

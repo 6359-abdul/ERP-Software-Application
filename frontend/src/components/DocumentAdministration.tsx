@@ -24,7 +24,7 @@ const DocumentAdministration: React.FC = () => {
     const isAdminAllBranches = useMemo(() => {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         const currentBranch = (localStorage.getItem('currentBranch') || '').trim();
-        const isAdmin = user?.role === 'Admin';
+        const isAdmin = (user?.role === 'Admin' || user?.role === 'Director');
         const isAllBranches = currentBranch === '' || currentBranch === 'All' || currentBranch === 'All Branches';
         return isAdmin && isAllBranches;
     }, []);

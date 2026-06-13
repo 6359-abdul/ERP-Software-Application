@@ -34,7 +34,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
 
   // Initialize selected location on mount
   useEffect(() => {
-    if (user.role === 'Admin') {
+    if (user.role === 'Admin' || user.role === 'Director') {
       // Fetch All Branches with metadata
       api.get('/branches').then(res => {
         if (res.data.branches) {
@@ -48,7 +48,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
   let branchOptions = user?.allowed_branches?.map((b: any) => b.branch_name) || [];
 
   // If Admin and we have fetched metadata, use it for filtering
-  if (user.role === 'Admin' && allBranchesData.length > 0) {
+  if ((user.role === 'Admin' || user.role === 'Director') && allBranchesData.length > 0) {
     if (selectedLocation === 'All') {
       // All Locations -> Show All Branches
       branchOptions = allBranchesData.map(b => b.branch_name);
@@ -77,16 +77,16 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
     // Revert to default user object logic if not admin or data not loaded (or for non-admin users)
     if (branchOptions.length === 0) {
       if (user?.branch) branchOptions = [user.branch];
-      if (user?.role === 'Admin') branchOptions = ["All", ...branchOptions];
+      if (user?.role === 'Admin' || user?.role === 'Director') branchOptions = ["All", ...branchOptions];
     }
     const hasMultiple = branchOptions.length > 1;
-    const canViewAll = branchOptions.includes("All") || user?.role === 'Admin';
+    const canViewAll = branchOptions.includes("All") || user?.role === 'Admin' || user?.role === 'Director';
     if (hasMultiple && !branchOptions.includes("All Branches") && canViewAll) {
       branchOptions = ["All Branches", ...branchOptions.filter((b: string) => b !== 'All')];
     }
   }
 
-  const showDropdown = user && (user.role === 'Admin' || branchOptions.length > 1);
+  const showDropdown = user && (user.role === 'Admin' || user.role === 'Director' || branchOptions.length > 1);
 
   const [selectedYear, setSelectedYear] = useState(localStorage.getItem('academicYear') || '');
   const [currentBranch, setCurrentBranch] = useState(() => {
@@ -178,7 +178,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
 
   useEffect(() => {
     // Fetch Locations if Admin
-    if (user.role === 'Admin') {
+    if (user.role === 'Admin' || user.role === 'Director') {
       api.get('/org/locations')
         .then(res => {
           const locs = res.data.locations || [];
@@ -211,7 +211,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
           <div className="flex items-center space-x-2 md:space-x-4">
 
             {/* Location Dropdown (Admin Only) */}
-            {user.role === 'Admin' && (
+            {(user.role === 'Admin' || user.role === 'Director') && (
               <div className="relative mr-2">
                 <button
                   onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}

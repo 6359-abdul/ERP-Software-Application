@@ -37,7 +37,16 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
         { name: 'Petty-Cash Report', page: 'petty-cash-report' as Page, icon: <DocumentReportIcon className="w-4 h-4" /> },
       ]
     },
-    { name: 'Petty Cash', page: 'petty-cash' as Page, icon: <FinancialIcon className="w-5 h-5" /> },
+    {
+      name: 'Petty Cash',
+      id: 'pettyCash',
+      icon: <FinancialIcon className="w-5 h-5" />,
+      subItems: [
+        { name: 'Petty Cash Entry', page: 'petty-cash' as Page, icon: <ReceiptIcon className="w-4 h-4" /> },
+        { name: 'Fund Allocation', page: 'fund-allocation' as Page, icon: <DocumentIcon className="w-4 h-4" /> },
+        { name: 'Month Wise Ledger', page: 'month-wise-ledger' as Page, icon: <ChartBarIcon className="w-4 h-4" /> },
+      ]
+    },
     {
       name: 'Concessions',
       id: 'concessions',
@@ -51,7 +60,7 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
 
   const activeMenu = menuItems.find(item => item.name === activeTab);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdmin = user.role === 'Admin';
+  const isAdmin = (user.role === 'Admin' || user.role === 'Director');
 
   // When inside an actual component page, hide the Financial Header completely
   if (currentPage !== 'fee') {

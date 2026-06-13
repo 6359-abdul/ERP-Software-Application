@@ -150,7 +150,7 @@ const Academics: React.FC = () => {
                                 <NavDropdown
                                     title="Masters"
                                     items={[
-                                        ...(JSON.parse(localStorage.getItem('user') || '{}').role === 'Admin' ? [{ label: "Subjects", onClick: () => setView("SUBJECTS") }] : []),
+                                        ...((JSON.parse(localStorage.getItem('user') || '{}').role === 'Admin' || JSON.parse(localStorage.getItem('user') || '{}').role === 'Director') ? [{ label: "Subjects", onClick: () => setView("SUBJECTS") }] : []),
                                         { label: "Create Test", onClick: () => setView("CREATE_TEST") },
                                         { label: "Add Exam", onClick: () => setView("ADD_EXAM") },
                                         { label: "Grading", onClick: () => setView("GRADING") },

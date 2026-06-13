@@ -92,7 +92,7 @@ const ClassSubjectAssignment: React.FC = () => {
                 })) : [];
 
                 // Check user role
-                const isAdmin = user.role === 'Admin';
+                const isAdmin = (user.role === 'Admin' || user.role === 'Director');
 
                 // Find the branch that matches storedBranch from Header
                 const matchedBranch = formattedBranches.find((b: any) =>

@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Download, FileSpreadsheet, ChevronRight } from 'lucide-react';
 import { API_URL } from '../config';
+import MonthWiseLedger from './MonthWiseLedger';
+import DetailedLedger from './DetailedLedger';
+import FundAllocation from './FundAllocation';
 
 interface BranchWiseRow {
     branch_id: number;
@@ -47,6 +50,7 @@ const PettyCashReport: React.FC = () => {
     const [showDetails, setShowDetails] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
     const [user, setUser] = useState<any>(null);
+    const [activeTab, setActiveTab] = useState<'summary' | 'month-ledger' | 'details-ledger'>('summary');
 
     useEffect(() => {
         const u = localStorage.getItem('user');
@@ -92,7 +96,7 @@ const PettyCashReport: React.FC = () => {
                     const data = await res.json();
                     const fetchedBranches = data.branches || [];
                     setBranches(fetchedBranches);
-                    
+
                     if (globalBranchName !== 'All') {
                         const found = fetchedBranches.find((b: any) => b.branch_name === globalBranchName);
                         if (found) {
@@ -206,6 +210,8 @@ const PettyCashReport: React.FC = () => {
         ];
     }, [globalYear]);
 
+    const [selectedDetailMonth, setSelectedDetailMonth] = useState<string | undefined>();
+
     return (
         <div className="p-4 bg-gray-50 min-h-screen">
             {/* Header */}
@@ -213,218 +219,262 @@ const PettyCashReport: React.FC = () => {
                 Petty-Cash Report
             </h2>
 
-            {/* Branch Wise Expenses Section */}
-            <div className="bg-white rounded shadow mb-6">
-                <div className="flex flex-wrap items-center justify-between p-3 border-b">
-                    <div className="flex items-center gap-2">
-                        <span className="text-blue-600 font-medium cursor-pointer">📊 Branch Wise Expenses</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className="font-medium">FY:</span>
-                        <select
-                            className="border rounded px-2 py-1"
-                            value={academicYear}
-                            onChange={(e) => setAcademicYear(e.target.value)}
-                        >
-                            {academicYears.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                        <span className="text-sm text-gray-600">
-                            Note: <span className="text-red-600 font-medium">Only voucher type payments will be shown</span>
-                        </span>
-                    </div>
-                    <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                        as on {currentDateTime}
-                    </div>
-                </div>
+            {/* Tabs */}
+            <div className="flex border-b mb-6 bg-white overflow-x-auto shadow-sm rounded-t">
+                <button
+                    className={`px-4 py-3 font-medium whitespace-nowrap ${activeTab === 'summary' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'}`}
+                    onClick={() => setActiveTab('summary')}
+                >
+                    Expense Summary
+                </button>
+                <button
+                    className={`px-4 py-3 font-medium whitespace-nowrap ${activeTab === 'month-ledger' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'}`}
+                    onClick={() => setActiveTab('month-ledger')}
+                >
+                    Month Wise Cash Ledger
+                </button>
+                <button
+                    className={`px-4 py-3 font-medium whitespace-nowrap ${activeTab === 'details-ledger' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'}`}
+                    onClick={() => {
+                        setSelectedDetailMonth(undefined);
+                        setActiveTab('details-ledger');
+                    }}
+                >
+                    Cash Ledger In Details
+                </button>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="bg-gray-100">
-                            <tr>
-                                <th className="text-left p-2 border">Branch</th>
-                                {activeMonths.map(m => (
-                                    <th key={m} className="text-right p-2 border">{m}</th>
-                                ))}
-                                <th className="text-right p-2 border">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {branchWise.length === 0 && !loading && (
-                                <tr><td colSpan={activeMonths.length + 2} className="text-center p-4 text-gray-500">No data</td></tr>
-                            )}
-                            {branchWise.map((row) => (
-                                <tr key={row.branch_id} className="hover:bg-blue-50">
-                                    <td className="p-2 border">
-                                        <button
-                                            className="text-blue-600 hover:underline flex items-center gap-1"
-                                            onClick={() => handleBranchClick(row.branch_id)}
-                                        >
-                                            <ChevronRight size={14} /> {row.branch_name}
-                                        </button>
-                                    </td>
-                                    {activeMonths.map(m => (
-                                        <td key={m} className="text-right p-2 border text-blue-700">
-                                            {formatAmount(row.months[m] || 0)}
-                                        </td>
-                                    ))}
-                                    <td className="text-right p-2 border font-medium">
-                                        {formatAmount(row.total)}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
             </div>
 
-            {/* Ledger Head Expenses Section */}
-            <div className="bg-white rounded shadow mb-6">
-                <div className="flex flex-wrap items-center justify-between p-3 border-b">
-                    <div className="flex items-center gap-2">
-                        <span className="text-blue-600 font-medium">📒 Ledger Head Expenses</span>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium">FY:</span>
-                        <select
-                            className="border rounded px-2 py-1"
-                            value={academicYear}
-                            onChange={(e) => setAcademicYear(e.target.value)}
-                        >
-                            {academicYears.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                        <select
-                            className="border rounded px-2 py-1"
-                            value={selectedBranch}
-                            onChange={(e) => setSelectedBranch(e.target.value)}
-                        >
-                            <option value="All">All Branches</option>
-                            {branches.map(b => <option key={b.id} value={b.id}>{b.branch_name}</option>)}
-                        </select>
-                    </div>
-                    <div className="flex flex-col items-end">
-                        <span className="text-sm text-gray-600">
-                            Note: <span className="text-red-600 font-medium">Only voucher type payments will be shown</span>
-                        </span>
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-1">
-                            as on {currentDateTime}
-                        </span>
-                    </div>
-                </div>
+            {activeTab === 'month-ledger' && (
+                <MonthWiseLedger 
+                    onMonthClick={(month) => {
+                        setSelectedDetailMonth(month);
+                        setActiveTab('details-ledger');
+                    }}
+                />
+            )}
+            {activeTab === 'details-ledger' && (
+                <DetailedLedger filterMonth={selectedDetailMonth} />
+            )}
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="bg-gray-100">
-                            <tr>
-                                <th className="text-left p-2 border">Ledger Head</th>
-                                {activeMonths.map(m => (
-                                    <th key={m} className="text-right p-2 border">{m}</th>
-                                ))}
-                                <th className="text-right p-2 border">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {ledgerHead.length === 0 && !loading && (
-                                <tr><td colSpan={activeMonths.length + 2} className="text-center p-4 text-gray-500">No data</td></tr>
-                            )}
-                            {ledgerHead.map((row) => (
-                                <tr key={row.ledger_id} className="hover:bg-blue-50">
-                                    <td className="p-2 border font-medium">
-                                        <button
-                                            className="text-blue-700 hover:underline"
-                                            onClick={() => handleBranchClick(null)}
-                                        >
-                                            {row.ledger_head}
-                                        </button>
-                                    </td>
-                                    {activeMonths.map(m => (
-                                        <td key={m} className="text-right p-2 border text-blue-700">
-                                            {formatAmount(row.months[m] || 0)}
-                                        </td>
+            {activeTab === 'summary' && (
+                <>
+                    {/* Branch Wise Expenses Section */}
+
+                    <div className="bg-white rounded shadow mb-6">
+                        <div className="flex flex-wrap items-center justify-between p-3 border-b">
+                            <div className="flex items-center gap-2">
+                                <span className="text-blue-600 font-medium cursor-pointer">📊 Branch Wise Expenses</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="font-medium">FY:</span>
+                                <select
+                                    className="border rounded px-2 py-1"
+                                    value={academicYear}
+                                    onChange={(e) => setAcademicYear(e.target.value)}
+                                >
+                                    {academicYears.map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                                <span className="text-sm text-gray-600">
+                                    Note: <span className="text-red-600 font-medium">Only voucher type payments will be shown</span>
+                                </span>
+                            </div>
+                            <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                as on {currentDateTime}
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-100">
+                                    <tr>
+                                        <th className="text-left p-2 border">Branch</th>
+                                        {activeMonths.map(m => (
+                                            <th key={m} className="text-right p-2 border">{m}</th>
+                                        ))}
+                                        <th className="text-right p-2 border">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {branchWise.length === 0 && !loading && (
+                                        <tr><td colSpan={activeMonths.length + 2} className="text-center p-4 text-gray-500">No data</td></tr>
+                                    )}
+                                    {branchWise.map((row) => (
+                                        <tr key={row.branch_id} className="hover:bg-blue-50">
+                                            <td className="p-2 border">
+                                                <button
+                                                    className="text-blue-600 hover:underline flex items-center gap-1"
+                                                    onClick={() => handleBranchClick(row.branch_id)}
+                                                >
+                                                    <ChevronRight size={14} /> {row.branch_name}
+                                                </button>
+                                            </td>
+                                            {activeMonths.map(m => (
+                                                <td key={m} className="text-right p-2 border text-blue-700">
+                                                    {formatAmount(row.months[m] || 0)}
+                                                </td>
+                                            ))}
+                                            <td className="text-right p-2 border font-medium">
+                                                {formatAmount(row.total)}
+                                            </td>
+                                        </tr>
                                     ))}
-                                    <td className="text-right p-2 border font-medium">
-                                        {formatAmount(row.total)}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Branch Expense Details Modal/Section */}
-            {showDetails && (
-                <div className="bg-white rounded shadow mb-6">
-                    <div className="flex items-center justify-between p-3 border-b">
-                        <h3 className="text-lg font-semibold text-blue-700">Branch Expenses Details</h3>
-                        <div className="flex gap-2">
-                            <button
-                                className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                                onClick={handleExportExcel}
-                            >
-                                <FileSpreadsheet size={16} /> Excel
-                            </button>
-                            <button
-                                className="px-3 py-1 border rounded hover:bg-gray-100"
-                                onClick={() => setShowDetails(false)}
-                            >
-                                Close
-                            </button>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                            <thead className="bg-gray-100">
-                                <tr>
-                                    <th className="p-2 border">S.No</th>
-                                    <th className="p-2 border">Date</th>
-                                    <th className="p-2 border">Branch Name</th>
-                                    <th className="p-2 border">Voucher No</th>
-                                    <th className="p-2 border">Paying Account</th>
-                                    <th className="p-2 border">Voucher Type</th>
-                                    <th className="p-2 border">Ledger Type</th>
-                                    <th className="p-2 border">Ledger Head</th>
-                                    <th className="p-2 border">Items</th>
-                                    <th className="p-2 border">Paid To</th>
-                                    <th className="p-2 border">Description</th>
-                                    <th className="p-2 border">Created By</th>
-                                    <th className="p-2 border">Approved By</th>
-                                    <th className="p-2 border text-right">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {branchDetails.length === 0 && (
-                                    <tr><td colSpan={14} className="text-center p-4 text-gray-500">No data</td></tr>
-                                )}
-                                {branchDetails.map((d) => (
-                                    <tr key={d.sno} className="hover:bg-blue-50">
-                                        <td className="p-2 border text-center">{d.sno}</td>
-                                        <td className="p-2 border">{d.date}</td>
-                                        <td className="p-2 border text-blue-700">{d.branch_name}</td>
-                                        <td className="p-2 border text-center">{d.voucher_no}</td>
-                                        <td className="p-2 border">{d.paying_account}</td>
-                                        <td className="p-2 border text-center">{d.voucher_type}</td>
-                                        <td className="p-2 border text-center">{d.ledger_type}</td>
-                                        <td className="p-2 border text-blue-700">{d.ledger_head}</td>
-                                        <td className="p-2 border">{d.ledger_name}</td>
-                                        <td className="p-2 border">{d.paid_to}</td>
-                                        <td className="p-2 border">{d.description}</td>
-                                        <td className="p-2 border">{d.created_by}</td>
-                                        <td className="p-2 border">{d.approved_by}</td>
-                                        <td className="p-2 border text-right font-medium">{formatAmount(d.amount)}</td>
+
+                    {/* Ledger Head Expenses Section */}
+                    <div className="bg-white rounded shadow mb-6">
+                        <div className="flex flex-wrap items-center justify-between p-3 border-b">
+                            <div className="flex items-center gap-2">
+                                <span className="text-blue-600 font-medium">📒 Ledger Head Expenses</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium">FY:</span>
+                                <select
+                                    className="border rounded px-2 py-1"
+                                    value={academicYear}
+                                    onChange={(e) => setAcademicYear(e.target.value)}
+                                >
+                                    {academicYears.map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                                <select
+                                    className="border rounded px-2 py-1"
+                                    value={selectedBranch}
+                                    onChange={(e) => setSelectedBranch(e.target.value)}
+                                >
+                                    <option value="All">All Branches</option>
+                                    {branches.map(b => <option key={b.id} value={b.id}>{b.branch_name}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex flex-col items-end">
+                                <span className="text-sm text-gray-600">
+                                    Note: <span className="text-red-600 font-medium">Only voucher type payments will be shown</span>
+                                </span>
+                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-1">
+                                    as on {currentDateTime}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-100">
+                                    <tr>
+                                        <th className="text-left p-2 border">Ledger Head</th>
+                                        {activeMonths.map(m => (
+                                            <th key={m} className="text-right p-2 border">{m}</th>
+                                        ))}
+                                        <th className="text-right p-2 border">Total</th>
                                     </tr>
-                                ))}
-                                {branchDetails.length > 0 && (
-                                    <tr className="bg-gray-50 font-bold">
-                                        <td colSpan={13} className="p-2 border text-right">Total</td>
-                                        <td className="p-2 border text-right">
-                                            {formatAmount(branchDetails.reduce((s, d) => s + d.amount, 0))}
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {ledgerHead.length === 0 && !loading && (
+                                        <tr><td colSpan={activeMonths.length + 2} className="text-center p-4 text-gray-500">No data</td></tr>
+                                    )}
+                                    {ledgerHead.map((row) => (
+                                        <tr key={row.ledger_id} className="hover:bg-blue-50">
+                                            <td className="p-2 border font-medium">
+                                                <button
+                                                    className="text-blue-700 hover:underline"
+                                                    onClick={() => handleBranchClick(null)}
+                                                >
+                                                    {row.ledger_head}
+                                                </button>
+                                            </td>
+                                            {activeMonths.map(m => (
+                                                <td key={m} className="text-right p-2 border text-blue-700">
+                                                    {formatAmount(row.months[m] || 0)}
+                                                </td>
+                                            ))}
+                                            <td className="text-right p-2 border font-medium">
+                                                {formatAmount(row.total)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
+
+                    {/* Branch Expense Details Modal/Section */}
+                    {showDetails && (
+                        <div className="bg-white rounded shadow mb-6">
+                            <div className="flex items-center justify-between p-3 border-b">
+                                <h3 className="text-lg font-semibold text-blue-700">Branch Expenses Details</h3>
+                                <div className="flex gap-2">
+                                    <button
+                                        className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                                        onClick={handleExportExcel}
+                                    >
+                                        <FileSpreadsheet size={16} /> Excel
+                                    </button>
+                                    <button
+                                        className="px-3 py-1 border rounded hover:bg-gray-100"
+                                        onClick={() => setShowDetails(false)}
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                    <thead className="bg-gray-100">
+                                        <tr>
+                                            <th className="p-2 border">S.No</th>
+                                            <th className="p-2 border">Date</th>
+                                            <th className="p-2 border">Branch Name</th>
+                                            <th className="p-2 border">Voucher No</th>
+                                            <th className="p-2 border">Paying Account</th>
+                                            <th className="p-2 border">Voucher Type</th>
+                                            <th className="p-2 border">Ledger Type</th>
+                                            <th className="p-2 border">Ledger Head</th>
+                                            <th className="p-2 border">Items</th>
+                                            <th className="p-2 border">Paid To</th>
+                                            <th className="p-2 border">Description</th>
+                                            <th className="p-2 border">Created By</th>
+                                            <th className="p-2 border">Approved By</th>
+                                            <th className="p-2 border text-right">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {branchDetails.length === 0 && (
+                                            <tr><td colSpan={14} className="text-center p-4 text-gray-500">No data</td></tr>
+                                        )}
+                                        {branchDetails.map((d) => (
+                                            <tr key={d.sno} className="hover:bg-blue-50">
+                                                <td className="p-2 border text-center">{d.sno}</td>
+                                                <td className="p-2 border">{d.date}</td>
+                                                <td className="p-2 border text-blue-700">{d.branch_name}</td>
+                                                <td className="p-2 border text-center">{d.voucher_no}</td>
+                                                <td className="p-2 border">{d.paying_account}</td>
+                                                <td className="p-2 border text-center">{d.voucher_type}</td>
+                                                <td className="p-2 border text-center">{d.ledger_type}</td>
+                                                <td className="p-2 border text-blue-700">{d.ledger_head}</td>
+                                                <td className="p-2 border">{d.ledger_name}</td>
+                                                <td className="p-2 border">{d.paid_to}</td>
+                                                <td className="p-2 border">{d.description}</td>
+                                                <td className="p-2 border">{d.created_by}</td>
+                                                <td className="p-2 border">{d.approved_by}</td>
+                                                <td className="p-2 border text-right font-medium">{formatAmount(d.amount)}</td>
+                                            </tr>
+                                        ))}
+                                        {branchDetails.length > 0 && (
+                                            <tr className="bg-gray-50 font-bold">
+                                                <td colSpan={13} className="p-2 border text-right">Total</td>
+                                                <td className="p-2 border text-right">
+                                                    {formatAmount(branchDetails.reduce((s, d) => s + d.amount, 0))}
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                </>
             )}
 
             {loading && <div className="text-center p-4 text-gray-500">Loading...</div>}

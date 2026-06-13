@@ -70,7 +70,7 @@ const MarksEntryAllSubjects: React.FC = () => {
         if (userStr) {
             try {
                 const user = JSON.parse(userStr);
-                if (user.role === 'Admin' || user.branch === 'All' || user.branch === 'AllBranches') {
+                if (user.role === 'Admin' || user.role === 'Director' || user.branch === 'All' || user.branch === 'AllBranches') {
                     const selected = localStorage.getItem("currentBranch");
                     if (selected && selected !== "All" && selected !== "All Locations") {
                         storedBranch = selected;

@@ -27,7 +27,7 @@ def get_fee_types(current_user):
         return err, code
 
     # STRICT BRANCH ENFORCEMENT
-    if current_user.role != 'Admin':
+    if current_user.role not in ('Admin', 'Director'):
         h_branch = current_user.branch
 
     query = FeeType.query.filter_by(academic_year=h_year)
@@ -52,7 +52,7 @@ def create_fee_type(current_user):
     description = data.get("description")
     
     # 1. Branch Handling
-    if current_user.role == 'Admin':
+    if current_user.role == 'Admin' or current_user.role == 'Director':
         branch = data.get("branch", "All")
     else:
         branch = current_user.branch # Force User's Branch
@@ -101,7 +101,7 @@ def update_fee_type(current_user, id):
         return jsonify({"error": "Fee Type not found"}), 404
         
     # Validation: Only Admin or Owner Branch can edit
-    if current_user.role != 'Admin':
+    if current_user.role not in ('Admin', 'Director'):
          if ft.branch not in ("All", current_user.branch):
              return jsonify({"error": "Unauthorized"}), 403
          if ft.branch == "All":
@@ -179,7 +179,7 @@ def get_class_fee_structure(current_user):
     branch_arg = request.args.get('branch')
     location_param = request.args.get('location') # New param
     
-    if current_user.role != 'Admin':
+    if current_user.role not in ('Admin', 'Director'):
         target_branch = current_user.branch
     else:
         target_branch = branch_arg or h_branch or "All"
@@ -220,7 +220,7 @@ def migrate_class_fee_structures(current_user):
     """
     Migration Tool: Backfill academic_year from academicyear
     """
-    if current_user.role != 'Admin':
+    if current_user.role not in ('Admin', 'Director'):
         return jsonify({"error": "Admin required"}), 403
         
     try:
@@ -381,7 +381,7 @@ def get_concessions(current_user):
 
     query = Concession.query.filter_by(academic_year=academic_year)
     
-    if current_user.role == 'Admin':
+    if current_user.role == 'Admin' or current_user.role == 'Director':
         h_branch = request.headers.get("X-Branch", "All")
         if h_branch and h_branch not in ["All", "AllBranches"]:
             from sqlalchemy import or_
@@ -427,7 +427,7 @@ def create_concession(current_user):
     description = data.get("description")
     academic_year = data.get("academic_year")
     
-    if current_user.role == 'Admin':
+    if current_user.role == 'Admin' or current_user.role == 'Director':
         branch = data.get("branch") or "All"
     else:
         branch = current_user.branch
@@ -474,7 +474,7 @@ def delete_concession(current_user, title, year):
     try:
         query = Concession.query.filter_by(title=title, academic_year=year)
         
-        if current_user.role != 'Admin':
+        if current_user.role not in ('Admin', 'Director'):
              if not current_user.branch:
                   return jsonify({"error": "Unauthorized"}), 403
              query = query.filter_by(branch=current_user.branch)
@@ -501,7 +501,7 @@ def update_concession(current_user, original_title, original_year):
     description = data.get("description")
     new_year = data.get("academic_year")
     
-    if current_user.role == 'Admin':
+    if current_user.role == 'Admin' or current_user.role == 'Director':
         new_branch = data.get("branch") or "All"
     else:
         new_branch = current_user.branch
@@ -518,11 +518,11 @@ def update_concession(current_user, original_title, original_year):
     try:
         query = Concession.query.filter_by(title=original_title, academic_year=original_year)
         
-        if current_user.role != 'Admin':
+        if current_user.role not in ('Admin', 'Director'):
              query = query.filter_by(branch=new_branch)
 
         deleted = query.delete()
-        if deleted == 0 and current_user.role != 'Admin':
+        if deleted == 0 and current_user.role not in ('Admin', 'Director'):
              return jsonify({"error": "Concession not found or unauthorized to edit global concession"}), 403
             
         created_ids = []
