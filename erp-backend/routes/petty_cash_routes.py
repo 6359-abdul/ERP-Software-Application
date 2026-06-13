@@ -1,6 +1,7 @@
 import logging
 from flask import Blueprint, request, jsonify, g
-from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashVoucherItem, PettyCashFundAllocation
+from datetime import datetime ,timedelta
+from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashVoucherItem, PettyCashFundAllocation, ParameterTable
 from helpers import token_required
 from datetime import datetime
 from sqlalchemy import extract
@@ -14,6 +15,46 @@ def get_username_safe(user_id):
         return user.username if user else str(user_id)
     return str(user_id)
 
+def get_petty_cash_entry_range():
+    """
+    Fetch the allowed date range (in days) for petty cash entries from ParameterTable.
+    Returns the number of days back from today that transactions can be entered.
+    Defaults to 7 if parameter is missing/invalid.
+    """
+    try:
+        param = ParameterTable.query.filter_by(
+            parameter_name='PettyCashEntryRange',
+            is_active=True
+        ).first()
+        if param and param.parameter_value:
+            try:
+                days = int(param.parameter_value)
+                return max(1, days)  # At least 1 day allowed
+            except (ValueError, TypeError):
+                pass
+    except Exception:
+        pass
+    return 7  # Default fallback
+
+
+def is_petty_cash_negative_allowed():
+    """
+    Fetch the PettyCashNegative parameter from ParameterTable.
+    Returns True if negative balance is allowed, False otherwise.
+    Defaults to False (strict mode).
+    """
+    try:
+        param = ParameterTable.query.filter_by(
+            parameter_name='PettyCashNegative',
+            is_active=True
+        ).first()
+        if param and param.parameter_value:
+            val = str(param.parameter_value).strip().lower()
+            if val in ('true', '1', 'yes', 'y'):
+                return True
+        return False
+    except Exception:
+        return False
 petty_cash_bp = Blueprint('petty_cash_bp', __name__)
 # LEDGERS
 # -----------------------------
@@ -301,6 +342,17 @@ def create_transaction(current_user):
             data['transaction_date'],
             '%Y-%m-%d'
         ).date()
+        # === Date Range Validation from ParameterTable ===
+        allowed_days = get_petty_cash_entry_range()
+        min_allowed_date = (datetime.now() - timedelta(days=allowed_days)).date()
+        max_allowed_date = datetime.now().date()
+
+        if transaction_date < min_allowed_date or transaction_date > max_allowed_date:
+            return jsonify({
+                "message": f"Transaction date must be within the last {allowed_days} days. Allowed range: {min_allowed_date} to {max_allowed_date}"
+            }), 400
+        # === End of Date Range Validation ===
+
         voucher_type = data.get('voucher_type')
         if voucher_type not in ('Payment','Received'):
             return jsonify({"message":"Voucher type must be Payment or Received"}),400
@@ -311,11 +363,15 @@ def create_transaction(current_user):
                 
             total_spent = db.session.query(db.func.sum(PettyCash.amount))\
                 .filter(PettyCash.branch_id == branch_id, PettyCash.academic_year == academic_year, PettyCash.voucher_type.in_(['Payment', 'Payments']), PettyCash.is_active == True).scalar() or 0
-                
+        
             cash_in_hand = float(total_allocated) - float(total_spent)
-            
+    
+            # Check PettyCashNegative parameter from ParameterTable
             if total_amount > cash_in_hand:
-                return jsonify({"message": f"Insufficient petty cash balance. Available: {cash_in_hand:.2f}"}), 400
+                if not is_petty_cash_negative_allowed():
+                    return jsonify({"message": f"Insufficient petty cash balance. Available: {cash_in_hand:.2f}"}), 400
+        # else: Negative balance allowed, transaction will proceed
+        # (cash_in_hand will go negative - this is intentional)
 
         payment_mode = data.get('payment_mode')
         if payment_mode not in ('Cash','UPI'):
@@ -381,10 +437,23 @@ def update_transaction(current_user, txn_id):
             return jsonify({"message": "Transaction not found"}), 404
         
         if 'transaction_date' in data:
-            txn.transaction_date = datetime.strptime(
+            transaction_date = datetime.strptime(
                 data['transaction_date'],
                 '%Y-%m-%d'
             ).date()
+            # === Date Range Validation from ParameterTable ===
+            allowed_days = get_petty_cash_entry_range()
+            min_allowed_date = (datetime.now() - timedelta(days=allowed_days)).date()
+            max_allowed_date = datetime.now().date()
+
+            if transaction_date < min_allowed_date or transaction_date > max_allowed_date:
+                return jsonify({
+                    "message": f"Transaction date must be within the last {allowed_days} days. Allowed range: {min_allowed_date} to {max_allowed_date}"
+                }), 400
+            # === End of Date Range Validation ===
+
+            txn.transaction_date = transaction_date
+
         if 'voucher_name' in data:
             if not data['voucher_name'] or not str(data['voucher_name']).strip():
                 return jsonify({"message": "Voucher Name is required"}), 400
@@ -449,8 +518,11 @@ def update_transaction(current_user, txn_id):
                     
                 cash_in_hand = float(total_allocated) - float(total_spent)
                 
+                # Check PettyCashNegative parameter from ParameterTable
                 if total_amount > cash_in_hand:
-                    return jsonify({"message": f"Insufficient petty cash balance. Available: {cash_in_hand:.2f}"}), 400
+                    if not is_petty_cash_negative_allowed():
+                        return jsonify({"message": f"Insufficient petty cash balance. Available: {cash_in_hand:.2f}"}), 400
+        # else: Negative balance allowed, transaction will proceed
 
             txn.amount = total_amount
         if 'payment_mode' in data:
@@ -593,3 +665,26 @@ def create_allocation(current_user):
         db.session.rollback()
         logger.error(f"Error creating petty cash allocation: {str(e)}")
         return jsonify({"message": str(e)}), 500
+@petty_cash_bp.route('/config', methods=['GET'])
+@token_required
+def get_petty_cash_config(current_user):
+    """Return petty cash configuration including entry date range and negative balance allowance"""
+    try:
+        allowed_days = get_petty_cash_entry_range()
+        negative_allowed = is_petty_cash_negative_allowed()
+        min_date = (datetime.now() - timedelta(days=allowed_days)).date().isoformat()
+        max_date = datetime.now().date().isoformat()
+        return jsonify({
+            "entry_range_days": allowed_days,
+            "min_date": min_date,
+            "max_date": max_date,
+            "negative_allowed": negative_allowed
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting petty cash config: {str(e)}")
+        return jsonify({
+            "entry_range_days": 7,
+            "min_date": "",
+            "max_date": datetime.now().date().isoformat(),
+            "negative_allowed": False
+        }), 200

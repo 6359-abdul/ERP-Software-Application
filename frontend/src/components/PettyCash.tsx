@@ -34,6 +34,7 @@ interface PettyCashTxn {
   items?: PettyCashItem[];
 }
 
+
 const PettyCash: React.FC = () => {
   const [transactions, setTransactions] = useState<PettyCashTxn[]>([]);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
@@ -96,10 +97,25 @@ const PettyCash: React.FC = () => {
       setLoading(false);
     }
   };
+  const [config, setConfig] = useState({
+    entry_range_days: 7,
+    min_date: '',
+    max_date: new Date().toISOString().split('T')[0],
+    negative_allowed: false  // <-- add this
+  });
+  const fetchConfig = async () => {
+    try {
+      const response = await api.get('/petty-cash/config');
+      setConfig(response.data);
+    } catch (err: any) {
+      console.error('Error fetching config', err);
+    }
+  };
 
   useEffect(() => {
     fetchLedgers();
     fetchTransactions();
+    fetchConfig();  // <-- Add this line
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -189,6 +205,11 @@ const PettyCash: React.FC = () => {
               <h3 className={`text-3xl font-bold ${summary.net_amount < 0 ? 'text-red-600' : 'text-blue-700'}`}>
                 ₹ {summary.net_amount.toFixed(2)}
               </h3>
+              {summary.net_amount < 0 && config.negative_allowed && (
+                <p className="text-xs text-orange-600 mt-1 font-medium">
+                  ⚠️ Negative balance allowed by parameter
+                </p>
+              )}
             </div>
           </div>
           <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-8">
@@ -212,7 +233,16 @@ const PettyCash: React.FC = () => {
 
           <div className="flex flex-col">
             <label className="text-sm text-gray-600 mb-1">Date</label>
-            <input type="date" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} max={new Date().toISOString().split('T')[0]} className="border p-2 rounded" required />
+            <input
+              type="date"
+              name="transaction_date"
+              value={formData.transaction_date}
+              onChange={handleInputChange}
+              min={config.min_date}  // <-- dynamically set from parameter
+              max={config.max_date}  // <-- today
+              className="border p-2 rounded"
+              required
+            />
           </div>
 
           <div className="flex flex-col">
@@ -572,7 +602,7 @@ const PettyCash: React.FC = () => {
                   <span className="text-amber-700 font-semibold block text-xs uppercase tracking-wider mb-1">Approved By</span>
                   <span className="font-bold text-amber-900 text-base">{selectedReceipt.approved_by || '-'}</span>
                 </div>
-                
+
                 {selectedReceipt.approved_at && (
                   <div className="bg-gray-50 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
                     <span className="text-gray-500 font-semibold block text-xs uppercase tracking-wider mb-1">Approved At</span>

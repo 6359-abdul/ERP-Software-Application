@@ -918,7 +918,21 @@ class PettyCashFundAllocation(db.Model, AuditMixin):
 
     branch = db.relationship("Branch")
 
+# Parameter Table
 
+class ParameterTable(db.Model, AuditMixin):
+    __tablename__ = "parameter_table"
+    __audit_module__ = "PARAMETER_TABLE"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    #branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)
+    parameter_name = db.Column(db.String(255), nullable=False)
+    parameter_value = db.Column(db.String(255), nullable=False)
+    parameter_type = db.Column(db.String(255), nullable=False)
+    parameter_description = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)      
+
+    # branch = db.relationship("Branch")
 # ----------------------------------------------------------
 # GLOBAL AUDIT EVENT LISTENERS
 # ----------------------------------------------------------
