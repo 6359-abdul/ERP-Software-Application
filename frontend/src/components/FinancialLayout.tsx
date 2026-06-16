@@ -15,6 +15,7 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
   const [activeTab, setActiveTab] = useState<string>('Dashboard');
   const menuItems = [
     { name: 'Dashboard', page: 'fee' as Page, icon: <DashboardIcon className="w-5 h-5" /> },
+    { name: 'Collect Fee', page: 'take-fee' as Page, icon: <ReceiptIcon className="w-5 h-5" /> },
     {
       name: 'Fee Masters',
       id: 'feeMasters',
