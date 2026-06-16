@@ -4,11 +4,76 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+const Pagination = ({ currentPage, totalPages, onPageChange, totalRecords, perPage }: any) => {
+    if (totalPages <= 1) return null;
+
+    const visiblePages = 3;
+    const startPage = Math.max(1, Math.min(currentPage, totalPages - visiblePages + 1));
+    const endPage = Math.min(totalPages, startPage + visiblePages - 1);
+    const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+    const showLastPage = endPage < totalPages;
+
+    return (
+        <div className="p-4 border-t bg-gray-50 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <span className="text-sm text-gray-500 italic">
+                Showing {((currentPage - 1) * perPage) + 1} to {Math.min(currentPage * perPage, totalRecords)} of {totalRecords} records
+            </span>
+            <div className="flex items-center gap-1 flex-wrap">
+                <button
+                    disabled={currentPage === 1}
+                    onClick={() => onPageChange(currentPage - 1)}
+                    className="px-2 py-1 text-sm font-medium text-gray-600 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-gray-600 mr-2"
+                >
+                    Previous
+                </button>
+
+                {pages.map(p => (
+                    <button
+                        key={p}
+                        onClick={() => onPageChange(p)}
+                        className={`min-w-[28px] px-1.5 py-0.5 text-sm font-semibold transition-colors ${currentPage === p
+                            ? 'text-indigo-700 underline underline-offset-4'
+                            : 'text-gray-500 hover:text-gray-800'
+                            }`}
+                    >
+                        {p}
+                    </button>
+                ))}
+
+                {showLastPage && (
+                    <>
+                        <span className="px-1 text-sm text-gray-400">...</span>
+                        <button
+                            onClick={() => onPageChange(totalPages)}
+                            className={`min-w-[28px] px-1.5 py-0.5 text-sm font-semibold transition-colors ${currentPage === totalPages
+                                ? 'text-indigo-700 underline underline-offset-4'
+                                : 'text-gray-500 hover:text-gray-800'
+                                }`}
+                        >
+                            {totalPages}
+                        </button>
+                    </>
+                )}
+
+                <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => onPageChange(currentPage + 1)}
+                    className="px-2 py-1 text-sm font-medium text-gray-600 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-gray-600 ml-2"
+                >
+                    Next
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const FeeConcessionReport: React.FC = () => {
     const [concessions, setConcessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(15);
 
     const [selectedStudent, setSelectedStudent] = useState<{ id: number, name: string } | null>(null);
     const [details, setDetails] = useState<any[]>([]);
@@ -21,7 +86,7 @@ const FeeConcessionReport: React.FC = () => {
     const fetchReport = async () => {
         try {
             setLoading(true);
-            const res = await api.get(`/reports/fees/concession-report`);
+            const res = await api.get('/reports/fees/concession-report');
             setConcessions(res.data.concessions || []);
         } catch (err: any) {
             setError(err.response?.data?.error || 'Failed to load concession report');
@@ -47,6 +112,16 @@ const FeeConcessionReport: React.FC = () => {
     const filteredConcessions = concessions.filter(r =>
         (r.student_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.admission_no || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
+
+    const totalPages = Math.ceil(filteredConcessions.length / itemsPerPage);
+    const paginatedConcessions = filteredConcessions.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
     );
 
     const exportToExcel = () => {
@@ -162,50 +237,62 @@ const FeeConcessionReport: React.FC = () => {
                 ) : filteredConcessions.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">No concession records found.</div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead className="bg-gray-50 text-gray-700">
-                                <tr>
-                                    <th className="px-3 py-2 text-left font-semibold">S.No</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Student Name</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Adm No.</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Class</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Contact</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Concession Type</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Assigned By</th>
-                                    <th className="px-3 py-2 text-right font-semibold">Total Gross Fee</th>
-                                    <th className="px-3 py-2 text-right font-semibold text-green-700">Total Concession</th>
-                                    <th className="px-3 py-2 text-right font-semibold text-blue-700">Total Paid</th>
-                                    <th className="px-3 py-2 text-center font-semibold">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {filteredConcessions.map((r, idx) => (
-                                    <tr key={idx} className="hover:bg-gray-50">
-                                        <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
-                                        <td className="px-3 py-2 font-medium">{r.student_name}</td>
-                                        <td className="px-3 py-2 text-blue-600">{r.admission_no}</td>
-                                        <td className="px-3 py-2">{r.class} {r.section}</td>
-                                        <td className="px-3 py-2 text-gray-600">{r.phone}</td>
-                                        <td className="px-3 py-2 text-gray-800">{r.fee_type_name}</td>
-                                        <td className="px-3 py-2 text-purple-600 font-medium">{r.assigned_by}</td>
-                                        <td className="px-3 py-2 text-right">₹{(r.total_gross || 0).toLocaleString()}</td>
-                                        <td className="px-3 py-2 text-right font-semibold text-green-600">₹{(r.total_concession || 0).toLocaleString()}</td>
-                                        <td className="px-3 py-2 text-right font-semibold text-blue-600">₹{(r.total_paid || 0).toLocaleString()}</td>
-                                        <td className="px-3 py-2 text-center">
-                                            <button
-                                                onClick={() => handleViewDetails(r.student_id, r.student_name)}
-                                                className="bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 px-3 py-1 rounded shadow-sm flex items-center justify-center mx-auto transition-colors"
-                                            >
-                                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.478 0-8.268-2.943-9.542-7z" /></svg>
-                                                View
-                                            </button>
-                                        </td>
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead className="bg-gray-50 text-gray-700">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left font-semibold">S.No</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Student Name</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Adm No.</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Class</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Contact</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Concession Type</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Assigned By</th>
+                                        <th className="px-3 py-2 text-right font-semibold">Total Gross Fee</th>
+                                        <th className="px-3 py-2 text-right font-semibold text-green-700">Total Concession</th>
+                                        <th className="px-3 py-2 text-right font-semibold text-blue-700">Total Paid</th>
+                                        <th className="px-3 py-2 text-center font-semibold">Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {paginatedConcessions.map((r, idx) => {
+                                        const sNo = ((currentPage - 1) * itemsPerPage) + idx + 1;
+                                        return (
+                                            <tr key={idx} className="hover:bg-gray-50">
+                                                <td className="px-3 py-2 text-gray-500">{sNo}</td>
+                                                <td className="px-3 py-2 font-medium">{r.student_name}</td>
+                                                <td className="px-3 py-2 text-blue-600">{r.admission_no}</td>
+                                                <td className="px-3 py-2">{r.class} {r.section}</td>
+                                                <td className="px-3 py-2 text-gray-600">{r.phone}</td>
+                                                <td className="px-3 py-2 text-gray-800">{r.fee_type_name}</td>
+                                                <td className="px-3 py-2 text-purple-600 font-medium">{r.assigned_by}</td>
+                                                <td className="px-3 py-2 text-right">₹{(r.total_gross || 0).toLocaleString()}</td>
+                                                <td className="px-3 py-2 text-right font-semibold text-green-600">₹{(r.total_concession || 0).toLocaleString()}</td>
+                                                <td className="px-3 py-2 text-right font-semibold text-blue-600">₹{(r.total_paid || 0).toLocaleString()}</td>
+                                                <td className="px-3 py-2 text-center">
+                                                    <button
+                                                        onClick={() => handleViewDetails(r.student_id, r.student_name)}
+                                                        className="bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 px-3 py-1 rounded shadow-sm flex items-center justify-center mx-auto transition-colors"
+                                                    >
+                                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.478 0-8.268-2.943-9.542-7z" /></svg>
+                                                        View
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                            totalRecords={filteredConcessions.length}
+                            perPage={itemsPerPage}
+                        />
+                    </>
                 )}
             </div>
 
@@ -258,7 +345,12 @@ const FeeConcessionReport: React.FC = () => {
                                                 <td className="px-4 py-3 text-sm text-right text-blue-600">₹{d.paid.toLocaleString()}</td>
                                                 <td className="px-4 py-3 text-sm text-right font-medium text-purple-600">₹{d.concession.toLocaleString()}</td>
                                                 <td className="px-4 py-3 text-sm text-center">
-                                                    <span className={`px-2 py-1 text-xs rounded-full ${d.status === 'Paid' ? 'bg-green-100 text-green-800' : d.status === 'Partial' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                                    <span className={`px-2 py-1 text-xs rounded-full ${d.status === 'Paid'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : d.status === 'Partial'
+                                                            ? 'bg-yellow-100 text-yellow-800'
+                                                            : 'bg-red-100 text-red-800'
+                                                        }`}>
                                                         {d.status}
                                                     </span>
                                                 </td>

@@ -9,6 +9,9 @@ interface FinancialLayoutProps {
 }
 
 const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage, navigateTo }) => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = (user.role === 'Admin' || user.role === 'Director');
+
   const [activeTab, setActiveTab] = useState<string>('Dashboard');
   const menuItems = [
     { name: 'Dashboard', page: 'fee' as Page, icon: <DashboardIcon className="w-5 h-5" /> },
@@ -43,9 +46,17 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
       icon: <FinancialIcon className="w-5 h-5" />,
       subItems: [
         { name: 'Petty Cash Entry', page: 'petty-cash' as Page, icon: <ReceiptIcon className="w-4 h-4" /> },
-        { name: 'Fund Allocation', page: 'fund-allocation' as Page, icon: <DocumentIcon className="w-4 h-4" /> },
-        { name: 'Month Wise Ledger', page: 'month-wise-ledger' as Page, icon: <ChartBarIcon className="w-4 h-4" /> },
+        ...(isAdmin ? [
+          { name: 'Fund Allocation', page: 'fund-allocation' as Page, icon: <DocumentIcon className="w-4 h-4" /> },
+          { name: 'Month Wise Ledger', page: 'month-wise-ledger' as Page, icon: <ChartBarIcon className="w-4 h-4" /> },
+        ] : [])
       ]
+    },
+    {
+      name: 'Daily Report',
+      id: 'userDailyReport',
+      page: 'user-daily-report' as Page,
+      icon: <DocumentIcon className="w-5 h-5" />
     },
     {
       name: 'Concessions',
@@ -59,8 +70,6 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
   ];
 
   const activeMenu = menuItems.find(item => item.name === activeTab);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdmin = (user.role === 'Admin' || user.role === 'Director');
 
   // When inside an actual component page, hide the Financial Header completely
   if (currentPage !== 'fee') {
