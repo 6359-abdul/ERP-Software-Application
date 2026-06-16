@@ -22,6 +22,8 @@ const MonthWiseLedger: React.FC<MonthWiseLedgerProps> = ({ onMonthClick }) => {
     const [selectedBranch, setSelectedBranch] = useState<string>('All');
     const [ledgerData, setLedgerData] = useState<LedgerRow[]>([]);
     const [loading, setLoading] = useState(false);
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isAdmin = (user.role === 'Admin' || user.role === 'Director');
 
     const getHeaders = () => {
         const token = localStorage.getItem('token') || '';
@@ -99,6 +101,14 @@ const MonthWiseLedger: React.FC<MonthWiseLedgerProps> = ({ onMonthClick }) => {
         
         return ledgerData.slice(0, lastActiveIdx + 1);
     }, [ledgerData]);
+
+    if (!isAdmin) {
+        return (
+            <div className="p-6 text-red-600 font-semibold text-center mt-10">
+                Access Denied: You do not have permission to view this page.
+            </div>
+        );
+    }
 
     return (
         <div className="p-4 bg-gray-50 min-h-screen space-y-6">

@@ -33,6 +33,7 @@ interface ReportProps {
     onViewReceipt: (receiptNo: string) => void;
     forcedStatus?: 'A' | 'I' | 'All';
     forcedConcession?: boolean;
+    singleDayOnly?: boolean;
 }
 // --------------------------------------------------------------------------
 // Date Formatting Helper
@@ -739,7 +740,7 @@ export const TodayCollection: React.FC<ReportProps> = ({ onViewReceipt }) => {
 // --------------------------------------------------------------------------
 // Daily Report (ENHANCED)
 // --------------------------------------------------------------------------
-export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt, forcedStatus, forcedConcession }) => {
+export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt, forcedStatus, forcedConcession, singleDayOnly }) => {
     const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [rawData, setRawData] = useState<any>(null); // Store API response
@@ -848,26 +849,41 @@ export const DailyReport: React.FC<ReportProps> = ({ onViewReceipt, forcedStatus
         <div className="space-y-4 font-sans">
             <FilterContainer>
                 {/* Date Selection */}
-                <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                {singleDayOnly ? (
+                    <div className="col-span-1 md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                         <input
                             type="date"
                             value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
+                            onChange={(e) => {
+                                setStartDate(e.target.value);
+                                setEndDate(e.target.value);
+                            }}
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-                        <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                        />
+                ) : (
+                    <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Fee Type */}
                 <div>

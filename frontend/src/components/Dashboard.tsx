@@ -40,7 +40,7 @@ const financialPages = [
   'fee-installments', 'take-fee', 'concession-master', 'student-concession',
   'update-student-fee-structure', 'update-rebate-date', 'fee-reports',
   'deleted-receipts', 'fee-concession-report', 'adjust-fee-report',
-  'petty-cash', 'petty-cash-report', 'fund-allocation', 'month-wise-ledger'
+  'petty-cash', 'petty-cash-report', 'fund-allocation', 'month-wise-ledger', 'user-daily-report'
 ];
 
 interface DashboardProps {
@@ -98,6 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
               {currentPage === 'petty-cash-report' && <PettyCashReport />}
               {currentPage === 'fund-allocation' && <FundAllocation />}
               {currentPage === 'month-wise-ledger' && <MonthWiseLedger />}
+              {currentPage === 'user-daily-report' && <FeeReports singleDailyMode={true} />}
             </FinancialLayout>
           ) : (
             <>

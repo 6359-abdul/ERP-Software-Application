@@ -14,6 +14,8 @@ const FundAllocation: React.FC = () => {
     const [allocations, setAllocations] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isAdmin = (user.role === 'Admin' || user.role === 'Director');
 
     const getHeaders = () => {
         const token = localStorage.getItem('token') || '';
@@ -33,7 +35,7 @@ const FundAllocation: React.FC = () => {
                 const data = await res.json();
                 const fetchedBranches = data.branches || [];
                 setBranches(fetchedBranches);
-                
+
                 const globalBranchName = localStorage.getItem('currentBranch') || 'All';
                 if (globalBranchName !== 'All') {
                     const found = fetchedBranches.find((b: any) => b.branch_name === globalBranchName);
@@ -93,6 +95,14 @@ const FundAllocation: React.FC = () => {
         }
     };
 
+    if (!isAdmin) {
+        return (
+            <div className="p-6 text-red-600 font-semibold text-center mt-10">
+                Access Denied: You do not have permission to view this page.
+            </div>
+        );
+    }
+
     return (
         <div className="p-4 bg-gray-50 min-h-screen space-y-6">
             <h2 className="text-xl font-semibold text-blue-700 mb-4">
@@ -101,15 +111,15 @@ const FundAllocation: React.FC = () => {
             <div className="bg-white rounded shadow p-6">
                 <h3 className="text-lg font-medium text-gray-800 mb-4">New Fund Allocation</h3>
                 {message && <div className="mb-4 text-blue-600 font-medium">{message}</div>}
-                
+
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div>
                         <label className="block text-sm text-gray-600 mb-1">Branch *</label>
-                        <select 
-                            name="branch_id" 
-                            value={formData.branch_id} 
-                            onChange={handleChange} 
-                            className="w-full border rounded p-2" 
+                        <select
+                            name="branch_id"
+                            value={formData.branch_id}
+                            onChange={handleChange}
+                            className="w-full border rounded p-2"
                             required
                         >
                             <option value="">Select Branch</option>
@@ -120,51 +130,51 @@ const FundAllocation: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-sm text-gray-600 mb-1">Date *</label>
-                        <input 
-                            type="date" 
-                            name="allocation_date" 
-                            value={formData.allocation_date} 
-                            onChange={handleChange} 
-                            className="w-full border rounded p-2" 
-                            required 
+                        <input
+                            type="date"
+                            name="allocation_date"
+                            value={formData.allocation_date}
+                            onChange={handleChange}
+                            className="w-full border rounded p-2"
+                            required
                         />
                     </div>
                     <div>
                         <label className="block text-sm text-gray-600 mb-1">Amount *</label>
-                        <input 
-                            type="number" 
-                            step="0.01" 
-                            name="amount" 
-                            value={formData.amount} 
-                            onChange={handleChange} 
-                            className="w-full border rounded p-2" 
-                            required 
+                        <input
+                            type="number"
+                            step="0.01"
+                            name="amount"
+                            value={formData.amount}
+                            onChange={handleChange}
+                            className="w-full border rounded p-2"
+                            required
                         />
                     </div>
                     <div>
                         <label className="block text-sm text-gray-600 mb-1">Approved By</label>
-                        <input 
-                            type="text" 
-                            name="approved_by" 
-                            value={formData.approved_by} 
-                            onChange={handleChange} 
-                            className="w-full border rounded p-2" 
+                        <input
+                            type="text"
+                            name="approved_by"
+                            value={formData.approved_by}
+                            onChange={handleChange}
+                            className="w-full border rounded p-2"
                         />
                     </div>
                     <div>
                         <label className="block text-sm text-gray-600 mb-1">Remarks</label>
-                        <textarea 
-                            name="remarks" 
-                            value={formData.remarks} 
-                            onChange={handleChange} 
-                            className="w-full border rounded p-2" 
+                        <textarea
+                            name="remarks"
+                            value={formData.remarks}
+                            onChange={handleChange}
+                            className="w-full border rounded p-2"
                             rows={1}
                         ></textarea>
                     </div>
                     <div className="lg:col-span-5 flex justify-end">
-                        <button 
-                            type="submit" 
-                            disabled={loading} 
+                        <button
+                            type="submit"
+                            disabled={loading}
                             className="bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700 disabled:opacity-50"
                         >
                             {loading ? 'Saving...' : 'Save Allocation'}
