@@ -334,17 +334,29 @@ def update_student(current_user, student_id):
 
         data = request.json or {}
 
+        # Clean Aadhar numbers
+        for key in ["Adharcardno", "FatherAadhar", "MotherAadhar"]:
+            if data.get(key):
+                data[key] = str(data[key]).replace("-", "").replace(" ", "").strip()
+
         # Aadhar number duplication check
         aadhar = data.get("Adharcardno")
         if aadhar:
-            aadhar = str(aadhar).strip()
-            if aadhar:
-                #Validate Aadhar number format
-                if not aadhar.isdigit() or len(aadhar) !=12:
-                    return jsonify({"error":"Aadhar Number must be exactly 12 digits."}),400 
-                existing_student = Student.query.filter_by(Adharcardno=aadhar).first()
-                if existing_student and existing_student.student_id != student_id:
-                    return jsonify({"error": f"A student with Aadhar number {aadhar} already exists."}), 400
+            #Validate Aadhar number format
+            if not aadhar.isdigit() or len(aadhar) != 12:
+                return jsonify({"error":"Aadhar Number must be exactly 12 digits."}), 400 
+            # Validate Parent Aadhar Format
+            for key in ["FatherAadhar", "MotherAadhar"]:
+                parent_aadhar = data.get(key)
+                if parent_aadhar:
+                    if not parent_aadhar.isdigit() or len(parent_aadhar) != 12:
+                        return jsonify({"error":f"{key} must be exactly 12 digits."}), 400 
+                    existing_student = Student.query.filter_by(Adharcardno=aadhar).first()
+                    if existing_student and existing_student.student_id != student_id:
+                        return jsonify({"error": f"A student with {key} number {parent_aadhar} already exists."}), 400
+            existing_student = Student.query.filter_by(Adharcardno=aadhar).first()
+            if existing_student and existing_student.student_id != student_id:
+                return jsonify({"error": f"A student with Aadhar number {aadhar} already exists."}), 400
 
         # -------- EXPLICIT FIELD MAPPING --------
         # Map frontend field names to backend model attributes
@@ -559,11 +571,17 @@ def create_student(current_user):
     data = request.json or {}
     
     try:
+        # Clean Aadhar numbers
+        for key in ["Adharcardno", "FatherAadhar", "MotherAadhar"]:
+            if data.get(key):
+                data[key] = str(data[key]).replace("-", "").replace(" ", "").strip()
+
         # Aadhar number duplication check
         aadhar = data.get("Adharcardno")
         if aadhar:
-            aadhar = str(aadhar).strip()
-            if aadhar and Student.query.filter_by(Adharcardno=aadhar).first():
+            if not aadhar.isdigit() or len(aadhar) != 12:
+                return jsonify({"error":"Aadhar Number must be exactly 12 digits."}), 400
+            if Student.query.filter_by(Adharcardno=aadhar).first():
                 return jsonify({"error": f"A student with Aadhar number {aadhar} already exists."}), 400
 
         s = Student()
