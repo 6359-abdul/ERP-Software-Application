@@ -89,10 +89,17 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Financial Header */}
         <div className="bg-white border-b border-slate-200 shadow-sm z-20 relative flex flex-col">
-          <div className="px-6 py-4 flex items-center">
+          <div className="px-6 py-4 flex items-center justify-between">
             <h2 className="text-2xl font-semibold text-slate-900 flex items-center">
               <span className="text-blue-600 mr-2">₹</span> Financial Administration
             </h2>
+            <button
+              onClick={() => navigateTo('take-fee' as Page)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              <ReceiptIcon className="w-4 h-4" />
+              Collect Fee
+            </button>
           </div>
 
           {/* Main Navigation Tabs */}
