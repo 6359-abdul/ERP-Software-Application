@@ -388,12 +388,12 @@ const FinancialDashboard: React.FC = () => {
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KpiCard title="Total Students" value={stats.totalStudents.toLocaleString()} sub="Active Students" icon="👤" color="bg-blue-50 text-blue-600" trend="8.5% vs Last Year" trendUp />
-        <KpiCard title="Total Fee Amount" value={fmtINR(stats.totalFee)} sub="This Academic Year" icon="💰" color="bg-emerald-50 text-emerald-600" trend="12.3% vs Last Year" trendUp />
-        <KpiCard title="Total Collected" value={fmtINR(stats.totalCollected)} sub="Collected So Far" icon="🏦" color="bg-violet-50 text-violet-600" trend="15.7% vs Last Year" trendUp />
-        <KpiCard title="Collection %" value={`${collectionPct}%`} sub="Collection Efficiency" icon="📊" color="bg-amber-50 text-amber-600" trend="2.4% vs Last Year" trendUp />
-        <KpiCard title="Outstanding" value={fmtINR(stats.outstanding)} sub="Pending Collection" icon="⏰" color="bg-rose-50 text-rose-600" trend="3.2% vs Last Year" trendUp={false} />
-        <KpiCard title="Concessions Given" value={fmtINR(stats.concessions)} sub="Total Concessions" icon="%" color="bg-cyan-50 text-cyan-600" trend="5.8% vs Last Year" trendUp />
+        <KpiCard title="Total Students" value={stats.totalStudents.toLocaleString()} sub="" icon="👤" color="bg-blue-50 text-blue-600" />
+        <KpiCard title="Total Fee Amount" value={fmtINR(stats.totalFee)} sub="" icon="💰" color="bg-emerald-50 text-emerald-600" />
+        <KpiCard title="Total Collected" value={fmtINR(stats.totalCollected)} sub="" icon="🏦" color="bg-violet-50 text-violet-600" />
+        <KpiCard title="Collection %" value={`${collectionPct}%`} sub="" icon="📊" color="bg-amber-50 text-amber-600" />
+        <KpiCard title="Outstanding" value={fmtINR(stats.outstanding)} sub="" icon="⏰" color="bg-rose-50 text-rose-600" />
+        <KpiCard title="Concessions Given" value={fmtINR(stats.concessions)} sub="" icon="%" color="bg-cyan-50 text-cyan-600" />
       </div>
 
       {/* Row 2: Line chart + Donut + Branch bar */}

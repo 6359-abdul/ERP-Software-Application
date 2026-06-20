@@ -1450,7 +1450,7 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               disabled={isViewMode}
             />
             <FormField
-              label="Enrollment Number"
+              label="Enrollment Number"   
               name="PreviousAdmissionNumber"
               value={formData.PreviousAdmissionNumber}
               onChange={handleInputChange}

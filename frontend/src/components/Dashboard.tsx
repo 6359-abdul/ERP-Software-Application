@@ -63,9 +63,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="flex min-h-screen bg-white">
       <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} navigateTo={navigateTo} currentPage={currentPage} />
-      <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="flex flex-col flex-1 overflow-auto">
         <Header
           toggleSidebar={toggleSidebar}
           navigateTo={navigateTo}
@@ -76,6 +76,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           canGoForward={canGoForward}
         />
         <main className="flex-1">
+        <div className="mx-auto w-full max-w-[1920px] px-4">
           {currentPage === 'dashboard' && <MainContent navigateTo={navigateTo} />}
           {currentPage === 'profile' && <Profile />}
           {financialPages.includes(currentPage) ? (
@@ -116,6 +117,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
               {currentPage === 'create-student' && <CreateStudent mode="create" onCancel={() => navigateTo('dashboard')} onSave={() => navigateTo('student-administration')} />}
             </>
           )}
+        </div>
         </main>
       </div>
     </div>

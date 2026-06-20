@@ -214,6 +214,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
     const [selectedSection, setSelectedSection] = useState('');
     const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isCollectingFee, setIsCollectingFee] = useState(false);
 
     // ─── Role-Based Access Control ───────────────────────────────────────────────
     // Reads the user role from localStorage (set during login).
@@ -623,6 +624,13 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
             return;
         }
 
+        const confirmPayment = window.confirm( 'Are you sure you want to collect ₹' + payable + ' from ' + selectedStudent.name + '?'
+        )
+
+        if (!confirmPayment) return;
+        if (isCollectingFee) return;
+        setIsCollectingFee(true);
+
         try {
             let remainingAmount = Number(paidInput);
 
@@ -715,6 +723,8 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
         } catch (error: any) {
             console.error('Error recording payment:', error);
             alert(error.response?.data?.error || "Failed to record payment");
+        } finally {
+            setIsCollectingFee(false);
         }
     };
 
@@ -1075,23 +1085,23 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
                                             className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500"
                                         />
                                     </div>
-                                    {(paymentMode === 'CardSwap' || paymentMode === 'UPI') && (
+                                    {(paymentMode === 'CardSwap' || paymentMode === 'UPI' || paymentMode === 'Online') && (
                                         <>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700">
-                                                    UPI/Card Transaction ID*
+                                                    UPI/Card/Online Transaction ID*
                                                 </label>
                                                 <input
                                                     type="text"
                                                     value={transactionId}
                                                     onChange={e => setTransactionId(e.target.value)}
                                                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500"
-                                                    placeholder="Enter UPI/Card transaction ID"
+                                                    placeholder="Enter UPI/Card/Online transaction ID"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700">
-                                                    UPI/Card Description*
+                                                    UPI/Card/Online Description*
                                                 </label>
                                                 <input
                                                     type="text"
@@ -1099,7 +1109,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
                                                     required
                                                     onChange={e => setTransactionIdDescription(e.target.value)}
                                                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500"
-                                                    placeholder="Enter UPI/Card description"
+                                                    placeholder="Enter UPI/Card/Online description"
                                                 />
                                             </div>
                                         </>
@@ -1134,10 +1144,14 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
                                 <div className="flex justify-end space-x-2 pt-2">
                                     <button
                                         onClick={handleTakeFee}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-violet-600 rounded-md hover:bg-violet-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500"
-                                        disabled={!selectedStudent}
+                                        disabled={!selectedStudent || isCollectingFee}
+                                        className={`px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm
+                                            ${isCollectingFee
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-violet-600 hover:bg-violet-700'
+                                            }`}
                                     >
-                                        Collect Fee {/* Take fee as Collect Fee */}
+                                        {isCollectingFee ? 'Processing...' : 'Collect Fee'}
                                     </button>
                                     <button
                                         onClick={handleReset}
