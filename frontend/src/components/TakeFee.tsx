@@ -214,6 +214,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
     const [selectedSection, setSelectedSection] = useState('');
     const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isCollectingFee, setIsCollectingFee] = useState(false);
 
     // ─── Role-Based Access Control ───────────────────────────────────────────────
     // Reads the user role from localStorage (set during login).
@@ -623,6 +624,13 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
             return;
         }
 
+        const confirmPayment = window.confirm( 'Are you sure you want to collect ₹' + payable + ' from ' + selectedStudent.name + '?'
+        )
+
+        if (!confirmPayment) return;
+        if (isCollectingFee) return;
+        setIsCollectingFee(true);
+
         try {
             let remainingAmount = Number(paidInput);
 
@@ -715,6 +723,8 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
         } catch (error: any) {
             console.error('Error recording payment:', error);
             alert(error.response?.data?.error || "Failed to record payment");
+        } finally {
+            setIsCollectingFee(false);
         }
     };
 
@@ -1134,10 +1144,14 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
                                 <div className="flex justify-end space-x-2 pt-2">
                                     <button
                                         onClick={handleTakeFee}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-violet-600 rounded-md hover:bg-violet-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500"
-                                        disabled={!selectedStudent}
+                                        disabled={!selectedStudent || isCollectingFee}
+                                        className={`px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm
+                                            ${isCollectingFee
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-violet-600 hover:bg-violet-700'
+                                            }`}
                                     >
-                                        Collect Fee {/* Take fee as Collect Fee */}
+                                        {isCollectingFee ? 'Processing...' : 'Collect Fee'}
                                     </button>
                                     <button
                                         onClick={handleReset}
