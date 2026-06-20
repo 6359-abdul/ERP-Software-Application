@@ -1085,23 +1085,23 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
                                             className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500"
                                         />
                                     </div>
-                                    {(paymentMode === 'CardSwap' || paymentMode === 'UPI') && (
+                                    {(paymentMode === 'CardSwap' || paymentMode === 'UPI' || paymentMode === 'Online') && (
                                         <>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700">
-                                                    UPI/Card Transaction ID*
+                                                    UPI/Card/Online Transaction ID*
                                                 </label>
                                                 <input
                                                     type="text"
                                                     value={transactionId}
                                                     onChange={e => setTransactionId(e.target.value)}
                                                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500"
-                                                    placeholder="Enter UPI/Card transaction ID"
+                                                    placeholder="Enter UPI/Card/Online transaction ID"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700">
-                                                    UPI/Card Description*
+                                                    UPI/Card/Online Description*
                                                 </label>
                                                 <input
                                                     type="text"
@@ -1109,7 +1109,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
                                                     required
                                                     onChange={e => setTransactionIdDescription(e.target.value)}
                                                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500"
-                                                    placeholder="Enter UPI/Card description"
+                                                    placeholder="Enter UPI/Card/Online description"
                                                 />
                                             </div>
                                         </>
