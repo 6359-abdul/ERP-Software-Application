@@ -152,7 +152,7 @@ def get_marks_entry_grid():
             student_list.append({
                 "student_id": s.student_id,
                 "admission_no": s.admission_no,
-                "name": f"{s.first_name} {s.last_name}".strip(),
+                "name": f"{s.first_name or ''} {s.last_name or ''}".strip(),
                 "roll_number": roll,
                 "marks_obtained": mark_data['marks'],
                 "is_absent": mark_data['is_absent'],

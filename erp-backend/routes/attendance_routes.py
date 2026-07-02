@@ -387,7 +387,7 @@ def generate_template(current_user):
         for s, rec in results:
              row = {
                  "Admission No": s.admission_no,
-                 "Student Name": f"{s.first_name} {s.last_name}",
+                 "Student Name": f"{s.first_name or ''} {s.last_name or ''}".strip(),
                  "Roll No": rec.roll_number or ""
              }
              # Init days as empty

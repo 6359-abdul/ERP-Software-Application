@@ -514,7 +514,7 @@ def report_fee_due(current_user):
         for s, due, fee in results:
             output.append({
                 "student_id": s.student_id,
-                "name": f"{s.first_name} {s.StudentMiddleName or ''} {s.last_name}".strip(),
+                "name": f"{s.first_name or ''} {s.StudentMiddleName or ''} {s.last_name or ''}".strip(),
                 "admission_no": s.admission_no,
                 "class": s.clazz,
                 "section": s.section,
@@ -575,7 +575,7 @@ def report_fee_late_due(current_user):
         for s, due, fee in results:
             output.append({
                 "student_id": s.student_id,
-                "name": f"{s.first_name} {s.StudentMiddleName or ''} {s.last_name}".strip(),
+                "name": f"{s.first_name or ''} {s.StudentMiddleName or ''} {s.last_name or ''}".strip(),
                 "admission_no": s.admission_no,
                 "class": s.clazz,
                 "section": s.section,
@@ -653,7 +653,7 @@ def get_receipt_data(current_user, receipt_no):
             
         return jsonify({
             "receiptNo": first.receipt_no,
-            "studentName": f"{student.first_name} {student.StudentMiddleName or ''} {student.last_name}".strip(),
+            "studentName": f"{student.first_name or ''} {student.StudentMiddleName or ''} {student.last_name or ''}".strip(),
             "fatherName": student.Fatherfirstname,
             "fatherPhone": student.FatherPhone or student.SmsNo or student.phone,
             "admissionNo": student.admission_no,
@@ -783,7 +783,7 @@ def report_concession(current_user):
             if s:
                 results.append({
                     "student_id": s.student_id,
-                    "student_name": f"{s.first_name} {s.StudentMiddleName or ''} {s.last_name}".strip(),
+                    "student_name": f"{s.first_name or ''} {s.StudentMiddleName or ''} {s.last_name or ''}".strip(),
                     "admission_no": s.admission_no,
                     "class": s.clazz,
                     "section": s.section,

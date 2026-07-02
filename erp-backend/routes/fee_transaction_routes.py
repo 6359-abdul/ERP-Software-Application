@@ -93,7 +93,7 @@ def get_fee_students(current_user):
     output = [
         {
             "student_id": s.student_id, 
-            "name": f"{s.first_name} {s.last_name}".strip(),
+            "name": f"{s.first_name or ''} {s.last_name or ''}".strip(),
             "fatherName": s.Fatherfirstname,
             "fatherPhone": s.FatherPhone or s.SmsNo or s.phone,
             "admNo": s.admission_no,
