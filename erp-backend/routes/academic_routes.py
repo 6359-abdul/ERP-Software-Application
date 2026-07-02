@@ -658,7 +658,7 @@ def get_assignment_data():
             student_list.append({
                 "student_id": student.student_id,
                 "admission_no": student.admission_no,
-                "name": f"{student.first_name} {student.last_name}",
+                "name": f"{student.first_name or ''} {student.last_name or ''}".strip(),
                 "roll_number": roll_no
             })
 

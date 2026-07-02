@@ -73,7 +73,7 @@ def get_assignments():
         for s in students:
             student_list.append({
                 'student_id': s.student_id,
-                'name': f"{s.first_name} {s.last_name or ''}".strip(),
+                'name': f"{s.first_name or ''} {s.last_name or ''}".strip(),
                 'roll_number': s.roll_number,
                 'admission_no': s.admission_no,
                 'section': s.section
