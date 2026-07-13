@@ -176,6 +176,26 @@ const PettyCash: React.FC = () => {
     setSelectedReceipt(txn);
   };
 
+  const printReceipt = () => {
+    const content = document.getElementById('printable-receipt');
+    if (!content) return window.print();
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return window.print();
+
+    // include current head (styles) so Tailwind/CSS is preserved
+    const head = document.head.innerHTML;
+    printWindow.document.open();
+    printWindow.document.write(`<!doctype html><html><head>${head}<style>body{margin:0;padding:16px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}</style></head><body>${content.innerHTML}</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    // give browser a moment to load styles
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
+  };
+
   // Group transactions by month-year
   const groupedTransactions: Record<string, PettyCashTxn[]> = {};
   transactions.forEach(txn => {
@@ -497,7 +517,7 @@ const PettyCash: React.FC = () => {
       {/* View Details Modal */}
       {selectedReceipt && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300 print:absolute print:inset-0 print:bg-white print:p-0 print:z-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col transform transition-all print:shadow-none print:max-h-none print:rounded-none">
+          <div id="printable-receipt" className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col transform transition-all print:shadow-none print:max-h-none print:rounded-none">
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4 flex justify-between items-center text-white print:bg-none print:bg-white print:text-black print:border-b-2 print:border-gray-800">
               <h3 className="text-xl font-bold tracking-wide">Transaction Overview</h3>
@@ -644,7 +664,7 @@ const PettyCash: React.FC = () => {
                 )}
               </div>
               <div className="flex space-x-3">
-                <button onClick={() => window.print()} className="px-6 py-2 bg-blue-600 text-white font-semibold border border-transparent rounded-lg shadow-sm hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <button onClick={printReceipt} className="px-6 py-2 bg-blue-600 text-white font-semibold border border-transparent rounded-lg shadow-sm hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none">
                   Print Receipt
                 </button>
                 <button onClick={() => setSelectedReceipt(null)} className="px-6 py-2 bg-white text-gray-700 font-semibold border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 hover:text-gray-900 transition-colors focus:ring-2 focus:ring-indigo-500 focus:outline-none">

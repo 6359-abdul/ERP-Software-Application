@@ -777,17 +777,7 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
                                             <option key={section} value={section}>{section}</option>
                                         ))}
                                     </select>
-                                    <select
-                                        value={selectedFeeType}
-                                        onChange={handleFeeTypeChange}
-                                        disabled={!selectedStudent}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 text-sm"
-                                    >
-                                        <option value="">-- Select Fee Type --</option>
-                                        {feeTypes.map(ft => (
-                                            <option key={ft.id} value={ft.id}>{ft.fee_type}</option>
-                                        ))}
-                                    </select>
+                                    
                                 </div>
                                 <div>
                                     <select
@@ -802,11 +792,23 @@ const TakeFee: React.FC<{ navigateTo?: (page: Page) => void }> = () => {
                                             </option>
                                         ))}
                                     </select>
+                                    <div className="w-64">
+                                    <select
+                                        value={selectedFeeType}
+                                        onChange={handleFeeTypeChange}
+                                        disabled={!selectedStudent}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 text-sm"
+                                    >
+                                        <option value="">-- Select Fee Type --</option>
+                                        {feeTypes.map(ft => (
+                                            <option key={ft.id} value={ft.id}>
+                                                {ft.fee_type}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    </div>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    <button className="text-sm px-3 py-1.5 border rounded-md hover:bg-gray-100">
-                                        Download QR
-                                    </button>
                                     <button className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700">
                                         Student
                                     </button>

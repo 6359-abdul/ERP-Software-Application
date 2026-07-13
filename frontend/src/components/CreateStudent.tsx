@@ -935,14 +935,15 @@ const CreateStudent: React.FC<CreateStudentProps> = ({
               onChange={handleInputChange}
               disabled={true}
             />
-            <FormField
+            {/* Roll Number can update in another screen */}
+            {/*<FormField
               label="Roll Number"
               name="Roll_Number"
               type="number"
               value={formData.Roll_Number}
               onChange={handleInputChange}
               disabled={isViewMode}
-            />
+            />*/}
             <FormField
               label="Admission Category"
               name="AdmissionCategory"
