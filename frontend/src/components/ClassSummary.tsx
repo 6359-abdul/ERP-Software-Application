@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import React, { useState, useEffect } from 'react';
 import api from '../api';
-  import { SearchIcon } from './icons'; 
+import { SearchIcon } from './icons';
 import CreateStudent from './CreateStudent';
 
 // ---------------------------------------------------------------------------
@@ -34,12 +34,12 @@ interface StudentMinimal {
     rollNo: number;
     class: string;
     section: string;
+    gender?: string;
     father: string; // FatherName
     fatherMobile: string;
     status: string;
-    id: number;
-    student_id: number;
-    gender?: string;
+    branch: string;
+
 }
 
 // ---------------------------------------------------------------------------
@@ -71,15 +71,16 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const exportToExcel = () => {
         const dataToExport = students.map((s, index) => ({
             "S.No": index + 1,
-            "Roll No": s.rollNo,
             "Admission No": s.admNo,
             "Name": s.name,
             "Gender": s.gender,
             "Class": s.class,
             "Section": s.section,
+            "Roll No": s.rollNo,
             "Father Name": s.father,
             "Phone Number": s.fatherMobile,
-            "Status": s.status
+            "Status": s.status,
+            "Branch": s.branch
         }));
 
         const ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -99,11 +100,7 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
     // Fetch Students when filters change
     useEffect(() => {
-        if (selectedClass) {
-            fetchStudents();
-        } else {
-            setStudents([]);
-        }
+        fetchStudents();
     }, [selectedClass, selectedSection, statusFilter, search]);
 
     const fetchSummary = async () => {
@@ -134,8 +131,8 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             const globalBranch = localStorage.getItem('currentBranch');
             const res = await api.get('/students', {
                 params: {
-                    class: selectedClass,
-                    section: selectedSection,
+                    class: selectedClass || undefined,
+                    section: selectedSection || undefined,
                     search: search,
                     include_inactive: 'true', // We filter on frontend or backend? Using backend filter.
                     // But wait, our backend /students endpoint filters by status=Active unless include_inactive=true.
@@ -154,7 +151,6 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             if (statusFilter !== 'All') {
                 data = data.filter((s: any) => s.status === statusFilter);
             }
-
             setStudents(data);
 
         } catch (e) {
@@ -232,14 +228,54 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 <div className="flex-1 overflow-y-auto">
                     <table className="w-full text-sm text-left">
                         <tbody className="divide-y divide-gray-100">
+
+                            <tr
+                                onClick={() => {
+                                    setSelectedClass(null);
+                                    setSelectedSection(null);
+                                }}
+                                className={`cursor-pointer transition-colors ${selectedClass === null
+                                        ? 'bg-blue-50'
+                                        : 'hover:bg-gray-50'
+                                    }`}
+                            >
+                                <td className="px-3 py-2.5 font-medium text-blue-700">
+                                    All Classes
+                                </td>
+                                <td className="px-3 py-2.5 text-right font-semibold text-blue-700">
+                                    {summary.stats.total}
+                                </td>
+                            </tr>
+
                             {summary.structure.map(c => (
                                 <tr
                                     key={c.name}
-                                    onClick={() => { setSelectedClass(c.name); setSelectedSection(null); }}
-                                    className={`cursor-pointer transition-colors ${selectedClass === c.name ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                                    onClick={() => {
+                                        setSelectedClass(c.name);
+                                        setSelectedSection(null);
+                                    }}
+                                    className={`cursor-pointer transition-colors ${selectedClass === c.name
+                                            ? 'bg-blue-50'
+                                            : 'hover:bg-gray-50'
+                                        }`}
                                 >
-                                    <td className={`px-3 py-2.5 font-medium ${selectedClass === c.name ? 'text-blue-700' : 'text-gray-700'}`}>{c.name}</td>
-                                    <td className={`px-3 py-2.5 text-right font-semibold ${selectedClass === c.name ? 'text-blue-700' : 'text-blue-500'}`}>{c.count}</td>
+                                    <td
+                                        className={`px-3 py-2.5 font-medium ${selectedClass === c.name
+                                                ? 'text-blue-700'
+                                                : 'text-gray-700'
+                                            }`}
+                                    >
+                                        {c.name}
+                                    </td>
+
+                                    <td
+                                        className={`px-3 py-2.5 text-right font-semibold ${selectedClass === c.name
+                                                ? 'text-blue-700'
+                                                : 'text-blue-500'
+                                            }`}
+                                    >
+                                        {c.count}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -250,11 +286,15 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     };
 
     const renderMiddleSidebar = () => {
-        if (!selectedClass || !selectedClassObject) return (
-            <div className="bg-white rounded-lg shadow h-full flex items-center justify-center text-gray-400 text-sm p-4 text-center border border-gray-200 print:hidden">
-                <span className="italic">Select Class</span>
-            </div>
-        );
+        if (!selectedClass) {
+            return (
+                <div className="bg-white rounded-lg shadow h-full flex items-center justify-center">
+                    <span className="text-gray-500">
+                        All Classes Selected
+                    </span>
+                </div>
+            );
+        }
 
         return (
             <div className="bg-white rounded-lg shadow h-full flex flex-col border border-green-100 print:hidden">
@@ -275,7 +315,7 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 {/* Table Header */}
                 <div className="bg-gray-50 border-b px-3 py-2 flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wider">
                     <span>Total</span>
-                    <span>{selectedClassObject.count}</span>
+                    <span>{selectedClassObject?.count ?? 0}</span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
@@ -292,9 +332,9 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                 className={`cursor-pointer transition-colors ${selectedSection === null ? 'bg-green-100' : 'hover:bg-green-50'}`}
                             >
                                 <td className="px-3 py-2.5 font-medium text-gray-700">All</td>
-                                <td className="px-3 py-2.5 text-right text-gray-600">{selectedClassObject.count}</td>
+                                <td className="px-3 py-2.5 text-right text-gray-600">{selectedClassObject?.count ?? 0}</td>
                             </tr>
-                            {selectedClassObject.sections.map(s => (
+                            {selectedClassObject?.sections?.map(s => (
                                 <tr
                                     key={s.name}
                                     onClick={() => setSelectedSection(s.name)}
@@ -335,7 +375,7 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
         return (
             <div className="h-full flex flex-col gap-4 print:h-auto print:block">
-              
+
                 {/* Main Content Card */}
                 <div className="bg-white rounded-lg shadow flex-1 flex flex-col overflow-hidden print:shadow-none print:h-auto">
                     {/* Sub Header */}
@@ -378,13 +418,16 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             <thead className="bg-gray-50 text-gray-500 font-semibold print:bg-white print:border-b-2 print:border-black">
                                 <tr>
                                     <th className="px-4 py-3 text-left w-12 text-gray-700">#</th>
-                                    <th className="px-4 py-3 text-left">Roll</th>
-                                    <th className="px-4 py-3 text-left">Status</th>
+
+                                    <th className="px-4 py-3 text-left">AdmissionNo.</th>
                                     <th className="px-4 py-3 text-left">Name</th>
                                     <th className="px-4 py-3 text-left">Class</th>
-                                    <th className="px-4 py-3 text-left">Adm.No.</th>
+                                    <th className="px-4 py-3 text-left">Section</th>
+                                    <th className="px-4 py-3 text-left">Roll</th>
                                     <th className="px-4 py-3 text-left">Father Name</th>
                                     <th className="px-4 py-3 text-left">PhoneNumber</th>
+                                    <th className="px-4 py-3 text-left">Status</th>
+                                    <th className="px-4 py-3 text-left">Branch</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
@@ -397,27 +440,29 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     </td></tr>
                                 ) : (
                                     students.map((s, index) => (
-                                        <tr key={s.id} className="hover:bg-blue-50 group transition-colors">
+                                        <tr key={s.admNo} className="hover:bg-blue-50 group transition-colors">
                                             <td className="px-4 py-3 font-mono text-gray-500">{index + 1}</td>
-                                            <td className="px-4 py-3 text-gray-600 font-medium">{s.rollNo || '-'}</td>
+                                            <td className="px-4 py-3 text-gray-600 font-medium">{s.admNo || '-'}</td>
+                                            <td className="px-4 py-3">
+                                                <div className="font-medium text-blue-600 group-hover:underline cursor-pointer">{s.name}</div>
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-700 font-semibold">{s.class}</td>
+                                            <td className="px-4 py-3 text-gray-600 font-mono text-xs">{s.section}</td>
+                                            <td className="px-4 py-3 text-gray-600 font-mono text-xs">{s.rollNo}</td>
+                                            <td className="px-4 py-3 text-gray-700">{s.father}</td>
+                                            <td className="px-4 py-3 text-gray-600 text-sm">{s.fatherMobile}</td>
+                                            {/*<td className="px-4 py-3 text-grenn-800 text-m">{s.status}</td>*/}
                                             <td className="px-4 py-3">
                                                 {/* Squares for Status (P/N/etc) */}
                                                 {s.status === 'Active' ? (
-                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded shadow-sm bg-orange-400 text-white text-xs font-bold" title="Present/Active">P</span>
+                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded shadow-sm bg-orange-400 text-white text-xs font-bold" title="Present/Active">A</span>
                                                 ) : s.status === 'Inactive' ? (
                                                     <span className="inline-flex items-center justify-center w-6 h-6 rounded shadow-sm bg-red-500 text-white text-xs font-bold" title="Inactive">I</span>
                                                 ) : (
                                                     <span className="inline-flex items-center justify-center w-6 h-6 rounded shadow-sm bg-green-500 text-white text-xs font-bold" title={s.status}>{s.status?.[0]}</span>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3">
-                                                <div className="font-medium text-blue-600 group-hover:underline cursor-pointer">{s.name}</div>
-                                                {s.status === 'Inactive' && <div className="text-xs text-red-500 mt-0.5">(InActive)</div>}
-                                            </td>
-                                            <td className="px-4 py-3 text-gray-700 font-semibold">{s.class} {s.section}</td>
-                                            <td className="px-4 py-3 text-gray-600 font-mono text-xs">{s.admNo}</td>
-                                            <td className="px-4 py-3 text-gray-700">{s.father}</td>
-                                            <td className="px-4 py-3 text-gray-600 text-sm">{s.fatherMobile}</td>
+
                                         </tr>
                                     ))
                                 )}

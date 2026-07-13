@@ -1424,7 +1424,7 @@ def get_student_summary(current_user):
             base_q = db.session.query(Student, None)
 
         # 2. Apply Branch Filter
-        if current_user.role not in ('Admin', 'Director'):
+        if current_user.role not in ('Admin','Director'):
              target_branch = current_user.branch
         else:
              target_branch = request.headers.get("X-Branch") or request.args.get("branch")
