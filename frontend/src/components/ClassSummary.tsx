@@ -462,6 +462,7 @@ const ClassSummary: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                                     <span className="inline-flex items-center justify-center w-6 h-6 rounded shadow-sm bg-green-500 text-white text-xs font-bold" title={s.status}>{s.status?.[0]}</span>
                                                 )}
                                             </td>
+                                            <td className="px-4 py-3 text-gray-600 text-sm">{s.branch}</td>
 
                                         </tr>
                                     ))
