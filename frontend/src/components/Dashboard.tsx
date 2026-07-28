@@ -32,6 +32,7 @@ import PettyCash from './PettyCash';
 import PettyCashReport from './PettyCashReport';
 import FundAllocation from './FundAllocation';
 import MonthWiseLedger from './MonthWiseLedger';
+import FeeDueReports from './FeeDueReports';
 import FinancialLayout from './FinancialLayout';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
 
@@ -39,7 +40,7 @@ const financialPages = [
   'fee', 'fee-type', 'class-fee-structure', 'assign-special-fee',
   'fee-installments', 'take-fee', 'concession-master', 'student-concession',
   'update-student-fee-structure', 'update-rebate-date', 'fee-reports',
-  'deleted-receipts', 'fee-concession-report', 'adjust-fee-report',
+  'deleted-receipts', 'fee-concession-report', 'adjust-fee-report', 'fee-due-reports',
   'petty-cash', 'petty-cash-report', 'fund-allocation', 'month-wise-ledger', 'user-daily-report'
 ];
 
@@ -92,6 +93,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
               {currentPage === 'update-student-fee-structure' && <UpdateStudentFeeStructure />}
               {currentPage === 'update-rebate-date' && <UpdateRebateDate />}
               {currentPage === 'fee-reports' && <FeeReports />}
+              {currentPage === 'fee-due-reports' && <FeeDueReports />}
               {currentPage === 'deleted-receipts' && <DeletedReceiptsReport />}
               {currentPage === 'fee-concession-report' && <FeeConcessionReport />}
               {currentPage === 'adjust-fee-report' && <AdjustFeeReport />}

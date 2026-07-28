@@ -34,6 +34,7 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
       icon: <DocumentIcon className="w-5 h-5" />,
       subItems: [
         { name: 'Standard Reports', page: 'fee-reports' as Page, icon: <ChartBarIcon className="w-4 h-4" /> },
+         { name: 'Fee Due Reports', page: 'fee-due-reports' as Page, icon: <DocumentReportIcon className="w-4 h-4" /> },
         { name: 'Fee Concession Report', page: 'fee-concession-report' as Page, icon: <DiscountIcon className="w-4 h-4" /> },
         { name: 'Deleted Receipts', page: 'deleted-receipts' as Page, icon: <TrashIcon className="w-4 h-4" /> },
         { name: 'Adjust Fee Report', page: 'adjust-fee-report' as Page, icon: <RefreshIcon className="w-4 h-4" /> },

@@ -122,8 +122,8 @@ def report_fee_today(current_user):
             "receipts": receipts_list
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+        current_app.logger.exception("standard fee due report failed")
+        return jsonify({"error": "Failed to generate report"}), 500
 @bp.route("/api/reports/fees/daily", methods=["GET"])
 @bp.route("/api/reports/fees/daily", methods=["GET"])
 @token_required
@@ -529,6 +529,108 @@ def report_fee_due(current_user):
         return jsonify({"error": str(e)}), 500
 
 
+from sqlalchemy import func
+
+@bp.route("/api/reports/fees/standard-due", methods=["GET"])
+@token_required
+def report_standard_fee_due(current_user):
+    """Get students with due amount based on specific filters for the Standard Due Report"""
+    try:
+        h_year, err, code = require_academic_year()
+        if err: return err, code
+        
+        # Strict Branch Logic
+        if current_user.role in ('Admin', 'Director'):
+            target_branch = request.headers.get("X-Branch", "All")
+        else:
+            target_branch = current_user.branch
+        
+        # Security Check
+        if current_user.role not in ('Admin', 'Director') and (not target_branch or target_branch in ['All', 'AllBranches']):
+            return jsonify([]), 200
+            
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        fee_type_filter = request.args.get('fee_type', 'All')
+        installment_filter = request.args.get('installment', 'All')
+        
+        from models import FeeType
+        
+        query = db.session.query(
+            Student.student_id,
+            Student.clazz,
+            Student.section,
+            Student.admission_no,
+            Student.first_name,
+            Student.StudentMiddleName,
+            Student.last_name,
+            Student.Fatherfirstname,
+            Student.FatherMiddleName,
+            Student.FatherLastName,
+            Student.FatherPhone,
+            func.sum(StudentFee.due_amount).label("total_due"),
+            func.sum(StudentFee.total_fee).label("total_fee"),
+            func.sum(StudentFee.paid_amount).label("total_paid"),
+            func.count(StudentFee.id).label("no_of_due_installments"),
+            func.group_concat(StudentFee.month.distinct()).label("installments"),
+            func.group_concat(FeeType.feetype.distinct()).label("fee_types")
+        ).join(StudentFee, Student.student_id == StudentFee.student_id)\
+         .outerjoin(FeeType, FeeType.id == StudentFee.fee_type_id)\
+         .filter(
+            StudentFee.academic_year == h_year,
+            Student.academic_year == h_year,
+            StudentFee.is_active == True,
+            StudentFee.status == 'Pending'
+        )        
+        if target_branch and target_branch not in ['All', 'AllBranches']:
+            query = query.filter(Student.branch == target_branch)
+            
+        if start_date_str and end_date_str:
+            try:
+                target_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                target_end = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                query = query.filter(StudentFee.due_date >= target_start, StudentFee.due_date <= target_end)
+            except ValueError:
+                return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+                
+        if fee_type_filter != 'All':
+            query = query.filter(FeeType.feetype == fee_type_filter)
+            
+        if installment_filter != 'All':
+            query = query.filter(StudentFee.installment_schedule_id == installment_filter)
+            
+        query = query.group_by(
+            Student.student_id, Student.clazz, Student.section, Student.admission_no,
+            Student.first_name, Student.StudentMiddleName, Student.last_name,
+            Student.Fatherfirstname, Student.FatherMiddleName, Student.FatherLastName,
+            Student.FatherPhone
+        )
+        
+        results = query.all()
+        
+        output = []
+        for r in results:
+            output.append({
+                "student_id": r.student_id,
+                "name": f"{r.first_name or ''} {r.StudentMiddleName or ''} {r.last_name or ''}".strip(),
+                "admission_no": r.admission_no,
+                "class": r.clazz,
+                "section": r.section,
+                "father_name": f"{r.Fatherfirstname or ''} {r.FatherMiddleName or ''} {r.FatherLastName or ''}".strip(),
+                "father_mobile": r.FatherPhone,
+                "total_fee": float(r.total_fee or 0),
+                "due_amount": float(r.total_due or 0),
+                "paid_amount": float(r.total_paid or 0),
+                "no_of_due_installments": r.no_of_due_installments,
+                "installments": r.installments,
+                "installment": r.installments,  # kept for backward-compat with old field name if frontend uses it
+                "fee_type": r.fee_types or "Unknown"
+            })
+            
+        return jsonify(output), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @bp.route("/api/reports/fees/late-due", methods=["GET"])
 @token_required
 def report_fee_late_due(current_user):
