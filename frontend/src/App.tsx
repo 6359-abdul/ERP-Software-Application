@@ -37,6 +37,9 @@ export type Page =
   | "deleted-receipts"
   | "fee-concession-report"
   | "adjust-fee-report"
+  | "fee-due-report"
+  | "fee-due-reports"
+  | "user-daily-report"
   | "fund-allocation"
   | "month-wise-ledger";
 
