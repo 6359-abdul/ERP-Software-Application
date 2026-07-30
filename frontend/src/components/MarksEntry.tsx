@@ -52,7 +52,7 @@ const MarksEntry: React.FC<MarksEntryProps> = () => {
                 const user = JSON.parse(userStr);
                 // Fix: If user is Admin or has 'All' access, prioritize the SELECTED branch from localStorage
                 // Otherwise use their assigned branch.
-                if (user.role === 'Admin' || user.role === 'Director' || user.branch === 'All' || user.branch === 'AllBranches') {
+                if (user.role === 'Director' || user.branch === 'All' || user.branch === 'AllBranches' || user.branch === 'All Branches') {
                     const selected = localStorage.getItem("currentBranch");
                     if (selected && selected !== "All" && selected !== "All Locations") {
                         storedBranch = selected;

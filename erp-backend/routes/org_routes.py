@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from extensions import db
 from models import Branch, OrgMaster, User, UserBranchAccess, ClassMaster , ClassSection
-from helpers import token_required, require_academic_year, get_branch_query_filter
+from helpers import token_required, require_academic_year, get_branch_query_filter, has_global_branch_access
 from datetime import date, datetime
 from sqlalchemy import or_ 
 
@@ -11,7 +11,26 @@ bp = Blueprint('org_routes', __name__)
 @token_required
 def get_all_branches(current_user):
     try:
-        branches = Branch.query.filter_by(is_active=True).all()
+        if has_global_branch_access(current_user):
+            branches = Branch.query.filter_by(is_active=True).all()
+        else:
+            today = date.today()
+            access_records = UserBranchAccess.query.filter(
+                UserBranchAccess.user_id == current_user.user_id,
+                UserBranchAccess.is_active == True,
+                UserBranchAccess.start_date <= today,
+                (UserBranchAccess.end_date.is_(None)) | (UserBranchAccess.end_date >= today)
+            ).all()
+            allowed_ids = [a.branch_id for a in access_records]
+            if allowed_ids:
+                branches = Branch.query.filter(Branch.id.in_(allowed_ids), Branch.is_active == True).all()
+            elif current_user.branch:
+                branches = Branch.query.filter(
+                    or_(Branch.branch_name == current_user.branch, Branch.branch_code == current_user.branch),
+                    Branch.is_active == True
+                ).all()
+            else:
+                branches = []
       
         # Helper to get location map
         locations = OrgMaster.query.filter_by(master_type='LOCATION').all()

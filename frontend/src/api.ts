@@ -77,10 +77,15 @@ api.interceptors.request.use(
       try {
         const user: UserData = JSON.parse(savedUser);
 
+        const isGlobalUser = user.role === 'Director' || (user.branch && user.branch.toLowerCase().startsWith('all'));
+
         // Add branch header
         if (currentBranch && !currentBranch.toLowerCase().startsWith('all')) {
           config.headers = config.headers || {};
           config.headers['X-Branch'] = currentBranch;
+        } else if (!isGlobalUser && user.branch && !user.branch.toLowerCase().startsWith('all')) {
+          config.headers = config.headers || {};
+          config.headers['X-Branch'] = user.branch;
         } else if (!currentBranch && user.branch && !user.branch.toLowerCase().startsWith('all')) {
           config.headers = config.headers || {};
           config.headers['X-Branch'] = user.branch;
