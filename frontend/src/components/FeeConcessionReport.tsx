@@ -3,6 +3,7 @@ import api from '../api';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { formatReportBranch, getReportHeaderBranch } from '../utils/branchHelper';
 
 const Pagination = ({ currentPage, totalPages, onPageChange, totalRecords, perPage }: any) => {
     if (totalPages <= 1) return null;
@@ -131,7 +132,7 @@ const FeeConcessionReport: React.FC = () => {
             'Student Name': r.student_name,
             'Adm No.': r.admission_no,
             'Class': `${r.class} ${r.section}`,
-            'Branch': r.branch,
+            'Branch': formatReportBranch(r.branch),
             'Contact': r.phone,
             'Concession Type': r.fee_type_name,
             'Assigned By': r.assigned_by,
@@ -149,7 +150,7 @@ const FeeConcessionReport: React.FC = () => {
         if (filteredConcessions.length === 0) return alert('No data to export');
         const doc = new jsPDF("l", "mm", "a4");
         doc.setFontSize(16);
-        doc.text("Fee Concession Report", 14, 15);
+        doc.text(`${getReportHeaderBranch()} - Fee Concession Report`, 14, 15);
 
         const tableColumn = ["S.No", "Student Name", "Adm No.", "Class", "Branch", "Contact", "Type", "Assigned By", "Gross", "Concession", "Paid"];
         const tableRows = filteredConcessions.map((r, idx) => [
@@ -157,7 +158,7 @@ const FeeConcessionReport: React.FC = () => {
             r.student_name,
             r.admission_no,
             `${r.class} ${r.section}`,
-            r.branch,
+            formatReportBranch(r.branch),
             r.phone,
             r.fee_type_name,
             r.assigned_by,

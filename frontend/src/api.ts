@@ -248,5 +248,8 @@ export const auth = {
 // Export the configured API instance
 export default api;
 
+// Export branch helper utilities
+export { formatReportBranch, getReportHeaderBranch } from './utils/branchHelper';
+
 // Export types for use in other files
 export type { UserData, CustomAxiosRequestConfig };
