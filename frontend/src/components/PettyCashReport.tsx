@@ -4,6 +4,7 @@ import { API_URL } from '../config';
 import MonthWiseLedger from './MonthWiseLedger';
 import DetailedLedger from './DetailedLedger';
 import FundAllocation from './FundAllocation';
+import { formatReportBranch } from '../utils/branchHelper';
 
 interface BranchWiseRow {
     branch_id: number;
@@ -306,7 +307,7 @@ const PettyCashReport: React.FC = () => {
                                                     className="text-blue-600 hover:underline flex items-center gap-1"
                                                     onClick={() => handleBranchClick(row.branch_id)}
                                                 >
-                                                    <ChevronRight size={14} /> {row.branch_name}
+                                                    <ChevronRight size={14} /> {formatReportBranch(row.branch_name)}
                                                 </button>
                                             </td>
                                             {activeMonths.map(m => (
@@ -446,7 +447,7 @@ const PettyCashReport: React.FC = () => {
                                             <tr key={d.sno} className="hover:bg-blue-50">
                                                 <td className="p-2 border text-center">{d.sno}</td>
                                                 <td className="p-2 border">{d.date}</td>
-                                                <td className="p-2 border text-blue-700">{d.branch_name}</td>
+                                                <td className="p-2 border text-blue-700">{formatReportBranch(d.branch_name)}</td>
                                                 <td className="p-2 border text-center">{d.voucher_no}</td>
                                                 <td className="p-2 border">{d.paying_account}</td>
                                                 <td className="p-2 border text-center">{d.voucher_type}</td>

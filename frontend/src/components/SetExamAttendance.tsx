@@ -63,7 +63,7 @@ const SetExamAttendance: React.FC = () => {
             setUserRole(user.role);
             setUserBranch(user.branch);
 
-            if (user.role === 'Admin' || user.role === 'Director' || user.branch === 'All' || user.branch === 'AllBranches') {
+            if (user.role === 'Director' || user.branch === 'All' || user.branch === 'AllBranches' || user.branch === 'All Branches') {
                 fetchBranches().then((fetchedBranches) => {
                     // Auto-select current branch from localStorage if available and valid
                     const current = localStorage.getItem('currentBranch');

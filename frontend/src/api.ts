@@ -77,10 +77,15 @@ api.interceptors.request.use(
       try {
         const user: UserData = JSON.parse(savedUser);
 
+        const isGlobalUser = user.role === 'Director' || (user.branch && user.branch.toLowerCase().startsWith('all'));
+
         // Add branch header
         if (currentBranch && !currentBranch.toLowerCase().startsWith('all')) {
           config.headers = config.headers || {};
           config.headers['X-Branch'] = currentBranch;
+        } else if (!isGlobalUser && user.branch && !user.branch.toLowerCase().startsWith('all')) {
+          config.headers = config.headers || {};
+          config.headers['X-Branch'] = user.branch;
         } else if (!currentBranch && user.branch && !user.branch.toLowerCase().startsWith('all')) {
           config.headers = config.headers || {};
           config.headers['X-Branch'] = user.branch;
@@ -242,6 +247,9 @@ export const auth = {
 
 // Export the configured API instance
 export default api;
+
+// Export branch helper utilities
+export { formatReportBranch, getReportHeaderBranch } from './utils/branchHelper';
 
 // Export types for use in other files
 export type { UserData, CustomAxiosRequestConfig };

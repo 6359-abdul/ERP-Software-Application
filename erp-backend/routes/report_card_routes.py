@@ -8,7 +8,7 @@ from mysql.connector import Error
 # pyrefly: ignore [import-error]
 import os
 import logging
-from helpers import token_required
+from helpers import token_required, has_global_branch_access, user_can_access_branch
 from models import Branch, UserBranchAccess
 
 report_bp = Blueprint('report', __name__)
@@ -47,7 +47,7 @@ def _build_hifz_graph_for_report(student_id):
         logger.warning(f"Could not build Hifz graph for student_id={student_id}: {e}")
         return []
 def resolve_branch_scope(current_user, requested_branch=None):
-    if current_user.role == "Admin" or current_user.role == "Director" or current_user.branch == "All":
+    if has_global_branch_access(current_user):
         return requested_branch
 
     if requested_branch and requested_branch not in ["All", "All Branches", current_user.branch]:
@@ -67,28 +67,7 @@ def resolve_branch_scope(current_user, requested_branch=None):
 
 
 def ensure_student_branch_access(current_user, student_branch):
-    if current_user.role == "Admin" or current_user.role == "Director" or current_user.branch == "All":
-        return True
-    if not student_branch:
-        return False
-    if student_branch == current_user.branch:
-        return True
-
-    branch_obj = Branch.query.filter(
-        (Branch.branch_code == student_branch) | (Branch.branch_name == student_branch)
-    ).first()
-    if not branch_obj:
-        return False
-
-    if current_user.branch in [branch_obj.branch_code, branch_obj.branch_name]:
-        return True
-
-    access = UserBranchAccess.query.filter_by(
-        user_id=current_user.user_id,
-        branch_id=branch_obj.id,
-        is_active=True
-    ).first()
-    return access is not None
+    return user_can_access_branch(current_user, student_branch)
 
 def get_db_connection():
     """Create database connection"""

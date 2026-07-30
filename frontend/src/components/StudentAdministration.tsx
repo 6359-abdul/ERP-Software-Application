@@ -15,6 +15,7 @@ import UpdateStudentDetails from './UpdateStudentDetails';
 import ChangeSection from './ChangeSection';
 import { Student } from '../types';
 import api from '../api';
+import { formatReportBranch } from '../utils/branchHelper';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -412,7 +413,8 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
                          <body>
                              <div class="header">
                                 <img src="https://www.mshifzacademy.com/assets/images/ms-logo.jpg" style="max-width: 300px; height: auto; margin-bottom: 10px;" />
-                                <p>Student Profile Report</p>
+                                <h1 style="margin: 5px 0; font-size: 24px; color: #4c1d95;">${formatReportBranch(s.branch)}</h1>
+                                <p style="font-size: 16px; color: #374151; font-weight: bold;">Student Profile Report</p>
                              </div>
 
                              <img src="${s.photo || ''}" class="photo-box" onerror="this.style.display='none';" />
@@ -426,6 +428,7 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
                                     <div class="field"><span class="label">Roll No:</span> <span class="value">${s.rollNo || '-'}</span></div>
                                     <div class="field"><span class="label">Class:</span> <span class="value">${s.class || '-'}</span></div>
                                     <div class="field"><span class="label">Section:</span> <span class="value">${s.section || '-'}</span></div>
+                                    <div class="field"><span class="label">Branch:</span> <span class="value">${formatReportBranch(s.branch)}</span></div>
                                 </div>
                                 <div>
                                     <div class="field"><span class="label">Admission Date:</span> <span class="value">${s.admission_date || '-'}</span></div>
@@ -526,7 +529,7 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
                                         <td className="px-4 py-2">{s.admNo}</td>
                                         <td className="px-4 py-2">{s.rollNo}</td>
                                         <td className="px-4 py-2">{s.class} {s.section}</td>
-                                        <td className="px-4 py-2">{s.branch}</td>
+                                        <td className="px-4 py-2">{formatReportBranch(s.branch)}</td>
                                         <td className="px-4 py-2">{s.father}</td>
                                         <td className="px-4 py-2">{s.fatherMobile}</td>
 

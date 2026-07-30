@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatReportBranch, getReportHeaderBranch } from '../utils/branchHelper';
 
 // Reusable Filter Wrapper (same style as FeeReports)
 const FilterContainer = ({ children }: { children: React.ReactNode }) => (
@@ -175,6 +176,7 @@ const FeeDueReports: React.FC = () => {
             StudentName: s.name,
             AdmissionNo: s.admission_no || '-',
             Class: `${s.class} ${s.section || ''}`,
+            Branch: formatReportBranch(s.branch),
             FatherName: s.father_name || '-',
             FatherMobile: s.father_mobile || '-',
             TotalFee: s.total_fee,
@@ -197,16 +199,17 @@ const FeeDueReports: React.FC = () => {
     const downloadPDF = () => {
         if (!data.length) return;
         const doc = new jsPDF("l", "mm", "a4");
-        doc.text("Standard Fee Due Report", 14, 15);
+        doc.text(`${getReportHeaderBranch()} - Standard Fee Due Report`, 14, 15);
 
         const tableColumn = [
-            "Student", "Adm No", "Class", "Father Name", "Mobile", "Fee Type", "Installment", "Total Fee", "Paid", "Due"
+            "Student", "Adm No", "Class", "Branch", "Father Name", "Mobile", "Fee Type", "Installment", "Total Fee", "Paid", "Due"
         ];
 
         const tableRows = data.map((s: any) => ([
             s.name,
             s.admission_no || '-',
             `${s.class} ${s.section || ''}`,
+            formatReportBranch(s.branch),
             s.father_name || '-',
             s.father_mobile || '-',
             s.fee_type || '-',

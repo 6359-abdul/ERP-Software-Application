@@ -1,5 +1,6 @@
 import React from 'react';
 import ReceiptLogo from '../images/Receiptlogo.png';
+import { formatReportBranch } from '../utils/branchHelper';
 
 interface FeeReceiptProps {
   onClose: () => void;
@@ -38,7 +39,7 @@ const ReceiptTemplate = ({ data, copyType, logo }: { data: any, copyType: string
       <div className="flex items-center justify-start mb-4">
         <img src={logo} alt="School Logo" className="h-16 mr-4" />
         <div>
-          <h1 className="text-2xl font-bold text-black">MS HifzAcademy</h1>
+          <h1 className="text-2xl font-bold text-black">{formatReportBranch(branch)}</h1>
           <p className="text-md text-gray-600">Fee Receipt <span className="text-sm font-semibold ml-2">({copyType})</span></p>
         </div>
       </div>
@@ -51,7 +52,7 @@ const ReceiptTemplate = ({ data, copyType, logo }: { data: any, copyType: string
           <p><strong className="font-semibold w-24 inline-block">Father:</strong> {fatherName}</p>
           <p><strong className="font-semibold w-24 inline-block">Phone:</strong> {fatherPhone || "N/A"}</p>
           <p><strong className="font-semibold w-24 inline-block">Adm No:</strong> {admissionNo}</p>
-          <p><strong className="font-semibold w-24 inline-block">Branch:</strong> {branch}</p>
+          <p><strong className="font-semibold w-24 inline-block">Branch:</strong> {formatReportBranch(branch)}</p>
           <p><strong className="font-semibold w-24 inline-block">Class:</strong> {className}</p>
         </div>
         <div className="text-right">

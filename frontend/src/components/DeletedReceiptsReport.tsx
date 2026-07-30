@@ -3,6 +3,7 @@ import api from '../api';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { formatReportBranch, getReportHeaderBranch } from '../utils/branchHelper';
 
 const Pagination = ({ currentPage, totalPages, onPageChange, totalRecords, perPage }: any) => {
     if (totalPages <= 1) return null;
@@ -115,7 +116,7 @@ const DeletedReceiptsReport: React.FC = () => {
             'Student Name': r.student_name,
             'Adm No.': r.admission_no,
             'Class': `${r.class} ${r.section}`,
-            'Branch': r.branch,
+            'Branch': formatReportBranch(r.branch),
             'Rcpt No': r.receipt_no,
             'Fee Type': r.fee_type_str,
             'Amount': r.amount_paid,
@@ -134,7 +135,7 @@ const DeletedReceiptsReport: React.FC = () => {
         if (filteredReceipts.length === 0) return alert('No data to export');
         const doc = new jsPDF("l", "mm", "a4");
         doc.setFontSize(16);
-        doc.text("Deleted Receipts Report", 14, 15);
+        doc.text(`${getReportHeaderBranch()} - Deleted Receipts Report`, 14, 15);
 
         const tableColumn = ["S.No", "Student Name", "Adm No.", "Class", "Branch", "Rcpt No", "Fee Type", "Amount", "Mode", "Deleted By", "Deleted At", "Reason"];
         const tableRows = filteredReceipts.map((r, idx) => [
@@ -142,7 +143,7 @@ const DeletedReceiptsReport: React.FC = () => {
             r.student_name,
             r.admission_no,
             `${r.class} ${r.section}`,
-            r.branch,
+            formatReportBranch(r.branch),
             r.receipt_no,
             r.fee_type_str,
             r.amount_paid,
@@ -234,7 +235,7 @@ const DeletedReceiptsReport: React.FC = () => {
                                                 <td className="px-3 py-2 font-medium">{r.student_name}</td>
                                                 <td className="px-3 py-2 text-blue-600">{r.admission_no}</td>
                                                 <td className="px-3 py-2">{r.class} {r.section}</td>
-                                                <td className="px-3 py-2 text-gray-600">{r.branch}</td>
+                                                <td className="px-3 py-2 text-gray-600">{formatReportBranch(r.branch)}</td>
                                                 <td className="px-3 py-2">{r.receipt_no}</td>
                                                 <td className="px-3 py-2 truncate max-w-[150px]" title={r.fee_type_str}>{r.fee_type_str || '-'}</td>
                                                 <td className="px-3 py-2 text-right font-medium text-gray-800">₹{(r.amount_paid || 0).toLocaleString()}</td>

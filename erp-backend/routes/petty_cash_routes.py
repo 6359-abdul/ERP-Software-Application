@@ -2,7 +2,7 @@ import logging
 from flask import Blueprint, request, jsonify, g
 from datetime import datetime ,timedelta
 from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashVoucherItem, PettyCashFundAllocation, ParameterTable
-from helpers import token_required
+from helpers import token_required, has_global_branch_access
 from datetime import datetime
 from sqlalchemy import extract
 from sqlalchemy import extract
@@ -179,7 +179,7 @@ def get_transactions(current_user):
         
         # User branch enforcement
         # If normal user, force their branch
-        if current_user.role not in ('Admin', 'Director') and current_user.role != "Accountant" and current_user.role != "Director":
+        if not has_global_branch_access(current_user):
             branch_id = resolve_branch_id(current_user.branch)
         else:
             # Frontend passes it via query or header
@@ -235,7 +235,7 @@ def get_transactions_summary(current_user):
         year = request.args.get("year")
         
         # User branch enforcement
-        if current_user.role not in ('Admin', 'Director') and current_user.role != "Director" and current_user.role != "Accountant":
+        if not has_global_branch_access(current_user):
             branch_id = resolve_branch_id(current_user.branch)
         else:
             branch_val = request.args.get('branch_id') or request.args.get('branch') or request.headers.get('X-Branch') or current_user.branch
@@ -314,7 +314,7 @@ def create_transaction(current_user):
         data = request.json
         academic_year = request.headers.get("X-Academic-Year", "2024-2025")
         
-        if current_user.role not in ('Admin', 'Director') and current_user.role != "Director" and current_user.role != "Accountant":
+        if not has_global_branch_access(current_user):
             branch_id = resolve_branch_id(current_user.branch)
         else:
             # We don't trust the body for branch anymore, checking headers or user object is better.
@@ -605,7 +605,7 @@ def get_allocations(current_user):
         academic_year = request.headers.get("X-Academic-Year", "2024-2025")
         
         # User branch enforcement
-        if current_user.role not in ('Admin', 'Director') and current_user.role != "Director" and current_user.role != "Accountant":
+        if not has_global_branch_access(current_user):
             branch_id = resolve_branch_id(current_user.branch)
         else:
             branch_val = request.args.get('branch_id') or request.headers.get('X-Branch') or current_user.branch

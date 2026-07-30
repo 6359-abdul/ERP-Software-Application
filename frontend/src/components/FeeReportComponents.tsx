@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatReportBranch, getReportHeaderBranch } from '../utils/branchHelper';
 
 // Types 
 export interface Receipt {
@@ -318,7 +319,7 @@ const SummaryTables = ({ modeSummary, collectedBySummary, totalCollection }: {
                         {Array.isArray(collectedBySummary) && collectedBySummary.map((row: any, idx: number) => (
                             <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                 <td className="px-6 py-4 font-medium text-slate-700">{row.user}</td>
-                                <td className="px-6 py-4 text-slate-600">{row.branch}</td>
+                                <td className="px-6 py-4 text-slate-600">{formatReportBranch(row.branch)}</td>
                                 <td className="px-6 py-4 text-center text-slate-600">
                                     <span className="bg-slate-100 px-2.5 py-1 rounded-full text-xs font-semibold">{row.count}</span>
                                 </td>
@@ -402,7 +403,7 @@ const FullReceiptsTable: React.FC<{
                                     <td className="px-3 py-2 font-medium">{r.student_name}</td>
                                     <td className="px-3 py-2 text-blue-600">{r.admission_no}</td>
                                     <td className="px-3 py-2">{r.class} {r.section}</td>
-                                    <td className="px-3 py-2 text-gray-600">{r.branch}</td>
+                                    <td className="px-3 py-2 text-gray-600">{formatReportBranch(r.branch)}</td>
                                     <td className="px-3 py-2">{r.receipt_no}</td>
                                     {showAllColumns && <td className="px-3 py-2 max-w-[200px] truncate" title={r.fee_type_str}>{r.fee_type_str || '-'}</td>}
                                     {showAllColumns && <td className="px-3 py-2 text-right">₹{(r.gross_amount || 0).toLocaleString()}</td>}
@@ -469,7 +470,7 @@ const downloadExcelReport = (receipts: any[], filename: string) => {
         Student: r.student_name,
         AdmissionNo: r.admission_no,
         Class: `${r.class} ${r.section || ''}`,
-        Branch: r.branch,
+        Branch: formatReportBranch(r.branch),
         ReceiptNo: r.receipt_no,
         FeeType: r.fee_type_str,
         TotalAmount: r.gross_amount || r.amount,
@@ -500,7 +501,7 @@ const downloadPDFReport = (receipts: any[], title: string, filename: string) => 
     if (!receipts?.length) return;
 
     const doc = new jsPDF("l", "mm", "a4");
-    doc.text(title, 14, 15);
+    doc.text(`${getReportHeaderBranch()} - ${title}`, 14, 15);
 
     const tableColumn = [
         "Student", "Adm No", "Class", "Branch", "Receipt",
@@ -511,7 +512,7 @@ const downloadPDFReport = (receipts: any[], title: string, filename: string) => 
         r.student_name,
         r.admission_no,
         `${r.class} ${r.section || ''}`,
-        r.branch,
+        formatReportBranch(r.branch),
         r.receipt_no,
         r.fee_type_str || '-',
         r.amount_paid || r.amount,
@@ -1775,6 +1776,7 @@ export const DueReport: React.FC = () => {
             StudentName: s.name,
             AdmissionNo: s.admission_no || s.adm_no || s.admissionNo || '-',
             Class: `${s.class} ${s.section || ''}`,
+            Branch: formatReportBranch(s.branch),
             FatherName: s.father_name || s.father || s.parent_name || '-',
             FatherMobile: s.father_mobile,
             TotalFee: s.total_fee,
@@ -1795,16 +1797,17 @@ export const DueReport: React.FC = () => {
     const downloadPDF = () => {
         if (!filteredData.length) return;
         const doc = new jsPDF("l", "mm", "a4");
-        doc.text("Due Fee Report", 14, 15);
+        doc.text(`${getReportHeaderBranch()} - Due Fee Report`, 14, 15);
 
         const tableColumn = [
-            "Student", "Adm No", "Class", "Father Name", "Mobile", "Total Fee", "Paid", "Due"
+            "Student", "Adm No", "Class", "Branch", "Father Name", "Mobile", "Total Fee", "Paid", "Due"
         ];
 
         const tableRows = filteredData.map((s: any) => ([
             s.name,
             s.admission_no || s.adm_no || s.admissionNo || '-',
             `${s.class} ${s.section || ''}`,
+            formatReportBranch(s.branch),
             s.father_name || s.father || s.parent_name || '-',
             s.father_mobile,
             s.total_fee,
@@ -2125,6 +2128,7 @@ export const LateFeeDueReport: React.FC = () => {
             StudentName: s.name,
             AdmissionNo: s.admission_no || s.adm_no || s.admissionNo || '-',
             Class: `${s.class} ${s.section || ''}`,
+            Branch: formatReportBranch(s.branch),
             FatherName: s.father_name || s.father || s.parent_name || '-',
             FatherMobile: s.father_mobile,
             TotalFee: s.total_fee,
@@ -2145,16 +2149,17 @@ export const LateFeeDueReport: React.FC = () => {
     const downloadPDF = () => {
         if (!filteredData.length) return;
         const doc = new jsPDF("l", "mm", "a4");
-        doc.text("Late Fee Due Report", 14, 15);
+        doc.text(`${getReportHeaderBranch()} - Late Fee Due Report`, 14, 15);
 
         const tableColumn = [
-            "Student", "Adm No", "Class", "Father Name", "Mobile", "Total Fee", "Paid", "Due"
+            "Student", "Adm No", "Class", "Branch", "Father Name", "Mobile", "Total Fee", "Paid", "Due"
         ];
 
         const tableRows = filteredData.map((s: any) => ([
             s.name,
             s.admission_no || s.adm_no || s.admissionNo || '-',
             `${s.class} ${s.section || ''}`,
+            formatReportBranch(s.branch),
             s.father_name || s.father || s.parent_name || '-',
             s.father_mobile,
             s.total_fee,

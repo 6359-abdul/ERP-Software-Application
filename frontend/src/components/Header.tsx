@@ -18,6 +18,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, goBack, goForward, canGoBack, canGoForward }) => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const hasGlobalBranchAccess = user?.role === 'Director' || user?.branch === 'All' || user?.branch === 'All Branches' || user?.branch === 'AllBranches';
 
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -34,8 +35,8 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
 
   // Initialize selected location on mount
   useEffect(() => {
-    if (user.role === 'Admin' || user.role === 'Director') {
-      // Fetch All Branches with metadata
+    if (hasGlobalBranchAccess || user.role === 'Admin' || user.role === 'Director' || user.role === 'Accountant') {
+      // Fetch allowed branches for user with metadata
       api.get('/branches').then(res => {
         if (res.data.branches) {
           setAllBranchesData(res.data.branches);
@@ -45,52 +46,55 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
   }, []); // Run once
 
   // Calculate Branch Options based on Location
-  let branchOptions = user?.allowed_branches?.map((b: any) => b.branch_name) || [];
+  let branchOptions: string[] = user?.allowed_branches?.map((b: any) => b.branch_name) || [];
 
-  // If Admin and we have fetched metadata, use it for filtering
-  if ((user.role === 'Admin' || user.role === 'Director') && allBranchesData.length > 0) {
+  if (hasGlobalBranchAccess && allBranchesData.length > 0) {
     if (selectedLocation === 'All') {
-      // All Locations -> Show All Branches
       branchOptions = allBranchesData.map(b => b.branch_name);
-      branchOptions = ["All", ...branchOptions]; // Ensure All/All Branches is there
+      branchOptions = ["All", ...branchOptions];
     } else {
-      // Specific Location -> Filter Branches using Dynamic Mapping
       const filtered = allBranchesData.filter(b => {
         const code = (b.location_code || '').toUpperCase();
-
-        // Find the location name for this branch's code from loaded metadata
         const locObj = locationData.find((l: any) => l.code.toUpperCase() === code);
-        const name = locObj ? locObj.name : 'Hyderabad'; // Fallback only if code not found
-
+        const name = locObj ? locObj.name : 'Hyderabad';
         return name === selectedLocation;
       });
       branchOptions = filtered.map(b => b.branch_name);
-
       if (branchOptions.length > 1) {
         branchOptions = ["Select Branch", ...branchOptions];
       } else if (branchOptions.length === 0) {
-        // Edge case: no branches for location
         branchOptions = [];
       }
     }
+  } else if (!hasGlobalBranchAccess && allBranchesData.length > 0) {
+    branchOptions = allBranchesData.map(b => b.branch_name);
+    if (branchOptions.length === 0 && user?.branch) {
+      branchOptions = [user.branch];
+    }
   } else {
-    // Revert to default user object logic if not admin or data not loaded (or for non-admin users)
     if (branchOptions.length === 0) {
       if (user?.branch) branchOptions = [user.branch];
-      if (user?.role === 'Admin' || user?.role === 'Director') branchOptions = ["All", ...branchOptions];
+      if (hasGlobalBranchAccess) branchOptions = ["All", ...branchOptions];
     }
     const hasMultiple = branchOptions.length > 1;
-    const canViewAll = branchOptions.includes("All") || user?.role === 'Admin' || user?.role === 'Director';
+    const canViewAll = branchOptions.includes("All") || hasGlobalBranchAccess;
     if (hasMultiple && !branchOptions.includes("All Branches") && canViewAll) {
       branchOptions = ["All Branches", ...branchOptions.filter((b: string) => b !== 'All')];
     }
   }
 
-  const showDropdown = user && (user.role === 'Admin' || user.role === 'Director' || branchOptions.length > 1);
+  const showDropdown = user && (hasGlobalBranchAccess || branchOptions.length > 1);
 
   const [selectedYear, setSelectedYear] = useState(localStorage.getItem('academicYear') || '');
   const [currentBranch, setCurrentBranch] = useState(() => {
-    return localStorage.getItem('currentBranch') || user.branch || 'All';
+    const stored = localStorage.getItem('currentBranch');
+    if (!hasGlobalBranchAccess && (stored === 'All' || stored === 'All Branches' || !stored)) {
+      if (user?.branch) {
+        localStorage.setItem('currentBranch', user.branch);
+        return user.branch;
+      }
+    }
+    return stored || user?.branch || 'All';
   });
 
   const handleYearChange = (year: string) => {
@@ -177,8 +181,8 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
   const [locationList, setLocationList] = useState<string[]>(['All']);
 
   useEffect(() => {
-    // Fetch Locations if Admin
-    if (user.role === 'Admin' || user.role === 'Director') {
+    // Fetch Locations if global branch access
+    if (hasGlobalBranchAccess) {
       api.get('/org/locations')
         .then(res => {
           const locs = res.data.locations || [];
@@ -188,7 +192,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
         })
         .catch(err => console.error("Failed to load locations in Header", err));
     }
-  }, [user.role]);
+  }, [hasGlobalBranchAccess]);
 
   return (
     <header className="bg-[#009746] text-white shadow-lg z-50 relative">
@@ -210,8 +214,8 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
 
           <div className="flex items-center space-x-2 md:space-x-4">
 
-            {/* Location Dropdown (Admin Only) */}
-            {(user.role === 'Admin' || user.role === 'Director') && (
+            {/* Location Dropdown (Global Access Only) */}
+            {hasGlobalBranchAccess && (
               <div className="relative mr-2">
                 <button
                   onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}

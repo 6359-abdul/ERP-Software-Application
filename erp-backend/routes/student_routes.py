@@ -17,7 +17,7 @@ from models import (
 
 
 from services.sequence_service import SequenceService
-from helpers import token_required, require_academic_year, get_branch_query_filter, student_to_dict, auto_enroll_student_fee, require_editable_student
+from helpers import token_required, require_academic_year, get_branch_query_filter, student_to_dict, auto_enroll_student_fee, require_editable_student, has_global_branch_access, user_can_access_branch
 from datetime import datetime
 from sqlalchemy import or_, and_, func
 import io
@@ -213,7 +213,7 @@ def get_students(current_user):
         # Branch Filtering (Unified Logic)
         branch_filter = None
         
-        if current_user.role not in ('Admin', 'Director'):
+        if not has_global_branch_access(current_user):
              req_branch = h_branch 
              
              has_access = False
@@ -227,7 +227,7 @@ def get_students(current_user):
                   branch_filter = get_branch_query_filter(Student.branch, current_user.branch)
 
         else:
-             # Admin
+             # Global Access User
              branch_param = request.args.get("branch")
              if branch_param in ("All", "All Branches"):
                  pass 
@@ -329,7 +329,7 @@ def update_student(current_user, student_id):
             return jsonify({"error": "Student not found"}), 404
 
         # Permission check
-        if current_user.role not in ('Admin', 'Director') and current_user.branch != 'All' and student.branch != current_user.branch:
+        if not user_can_access_branch(current_user, student.branch):
             return jsonify({"error": "Unauthorized"}), 403
 
         data = request.json or {}
@@ -1028,7 +1028,7 @@ def get_student_history(current_user, student_id):
             return jsonify({"error": "Student not found"}), 404
             
         # Permission check
-        if current_user.role not in ('Admin', 'Director') and current_user.branch != 'All' and student.branch != current_user.branch:
+        if not user_can_access_branch(current_user, student.branch):
              return jsonify({"error": "Unauthorized"}), 403
              
         records = StudentAcademicRecord.query.filter_by(student_id=student_id).order_by(StudentAcademicRecord.created_at.desc()).all()
@@ -1080,10 +1080,10 @@ def promote_students_bulk(current_user):
         if not_found := [sid for sid in student_ids if sid not in student_map]:
             errors.append(f"Students not found: {', '.join(map(str, not_found))}")
 
-        if current_user.role not in ('Admin', 'Director') and current_user.branch != 'All':
+        if not has_global_branch_access(current_user):
             for sid in list(student_map.keys()):
                 student = student_map[sid]
-                if student.branch != current_user.branch:
+                if not user_can_access_branch(current_user, student.branch):
                     errors.append(f"Unauthorized for student {student.admission_no} (branch mismatch)")
                     del student_map[sid]
 
@@ -1236,9 +1236,9 @@ def demote_students_bulk(current_user):
         if not_found := [sid for sid in student_ids if sid not in student_map]:
             errors.append(f"Students not found: {', '.join(map(str, not_found))}")
 
-        if current_user.role not in ('Admin', 'Director') and current_user.branch != "All":
+        if not has_global_branch_access(current_user):
             for sid in list(student_map.keys()):
-                if student_map[sid].branch != current_user.branch:
+                if not user_can_access_branch(current_user, student_map[sid].branch):
                     errors.append(f"Unauthorized for student {student_map[sid].admission_no}")
                     del student_map[sid]
 
@@ -1342,9 +1342,9 @@ def change_section_bulk(current_user):
         students = Student.query.filter(Student.student_id.in_(student_ids)).all()
         student_map = {s.student_id: s for s in students}
 
-        if current_user.role not in ('Admin', 'Director') and current_user.branch != "All":
+        if not has_global_branch_access(current_user):
             for sid in list(student_map.keys()):
-                if student_map[sid].branch != current_user.branch:
+                if not user_can_access_branch(current_user, student_map[sid].branch):
                     errors.append(f"Unauthorized for student {student_map[sid].admission_no}")
                     del student_map[sid]
 
@@ -1424,7 +1424,7 @@ def get_student_summary(current_user):
             base_q = db.session.query(Student, None)
 
         # 2. Apply Branch Filter
-        if current_user.role not in ('Admin','Director'):
+        if not has_global_branch_access(current_user):
              target_branch = current_user.branch
         else:
              target_branch = request.headers.get("X-Branch") or request.args.get("branch")

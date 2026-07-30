@@ -41,7 +41,7 @@ const MarksUpload: React.FC<MarksUploadProps> = () => {
         if (userStr) {
             try {
                 const user = JSON.parse(userStr);
-                if (user.role === 'Admin' || user.role === 'Director' || user.branch === 'All' || user.branch === 'AllBranches') {
+                if (user.role === 'Director' || user.branch === 'All' || user.branch === 'AllBranches' || user.branch === 'All Branches') {
                     const selected = localStorage.getItem("currentBranch");
                     if (selected && selected !== "All" && selected !== "All Locations") {
                         storedBranch = selected;

@@ -2,7 +2,7 @@
 import logging
 from flask import Blueprint, request, jsonify, send_file
 from models import db, PettyCash, PettyCashLedger, User, Branch, PettyCashFundAllocation
-from helpers import token_required
+from helpers import token_required, has_global_branch_access
 from datetime import datetime
 from sqlalchemy import extract, func
 import io
@@ -46,7 +46,7 @@ def branch_wise_expenses(current_user):
         ]
 
         # Get all branches accessible to the user
-        if current_user.role in ("Admin", "Accountant", "Director"):
+        if has_global_branch_access(current_user):
             branches = Branch.query.all()
         else:
             b = Branch.query.filter_by(branch_name=current_user.branch).first()
@@ -115,12 +115,12 @@ def ledger_head_expenses(current_user):
             PettyCash.approval_status == 'Approved'
         )
 
-        if branch_id_param and branch_id_param != 'All':
-            query = query.filter(PettyCash.branch_id == int(branch_id_param))
-        elif current_user.role not in ("Admin", "Accountant","Director"):
+        if not has_global_branch_access(current_user):
             b = Branch.query.filter_by(branch_name=current_user.branch).first()
             if b:
                 query = query.filter(PettyCash.branch_id == b.id)
+        elif branch_id_param and branch_id_param != 'All':
+            query = query.filter(PettyCash.branch_id == int(branch_id_param))
 
         ledgers = PettyCashLedger.query.filter_by(is_active=True).all()
 
@@ -170,12 +170,12 @@ def branch_expense_details(current_user):
             PettyCash.approval_status == 'Approved'
         )
 
-        if branch_id and branch_id != 'All':
-            query = query.filter(PettyCash.branch_id == int(branch_id))
-        elif current_user.role not in ("Admin", "Accountant","Director"):
+        if not has_global_branch_access(current_user):
             b = Branch.query.filter_by(branch_name=current_user.branch).first()
             if b:
                 query = query.filter(PettyCash.branch_id == b.id)
+        elif branch_id and branch_id != 'All':
+            query = query.filter(PettyCash.branch_id == int(branch_id))
 
         if month and year:
             query = query.filter(
@@ -246,12 +246,12 @@ def export_excel(current_user):
             PettyCash.approval_status == 'Approved'
         )
 
-        if branch_id and branch_id != 'All':
-            query = query.filter(PettyCash.branch_id == int(branch_id))
-        elif current_user.role not in ("Admin", "Accountant"):
+        if not has_global_branch_access(current_user):
             b = Branch.query.filter_by(branch_name=current_user.branch).first()
             if b:
                 query = query.filter(PettyCash.branch_id == b.id)
+        elif branch_id and branch_id != 'All':
+            query = query.filter(PettyCash.branch_id == int(branch_id))
 
         if month and year:
             query = query.filter(
@@ -421,7 +421,7 @@ def month_wise_ledger(current_user):
     try:
         academic_year = request.headers.get("X-Academic-Year", "2024-2025")
         
-        if current_user.role in ("Admin", "Accountant","Director"):
+        if has_global_branch_access(current_user):
             branch_id = request.args.get("branch_id") or request.headers.get("X-Branch") or current_user.branch
             from routes.petty_cash_routes import resolve_branch_id
             branch_id = resolve_branch_id(branch_id)
@@ -534,7 +534,7 @@ def ledger_details(current_user):
     try:
         academic_year = request.headers.get("X-Academic-Year", "2024-2025")
         
-        if current_user.role in ("Admin", "Accountant","Director"):
+        if has_global_branch_access(current_user):
             branch_id = request.args.get("branch_id") or request.headers.get("X-Branch") or current_user.branch
             from routes.petty_cash_routes import resolve_branch_id
             branch_id = resolve_branch_id(branch_id)

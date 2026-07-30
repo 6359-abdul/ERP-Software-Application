@@ -181,6 +181,47 @@ def get_branch_query_filter(model_col, val):
             filters.append(model_col == b.branch_name)
     return or_(*filters)
 
+def has_global_branch_access(user):
+    """Check if user has global organization-wide branch access.
+    Returns True only for Director role or users whose branch is explicitly set to All / AllBranches."""
+    if not user:
+        return False
+    if getattr(user, "role", None) == "Director":
+        return True
+    user_branch = getattr(user, "branch", "") or ""
+    return str(user_branch).strip() in ("All", "AllBranches", "All Branches", "All Locations", "all", "allbranches")
+
+
+def user_can_access_branch(user, branch_identifier):
+    """Verify if a user is allowed to access data from a specific branch."""
+    if not user:
+        return False
+    if has_global_branch_access(user):
+        return True
+    if not branch_identifier or str(branch_identifier).strip() == "":
+        return False
+    b_val = str(branch_identifier).strip().lower()
+    user_br = str(getattr(user, "branch", "")).strip().lower()
+    if user_br and user_br == b_val:
+        return True
+    from models import Branch, UserBranchAccess
+    from datetime import date
+    from sqlalchemy import or_
+    today = date.today()
+    b_obj = None
+    if str(branch_identifier).isdigit():
+        b_obj = Branch.query.get(int(branch_identifier))
+    if not b_obj:
+        b_obj = Branch.query.filter(or_(Branch.branch_name == branch_identifier, Branch.branch_code == branch_identifier)).first()
+    if b_obj:
+        if user_br in (b_obj.branch_name.lower(), b_obj.branch_code.lower()):
+            return True
+        acc = UserBranchAccess.query.filter_by(user_id=user.user_id, branch_id=b_obj.id, is_active=True).first()
+        if acc and acc.start_date <= today and (not acc.end_date or acc.end_date >= today):
+            return True
+    return False
+
+
 def normalize_fee_title(title):
     """Normalize fee title for matching (lowercase, remove 'fee', strip)"""
     if not title:

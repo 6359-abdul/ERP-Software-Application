@@ -8,6 +8,7 @@ interface ReportCardProps {
   data: ProgressReportData;
 }
 import logo1 from '../images/logo1.png';
+import { formatReportBranch } from '../utils/branchHelper';
 
 const HIFZ_TARGET_X_TICKS = Array.from({ length: 11 }, (_, i) => i * 3);
 const HIFZ_TARGET_Y_TICKS = [5, 10, 15, 20, 25, 30];
@@ -242,11 +243,10 @@ const ReportCard: React.FC<ReportCardProps> = ({ data }) => {
             <span className="text-black-600">Father's Name</span>
             <span className="text-black-900">: {data.student?.fathersName || 'N/A'}</span>
             <span className="text-black-600">Class/ Section</span>
-            <span className="text-black-900">: {data.student?.classSection || 'N/A'}</span>
             <span className="text-black-600">Group/ Roll No</span>
             <span className="text-black-900">: {data.student?.groupRollNo || 'N/A'}</span>
             <span className="text-black-600">Branch Name</span>
-            <span className="text-black-900">: {data.student?.branchName || 'N/A'}</span>
+            <span className="text-black-900">: {formatReportBranch(data.student?.branchName)}</span>
             <span className="text-black-600">Academic Year</span>
             <span className="text-black-900">: {data.student?.academicYear || 'N/A'}</span>
           </div>
