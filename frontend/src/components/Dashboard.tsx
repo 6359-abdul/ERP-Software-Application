@@ -34,6 +34,7 @@ import FundAllocation from './FundAllocation';
 import MonthWiseLedger from './MonthWiseLedger';
 import RemittanceDeposit from './RemittanceDeposit';
 import RemittanceApprovals from './RemittanceApprovals';
+import ReconciliationDashboard from './ReconciliationDashboard';
 import FeeDueReports from './FeeDueReports';
 import FinancialLayout from './FinancialLayout';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
@@ -44,7 +45,7 @@ const financialPages = [
   'update-student-fee-structure', 'update-rebate-date', 'fee-reports',
   'deleted-receipts', 'fee-concession-report', 'adjust-fee-report', 'fee-due-reports',
   'petty-cash', 'petty-cash-report', 'fund-allocation', 'month-wise-ledger', 'user-daily-report',
-  'remittance-deposit', 'remittance-approvals'
+  'remittance-deposit', 'remittance-approvals', 'reconciliation-dashboard'
 ];
 
 interface DashboardProps {
@@ -107,6 +108,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
               {currentPage === 'user-daily-report' && <FeeReports singleDailyMode={true} />}
               {currentPage === 'remittance-deposit' && <RemittanceDeposit />}
               {currentPage === 'remittance-approvals' && <RemittanceApprovals />}
+              {currentPage === 'reconciliation-dashboard' && <ReconciliationDashboard />}
             </FinancialLayout>
           ) : (
             <>
