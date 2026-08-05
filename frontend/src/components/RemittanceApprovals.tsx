@@ -119,26 +119,25 @@ const RemittanceApprovals: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto p-4 space-y-6">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white rounded-xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-gradient-to-r from-white-900 via-indigo-800 to-slate-900 text-black rounded-xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center space-x-2.5">
-            <span className="p-2 bg-amber-500/20 rounded-lg border border-amber-400/40 text-amber-300 font-extrabold text-lg">🛡️</span>
             <h1 className="text-2xl font-black tracking-tight">Head Office Remittance Approvals</h1>
           </div>
-          <p className="text-slate-300 text-sm mt-1">
+          <p className="text-slate-900 text-sm mt-1">
             Audit Review &amp; Authorization of Branch Daily Cash Deposits &amp; Bank Slips
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <div className="bg-white/10 px-3 py-2 rounded-lg border border-white/15 flex items-center gap-2">
-            <span className="text-xs uppercase font-extrabold text-blue-300">Branch:</span>
+            <span className="text-xs uppercase font-extrabold text-blue-800">Branch:</span>
             <select
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
-              className="bg-slate-900 text-white font-semibold text-sm border border-slate-700 rounded px-2.5 py-1 outline-none focus:ring-2 focus:ring-amber-400"
+              className="bg-white text-black text-sm border border-slate-700 rounded px-2.5 py-1  focus:ring-amber-400"
             >
-              <option value="All">🌐 All Branches (Consolidated)</option>
+              <option value="All">All Branches</option>
               {branches.map(b => (
                 <option key={b.id} value={b.id}>{b.branch_name}</option>
               ))}
@@ -148,9 +147,8 @@ const RemittanceApprovals: React.FC = () => {
       </div>
 
       {message && (
-        <div className={`p-4 rounded-lg shadow font-semibold flex items-center justify-between ${
-          message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-rose-50 text-rose-800 border border-rose-300'
-        }`}>
+        <div className={`p-4 rounded-lg shadow font-semibold flex items-center justify-between ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-rose-50 text-rose-800 border border-rose-300'
+          }`}>
           <span>{message.text}</span>
           <button onClick={() => setMessage(null)} className="font-extrabold text-sm ml-4 uppercase opacity-60 hover:opacity-100">✕</button>
         </div>
@@ -191,11 +189,10 @@ const RemittanceApprovals: React.FC = () => {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all shadow-sm ${
-                statusFilter === s
-                  ? 'bg-blue-700 text-white shadow-md ring-2 ring-blue-300'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all shadow-sm ${statusFilter === s
+                ? 'bg-blue-700 text-white shadow-md ring-2 ring-blue-300'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
             >
               {s === 'Pending' ? '⌛ Pending Review' : s === 'Approved' ? '✓ Approved' : s === 'Rejected' ? '✕ Rejected' : 'All Vouchers'}
             </button>
@@ -262,13 +259,12 @@ const RemittanceApprovals: React.FC = () => {
                     <td className="py-3.5 px-4 text-right text-slate-500">₹{rem.cash_in_hand.toLocaleString()}</td>
                     <td className="py-3.5 px-4 text-right font-black text-emerald-700 text-base">₹{rem.deposit_amount.toLocaleString()}</td>
                     <td className="py-3.5 px-4 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs font-extrabold inline-block ${
-                        rem.status === 'Approved' 
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
-                          : rem.status === 'Rejected'
+                      <span className={`px-3 py-1 rounded-full text-xs font-extrabold inline-block ${rem.status === 'Approved'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : rem.status === 'Rejected'
                           ? 'bg-rose-100 text-rose-800 border border-rose-300'
                           : 'bg-amber-100 text-amber-800 border border-amber-300'
-                      }`}>
+                        }`}>
                         {rem.status === 'Approved' ? '✓ Approved' : rem.status === 'Rejected' ? '✕ Rejected' : '⌛ Pending'}
                       </span>
                     </td>

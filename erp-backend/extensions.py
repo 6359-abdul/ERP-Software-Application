@@ -19,8 +19,9 @@ limiter = Limiter(
 cache = Cache()
 
 def get_now():
-    """Get current datetime in UTC for database storage."""
-    return datetime.now(ZoneInfo("UTC"))
+    """Get current datetime in Indian Standard Time (Asia/Kolkata) for database storage."""
+    tz_name = os.environ.get("APP_TIMEZONE", "Asia/Kolkata").strip("'\"")
+    return datetime.now(ZoneInfo(tz_name))
 
 
 def get_today():
@@ -31,9 +32,9 @@ def to_local_time(dt):
     """Convert a datetime (usually from DB) to the configured local timezone."""
     if dt is None:
         return None
-    tz_name = os.environ.get("APP_TIMEZONE", "UTC")
+    tz_name = os.environ.get("APP_TIMEZONE", "Asia/Kolkata").strip("'\"")
     tz = ZoneInfo(tz_name)
     if dt.tzinfo is None:
-        # If DB returns unaware datetime, we assume it's stored in UTC
-        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        # If DB returns unaware datetime, we assume it's stored in local time (Asia/Kolkata)
+        dt = dt.replace(tzinfo=tz)
     return dt.astimezone(tz)
