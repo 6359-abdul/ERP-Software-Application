@@ -245,6 +245,16 @@ export const auth = {
   },
 };
 
+// Remittance API helpers
+export const remittanceApi = {
+  getCashPosition: (params?: any) => api.get('/remittances/cash-position', { params }),
+  createRemittance: (data: FormData | any) => api.post('/remittances', data),
+  listRemittances: (params?: any) => api.get('/remittances', { params }),
+  updateStatus: (id: number, status: 'Approved' | 'Rejected', remarks?: string) => 
+    api.post(`/remittances/${id}/status`, { status, remarks }),
+  getAttachmentUrl: (id: number) => `${api.defaults.baseURL || '/api'}/remittances/${id}/attachment`,
+};
+
 // Export the configured API instance
 export default api;
 

@@ -461,11 +461,15 @@ class BranchYearSequence(db.Model, AuditMixin):
     
     receipt_prefix = db.Column(db.String(20), nullable=False)
     last_receipt_no = db.Column(db.Integer, default=0, nullable=False)
+    
+    remittance_prefix = db.Column(db.String(20), default="REM", server_default="REM", nullable=False)
+    last_remittance_no = db.Column(db.Integer, default=0, server_default="0", nullable=False)
 
     __table_args__ = (
         db.UniqueConstraint('branch_id', 'academic_year_id', name='uq_branch_year_sequence'),
         db.CheckConstraint('last_admission_no >= 0', name='chk_admission_no_positive'),
         db.CheckConstraint('last_receipt_no >= 0', name='chk_receipt_no_positive'),
+        db.CheckConstraint('last_remittance_no >= 0', name='chk_remittance_no_positive'),
     )
 
 
@@ -933,6 +937,62 @@ class ParameterTable(db.Model, AuditMixin):
     is_active = db.Column(db.Boolean, default=True)      
 
     # branch = db.relationship("Branch")
+# ----------------------------------------------------------
+# CASH REMITTANCE & DEPOSITS (TO CORPORATE OFFICE)
+# ----------------------------------------------------------
+
+class RemittanceMaster(db.Model, AuditMixin):
+    __tablename__ = "remittance_master"
+    __audit_module__ = "REMITTANCE"
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    remittance_no = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
+    business_date = db.Column(db.Date, nullable=False, index=True)
+    
+    cash_in_hand = db.Column(db.Numeric(12, 2), nullable=False)   # Read-only system snapshot
+    deposit_amount = db.Column(db.Numeric(12, 2), nullable=False) # Manually entered deposit amount
+    remaining_cash = db.Column(db.Numeric(12, 2), nullable=False) # Computed carry-forward balance
+    
+    attachment_path = db.Column(db.String(255), nullable=True)    # Deposit slip / voucher attachment
+    
+    status = db.Column(db.Enum("Pending", "Approved", "Rejected"), default="Pending", server_default="Pending", nullable=False)
+    remarks = db.Column(db.Text, nullable=True)                   # Notes or rejection reason
+    
+    approved_by = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, server_default=db.text("1"), nullable=False)
+
+    # Relationships
+    branch = db.relationship("Branch")
+    denominations = db.relationship("RemittanceDenomination", backref="remittance", cascade="all, delete-orphan", lazy=True)
+    receipts = db.relationship("RemittanceReceipt", backref="remittance", cascade="all, delete-orphan", lazy=True)
+    approver = db.relationship("User", foreign_keys=[approved_by])
+
+
+class RemittanceDenomination(db.Model, AuditMixin):
+    __tablename__ = "remittance_denominations"
+    __audit_module__ = "REMITTANCE"
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    remittance_id = db.Column(db.BigInteger, db.ForeignKey("remittance_master.id", ondelete="CASCADE"), nullable=False, index=True)
+    denomination = db.Column(db.Integer, nullable=False)          # e.g., 2000, 500, 200, 100...
+    quantity = db.Column(db.Integer, nullable=False, default=0)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+
+class RemittanceReceipt(db.Model, AuditMixin):
+    __tablename__ = "remittance_receipts"
+    __audit_module__ = "REMITTANCE"
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    remittance_id = db.Column(db.BigInteger, db.ForeignKey("remittance_master.id", ondelete="CASCADE"), nullable=False, index=True)
+    fee_receipt_id = db.Column(db.Integer, db.ForeignKey("fee_payments.payment_id"), nullable=False, index=True)
+    receipt_amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+    fee_payment = db.relationship("FeePayment")
+
+
 # ----------------------------------------------------------
 # GLOBAL AUDIT EVENT LISTENERS
 # ----------------------------------------------------------

@@ -110,7 +110,7 @@ def create_app():
             "origins": allowed_origins,
             "supports_credentials": True,
             "allow_headers": ["Content-Type", "Authorization", "X-Branch", "X-Location", "X-Academic-Year", "X-Requested-With"],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+            "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
         }
     })
     db.init_app(app)
@@ -152,6 +152,9 @@ def create_app():
 
     from routes.petty_cash_report_routes import petty_cash_report_bp
     app.register_blueprint(petty_cash_report_bp, url_prefix="/api/petty-cash-report")
+
+    from routes.remittance_routes import remittance_bp
+    app.register_blueprint(remittance_bp, url_prefix="/api/remittances")
 
     # -----------------------------
     # SERVE UPLOADS (legacy - kept for backward compatibility)

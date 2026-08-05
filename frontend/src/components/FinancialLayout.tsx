@@ -47,7 +47,9 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
       icon: <FinancialIcon className="w-5 h-5" />,
       subItems: [
         { name: 'Petty Cash Entry', page: 'petty-cash' as Page, icon: <ReceiptIcon className="w-4 h-4" /> },
+        { name: 'Cash Remittance Deposit', page: 'remittance-deposit' as Page, icon: <ReceiptIcon className="w-4 h-4" /> },
         ...(isAdmin ? [
+          { name: 'Remittance Approvals', page: 'remittance-approvals' as Page, icon: <DocumentReportIcon className="w-4 h-4" /> },
           { name: 'Fund Allocation', page: 'fund-allocation' as Page, icon: <DocumentIcon className="w-4 h-4" /> },
           { name: 'Month Wise Ledger', page: 'month-wise-ledger' as Page, icon: <ChartBarIcon className="w-4 h-4" /> },
         ] : [])
