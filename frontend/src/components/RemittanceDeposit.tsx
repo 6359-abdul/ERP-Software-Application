@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { remittanceApi } from '../api';
-import { API_URL } from '../config';
+import React, { useState, useEffect, useRef } from 'react';
+import api, { remittanceApi } from '../api';
 
 interface DenominationRow {
   denomination: number;
@@ -13,6 +12,7 @@ const DEFAULT_DENOMINATIONS = [500, 200, 100, 50, 20, 10, 5, 2, 1];
 const RemittanceDeposit: React.FC = () => {
   const [branches, setBranches] = useState<any[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const selectedBranchRef = useRef<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -45,57 +45,54 @@ const RemittanceDeposit: React.FC = () => {
   const [recentRemittances, setRecentRemittances] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'deposit' | 'history'>('deposit');
 
-  const getHeaders = () => {
-    const token = localStorage.getItem('token') || '';
-    const globalYear = localStorage.getItem('academicYear') || '2024-2025';
-    return {
-      'Authorization': `Bearer ${token}`,
-      'X-Academic-Year': globalYear,
-      'X-Branch': selectedBranch || localStorage.getItem('currentBranch') || 'All'
-    };
-  };
-
   useEffect(() => {
     fetchBranches();
   }, []);
 
   useEffect(() => {
+    selectedBranchRef.current = selectedBranch;
     if (selectedBranch) {
-      fetchCashPosition();
-      fetchRecentRemittances();
+      const controller = new AbortController();
+      fetchCashPosition(selectedBranch, controller.signal);
+      fetchRecentRemittances(selectedBranch, controller.signal);
+      return () => {
+        controller.abort();
+      };
     }
   }, [selectedBranch]);
 
   const fetchBranches = async () => {
     try {
-      const res = await fetch(`${API_URL}/branches`, { headers: getHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        const branchList = data.branches || [];
-        setBranches(branchList);
+      const res = await api.get('/branches');
+      const branchList = res.data?.branches || [];
+      setBranches(branchList);
 
-        const storedBranch = localStorage.getItem('currentBranch') || '';
-        if (storedBranch && storedBranch !== 'All') {
-          const found = branchList.find((b: any) => b.branch_name === storedBranch || b.id.toString() === storedBranch);
-          if (found) {
-            setSelectedBranch(found.id.toString());
-            return;
-          }
-        }
-        if (branchList.length > 0) {
-          setSelectedBranch(branchList[0].id.toString());
+      const storedBranch = localStorage.getItem('currentBranch') || '';
+      if (storedBranch && storedBranch !== 'All') {
+        const found = branchList.find((b: any) => b.branch_name === storedBranch || b.id.toString() === storedBranch);
+        if (found) {
+          setSelectedBranch(found.id.toString());
+          return;
         }
       }
-    } catch (e) {
+      if (branchList.length > 0) {
+        setSelectedBranch(branchList[0].id.toString());
+      }
+    } catch (e: any) {
       console.error('Error fetching branches:', e);
+      setMessage({
+        text: e.response?.data?.error || e.message || 'Failed to fetch branches. Please verify your connection and login status.',
+        type: 'error'
+      });
     }
   };
 
-  const fetchCashPosition = async () => {
+  const fetchCashPosition = async (branchToFetch = selectedBranch, signal?: AbortSignal) => {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await remittanceApi.getCashPosition({ branch_id: selectedBranch });
+      const res = await remittanceApi.getCashPosition({ branch_id: branchToFetch }, { signal });
+      if (branchToFetch !== selectedBranchRef.current) return;
       if (res.data) {
         setCashPosition({
           cash_in_hand: res.data.cash_in_hand || 0,
@@ -106,23 +103,30 @@ const RemittanceDeposit: React.FC = () => {
         });
       }
     } catch (err: any) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED' || err.message === 'canceled') return;
+      if (branchToFetch !== selectedBranchRef.current) return;
       console.error('Failed to fetch cash position:', err);
       setMessage({
         text: err.response?.data?.error || 'Failed to fetch read-only cash position from system.',
         type: 'error'
       });
     } finally {
-      setLoading(false);
+      if (branchToFetch === selectedBranchRef.current) {
+        setLoading(false);
+      }
     }
   };
 
-  const fetchRecentRemittances = async () => {
+  const fetchRecentRemittances = async (branchToFetch = selectedBranch, signal?: AbortSignal) => {
     try {
-      const res = await remittanceApi.listRemittances({ branch_id: selectedBranch });
+      const res = await remittanceApi.listRemittances({ branch_id: branchToFetch }, { signal });
+      if (branchToFetch !== selectedBranchRef.current) return;
       if (res.data && Array.isArray(res.data)) {
         setRecentRemittances(res.data);
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e.name === 'CanceledError' || e.code === 'ERR_CANCELED' || e.message === 'canceled') return;
+      if (branchToFetch !== selectedBranchRef.current) return;
       console.error('Error fetching recent remittances:', e);
     }
   };
@@ -179,12 +183,6 @@ const RemittanceDeposit: React.FC = () => {
         .filter(d => parseInt(d.quantity, 10) > 0)
         .map(d => ({ denomination: d.denomination, quantity: parseInt(d.quantity, 10) }));
       formData.append('denominations', JSON.stringify(activeDenoms));
-
-      const receiptIds = cashPosition.unremitted_receipts.map(r => ({
-        fee_receipt_id: r.payment_id,
-        receipt_amount: r.amount
-      }));
-      formData.append('receipt_ids', JSON.stringify(receiptIds));
 
       if (attachment) {
         formData.append('attachment', attachment);
@@ -510,10 +508,10 @@ const RemittanceDeposit: React.FC = () => {
           {/* Unremitted Cash Receipts Table (Audit View) */}
           <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
             <div className="flex items-center justify-between border-b pb-3 mb-4">
-              {/*<h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+              <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
                 <span>📋</span> Active Cash Fee Receipts Contributing to Balance ({cashPosition.unremitted_receipts.length})
               </h3>
-              <span className="text-xs text-slate-500">Only physical cash fee receipts appear in this audit log.</span>*/}
+              <span className="text-xs text-slate-500">Only physical cash fee receipts appear in this audit log.</span>
             </div>
 
             {cashPosition.unremitted_receipts.length === 0 ? (
@@ -523,7 +521,7 @@ const RemittanceDeposit: React.FC = () => {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-sm">
-                  {/*<thead>
+                  <thead>
                     <tr className="bg-slate-100 text-slate-700 font-bold text-xs uppercase border-y">
                       <th className="p-3">Receipt No</th>
                       <th className="p-3">Student Name</th>
@@ -531,8 +529,8 @@ const RemittanceDeposit: React.FC = () => {
                       <th className="p-3">Payment Date</th>
                       <th className="p-3 text-right">Amount (₹)</th>
                     </tr>
-                  </thead>*/}
-                  {/*<tbody className="divide-y divide-slate-100">
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
                     {cashPosition.unremitted_receipts.map((rec) => (
                       <tr key={rec.payment_id} className="hover:bg-slate-50 font-medium">
                         <td className="p-3 font-extrabold text-blue-600">{rec.receipt_no}</td>
@@ -542,7 +540,7 @@ const RemittanceDeposit: React.FC = () => {
                         <td className="p-3 text-right font-extrabold text-slate-900">₹{rec.amount.toLocaleString()}</td>
                       </tr>
                     ))}
-                  </tbody>*/}
+                  </tbody>
                 </table>
               </div>
             )}
@@ -554,7 +552,7 @@ const RemittanceDeposit: React.FC = () => {
           <div className="flex justify-between items-center border-b pb-3">
             <h3 className="text-lg font-extrabold text-slate-800">Branch Remittance History</h3>
             <button
-              onClick={fetchRecentRemittances}
+              onClick={() => fetchRecentRemittances()}
               className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200"
             >
               🔄 Refresh List

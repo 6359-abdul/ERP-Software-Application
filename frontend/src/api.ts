@@ -5,7 +5,7 @@ import axios, {
   InternalAxiosRequestConfig,
   AxiosError
 } from 'axios';
-import { API_URL, ApiResponse, ApiError } from './config';
+import { API_URL, DEFAULT_ACADEMIC_YEAR, ApiResponse, ApiError } from './config';
 
 // Types for localStorage data
 interface UserData {
@@ -103,7 +103,7 @@ api.interceptors.request.use(
 
     // Add academic year header (with fallback)
     if (!config.headers?.['X-Academic-Year']) {
-      const effectiveYear = academicYear || localStorage.getItem('academicYear');
+      const effectiveYear = academicYear || localStorage.getItem('academicYear') || DEFAULT_ACADEMIC_YEAR;
       if (effectiveYear) {
         config.headers = config.headers || {};
         config.headers['X-Academic-Year'] = effectiveYear;
@@ -130,51 +130,51 @@ api.interceptors.response.use(
     if (shouldLogApi) {
       console.log(`API Response: ${response.status} ${response.config.url}`);
     }
-    
+
     // You can transform response data here if needed
     return response;
   },
   async (error: AxiosError<ApiError>): Promise<AxiosError<ApiError>> => {
     const originalRequest = error.config as CustomAxiosRequestConfig & { _retry?: boolean };
-    
+
     // Handle 401 Unauthorized (token expired)
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      
+
       // Clear auth data
       clearStoredAuth();
-      
+
       // Redirect to login
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
-      
+
       return Promise.reject({
         ...error,
         message: 'Session expired. Please login again.'
       } as AxiosError<ApiError>);
     }
-    
+
     // Handle 403 Forbidden
     if (error.response?.status === 403) {
       console.error('Access forbidden:', error.response.data);
       // You could redirect to an unauthorized page here
     }
-    
+
     // Handle 404 Not Found
     if (error.response?.status === 404) {
       console.error('Resource not found:', error.config?.url);
     }
-    
+
     // Handle 500 Server Error
     if (error.response?.status === 500) {
       console.error('Server error:', error.response.data);
     }
-    
+
     // Handle network errors
     if (!error.response) {
       console.error('Network error - backend might be down:', error.message);
-      
+
       // Check if we're in production and show appropriate message
       if (import.meta.env.PROD) {
         return Promise.reject({
@@ -183,7 +183,7 @@ api.interceptors.response.use(
         } as AxiosError<ApiError>);
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -208,7 +208,7 @@ export const handleApiError = (error: AxiosError<ApiError>): ApiError => {
       timestamp: error.response.data?.timestamp || new Date().toISOString(),
     };
   }
-  
+
   return {
     status: 0,
     message: error.message || 'Network error',
@@ -226,19 +226,19 @@ export const auth = {
     sessionStorage.setItem('token', token);
     localStorage.setItem('token', token);
   },
-  
+
   // Remove authentication token
-    clearToken: (): void => {
+  clearToken: (): void => {
     sessionStorage.removeItem('token');
     localStorage.removeItem('token');
     delete api.defaults.headers.common['Authorization'];
   },
-  
+
   // Check if user is authenticated
   isAuthenticated: (): boolean => {
     return !!getStoredToken();
   },
-  
+
   // Get current token
   getToken: (): string | null => {
     return getStoredToken();
@@ -247,10 +247,13 @@ export const auth = {
 
 // Remittance API helpers
 export const remittanceApi = {
-  getCashPosition: (params?: any) => api.get('/remittances/cash-position', { params }),
-  createRemittance: (data: FormData | any) => api.post('/remittances', data),
-  listRemittances: (params?: any) => api.get('/remittances', { params }),
-  updateStatus: (id: number, status: 'Approved' | 'Rejected', remarks?: string) => 
+  getCashPosition: (params?: any, config?: AxiosRequestConfig) => api.get('/remittances/cash-position', { params, ...config }),
+  createRemittance: (data: FormData | any, config?: AxiosRequestConfig) => api.post('/remittances', data, {
+    headers: data instanceof FormData ? { 'Content-Type': undefined } : {},
+    ...config,
+  }),
+  listRemittances: (params?: any, config?: AxiosRequestConfig) => api.get('/remittances', { params, ...config }),
+  updateStatus: (id: number, status: 'Approved' | 'Rejected', remarks?: string) =>
     api.post(`/remittances/${id}/status`, { status, remarks }),
   getAttachmentUrl: (id: number) => `${api.defaults.baseURL || '/api'}/remittances/${id}/attachment`,
 };

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { remittanceApi } from '../api';
-import { API_URL } from '../config';
+import { API_URL, DEFAULT_ACADEMIC_YEAR } from '../config';
+
+const fmt = (val?: number | null): string => (val || 0).toLocaleString();
 
 const RemittanceApprovals: React.FC = () => {
   const [branches, setBranches] = useState<any[]>([]);
@@ -20,7 +22,7 @@ const RemittanceApprovals: React.FC = () => {
 
   const getHeaders = () => {
     const token = localStorage.getItem('token') || '';
-    const globalYear = localStorage.getItem('academicYear') || '2024-2025';
+    const globalYear = localStorage.getItem('academicYear') || DEFAULT_ACADEMIC_YEAR;
     return {
       'Authorization': `Bearer ${token}`,
       'X-Academic-Year': globalYear
@@ -167,7 +169,7 @@ const RemittanceApprovals: React.FC = () => {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex items-center justify-between">
           <div>
             <span className="text-xs font-bold uppercase text-slate-500">Total Pending Cash</span>
-            <div className="text-2xl font-black text-amber-600 mt-1">₹{pendingAmount.toLocaleString()}</div>
+            <div className="text-2xl font-black text-amber-600 mt-1">₹{fmt(pendingAmount)}</div>
           </div>
           <div className="p-3 bg-slate-100 text-slate-700 rounded-lg font-black text-xl">₹</div>
         </div>
@@ -175,7 +177,7 @@ const RemittanceApprovals: React.FC = () => {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex items-center justify-between">
           <div>
             <span className="text-xs font-bold uppercase text-emerald-700">Total Authorized Cash</span>
-            <div className="text-2xl font-black text-emerald-700 mt-1">₹{approvedAmount.toLocaleString()}</div>
+            <div className="text-2xl font-black text-emerald-700 mt-1">₹{fmt(approvedAmount)}</div>
           </div>
           <div className="p-3 bg-emerald-100 text-emerald-800 rounded-lg font-black text-xl">✓</div>
         </div>
@@ -256,8 +258,8 @@ const RemittanceApprovals: React.FC = () => {
                     <td className="py-3.5 px-4 font-black text-blue-700">{rem.remittance_no}</td>
                     <td className="py-3.5 px-4 font-bold text-slate-800">{rem.branch_name}</td>
                     <td className="py-3.5 px-4 text-slate-600">{rem.business_date}</td>
-                    <td className="py-3.5 px-4 text-right text-slate-500">₹{rem.cash_in_hand.toLocaleString()}</td>
-                    <td className="py-3.5 px-4 text-right font-black text-emerald-700 text-base">₹{rem.deposit_amount.toLocaleString()}</td>
+                    <td className="py-3.5 px-4 text-right text-slate-500">₹{fmt(rem.cash_in_hand)}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-emerald-700 text-base">₹{fmt(rem.deposit_amount)}</td>
                     <td className="py-3.5 px-4 text-center">
                       <span className={`px-3 py-1 rounded-full text-xs font-extrabold inline-block ${rem.status === 'Approved'
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
@@ -320,15 +322,15 @@ const RemittanceApprovals: React.FC = () => {
               <div className="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
                   <span className="text-[11px] uppercase text-slate-500 font-extrabold block">System Hand Cash</span>
-                  <span className="text-lg font-black text-slate-700">₹{selectedItem.cash_in_hand.toLocaleString()}</span>
+                  <span className="text-lg font-black text-slate-700">₹{fmt(selectedItem.cash_in_hand)}</span>
                 </div>
                 <div>
                   <span className="text-[11px] uppercase text-emerald-700 font-extrabold block">Deposit Amount</span>
-                  <span className="text-2xl font-black text-emerald-700">₹{selectedItem.deposit_amount.toLocaleString()}</span>
+                  <span className="text-2xl font-black text-emerald-700">₹{fmt(selectedItem.deposit_amount)}</span>
                 </div>
                 <div>
                   <span className="text-[11px] uppercase text-slate-500 font-extrabold block">Remaining Balance</span>
-                  <span className="text-lg font-black text-slate-700">₹{selectedItem.remaining_cash.toLocaleString()}</span>
+                  <span className="text-lg font-black text-slate-700">₹{fmt(selectedItem.remaining_cash)}</span>
                 </div>
               </div>
 
@@ -353,7 +355,7 @@ const RemittanceApprovals: React.FC = () => {
                           <tr key={i} className="font-medium">
                             <td className="p-2 font-bold">₹ {d.denomination}</td>
                             <td className="p-2 text-center font-bold text-slate-800">{d.quantity}</td>
-                            <td className="p-2 text-right font-extrabold">₹ {d.amount.toLocaleString()}</td>
+                            <td className="p-2 text-right font-extrabold">₹ {fmt(d.amount)}</td>
                           </tr>
                         ))}
                       </tbody>

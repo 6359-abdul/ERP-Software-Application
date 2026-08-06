@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 from datetime import datetime, date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from flask import Blueprint, request, jsonify, current_app, send_file
 from werkzeug.utils import secure_filename
 from extensions import db, get_now, get_today
@@ -16,8 +16,17 @@ from services.sequence_service import SequenceService
 remittance_bp = Blueprint('remittance_bp', __name__)
 
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
+ALLOWED_MIMETYPES = {'application/pdf', 'image/png', 'image/jpeg', 'image/pjpeg'}
+MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024  # 5 MB
 
-def allowed_file(filename):
+def allowed_file(file_obj_or_filename):
+    if hasattr(file_obj_or_filename, 'filename'):
+        filename = file_obj_or_filename.filename
+        mimetype = getattr(file_obj_or_filename, 'mimetype', None)
+        if mimetype and mimetype.lower() not in ALLOWED_MIMETYPES:
+            return False
+    else:
+        filename = str(file_obj_or_filename)
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_project_root():
@@ -77,31 +86,38 @@ def calculate_branch_cash_position(branch_id, branch_name, academic_year=None):
     if cash_in_hand < Decimal(0):
         cash_in_hand = Decimal(0)
         
-    # 3. Find unremitted cash receipts
-    remitted_rows = db.session.query(RemittanceReceipt.fee_receipt_id).join(
+    # 3. Find unremitted cash receipts (supporting partial remittances)
+    remitted_rows = db.session.query(RemittanceReceipt.fee_receipt_id, RemittanceReceipt.receipt_amount).join(
         RemittanceMaster, RemittanceReceipt.remittance_id == RemittanceMaster.id
     ).filter(
         RemittanceMaster.is_active == True,
         RemittanceMaster.status.in_(['Approved', 'Pending'])
     ).all()
-    remitted_ids_set = {r[0] for r in remitted_rows}
     
-    unremitted_payments = [p for p in all_cash_payments if p.id not in remitted_ids_set]
+    remitted_totals = {}
+    for r_id, r_amt in remitted_rows:
+        remitted_totals[r_id] = remitted_totals.get(r_id, Decimal(0)) + Decimal(str(r_amt or 0))
     
     receipts_data = []
-    for p in unremitted_payments:
-        student_name = "Unknown"
-        if p.student:
-            student_name = f"{p.student.first_name or ''} {p.student.last_name or ''}".strip()
-        receipts_data.append({
-            "payment_id": p.id,
-            "receipt_no": p.receipt_no,
-            "student_name": student_name or str(p.student_id),
-            "class_name": p.class_name,
-            "payment_mode": p.payment_mode,
-            "payment_date": p.payment_date.strftime("%Y-%m-%d") if p.payment_date else "",
-            "amount": float(p.amount_paid or 0)
-        })
+    # Sort chronologically by payment date and id for FIFO allocation
+    sorted_payments = sorted(all_cash_payments, key=lambda x: (str(getattr(x, 'payment_date', '') or ''), x.id))
+    for p in sorted_payments:
+        orig_amount = Decimal(str(p.amount_paid or 0))
+        remitted_amt = remitted_totals.get(p.id, Decimal(0))
+        unremitted_amt = orig_amount - remitted_amt
+        if unremitted_amt > Decimal(0):
+            student_name = "Unknown"
+            if p.student:
+                student_name = f"{p.student.first_name or ''} {p.student.last_name or ''}".strip()
+            receipts_data.append({
+                "payment_id": p.id,
+                "receipt_no": p.receipt_no,
+                "student_name": student_name or str(p.student_id),
+                "class_name": p.class_name,
+                "payment_mode": p.payment_mode,
+                "payment_date": p.payment_date.strftime("%Y-%m-%d") if getattr(p, "payment_date", None) and hasattr(p.payment_date, "strftime") else str(getattr(p, "payment_date", "") or ""),
+                "amount": float(unremitted_amt)
+            })
         
     return {
         "cash_in_hand": float(cash_in_hand),
@@ -125,16 +141,17 @@ def get_cash_position(current_user):
         if not branch_id and not branch_name:
             return jsonify({"error": "A specific Branch is required to calculate Cash in Hand"}), 400
             
-        h_year = request.headers.get("X-Academic-Year", "2024-2025")
+        h_year, err, code = require_academic_year()
+        if err: return err, code
         
         position_data = calculate_branch_cash_position(branch_id, branch_name, h_year)
         position_data["branch_id"] = branch_id
         position_data["branch_name"] = branch_name
         
         return jsonify(position_data), 200
-    except Exception as e:
-        current_app.logger.error(f"Error getting cash position: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        current_app.logger.exception("Error getting cash position")
+        return jsonify({"error": "Could not retrieve cash position. Contact the administrator."}), 500
 
 @remittance_bp.route('', methods=['POST'])
 @token_required
@@ -142,6 +159,7 @@ def create_remittance(current_user):
     """
     Record a cash remittance deposit to Corporate Office with denomination verification.
     """
+    attachment_rel_path = None
     try:
         is_multipart = request.content_type and request.content_type.startswith('multipart/form-data')
         if is_multipart:
@@ -165,13 +183,18 @@ def create_remittance(current_user):
             
         try:
             deposit_amount = Decimal(str(data.get('deposit_amount', 0)))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, InvalidOperation):
             return jsonify({"error": "Invalid deposit_amount value"}), 400
             
         if deposit_amount <= Decimal(0):
             return jsonify({"error": "Deposit amount must be greater than zero"}), 400
             
-        h_year = request.headers.get("X-Academic-Year", "2024-2025")
+        h_year, err, code = require_academic_year()
+        if err: return err, code
+        
+        # Serialize per branch for the duration of the transaction to prevent concurrent overdrafts
+        db.session.query(Branch).with_for_update().filter_by(id=branch_id).first()
+        
         position = calculate_branch_cash_position(branch_id, branch_name, h_year)
         system_cash_in_hand = Decimal(str(position["cash_in_hand"]))
         
@@ -188,39 +211,54 @@ def create_remittance(current_user):
             try:
                 denoms = json.loads(raw_denoms)
             except json.JSONDecodeError:
-                denoms = []
+                return jsonify({"error": "Invalid JSON format in denominations"}), 400
         else:
             denoms = raw_denoms
             
         if not isinstance(denoms, list):
-            denoms = []
+            return jsonify({"error": "Denominations must be a list"}), 400
             
         if denoms:
             denom_total = Decimal(0)
             for d in denoms:
-                val = Decimal(str(d.get('denomination', 0)))
-                qty = int(d.get('quantity', 0))
+                if not isinstance(d, dict):
+                    return jsonify({"error": "Each denomination entry must be an object"}), 400
+                try:
+                    val = Decimal(str(d.get('denomination', 0)))
+                    qty = int(d.get('quantity', 0))
+                except (ValueError, TypeError, InvalidOperation):
+                    return jsonify({"error": "Invalid denomination or quantity value"}), 400
+                if val <= 0 or qty < 0:
+                    return jsonify({"error": "Denomination must be positive and quantity must not be negative"}), 400
                 denom_total += val * qty
             if abs(denom_total - deposit_amount) > Decimal('0.01'):
                 return jsonify({
                     "error": f"Denomination mismatch: Sum of denominations (₹{denom_total:,.2f}) does not equal Deposit Amount (₹{deposit_amount:,.2f})."
                 }), 400
                 
-        # File Attachment
-        attachment_rel_path = None
+        # File Attachment validation and storage prep
+        pending_file_save = None
         if is_multipart and 'attachment' in request.files:
             file = request.files['attachment']
-            if file and file.filename != '' and allowed_file(file.filename):
+            if file and file.filename != '':
+                if not allowed_file(file):
+                    return jsonify({"error": "Invalid attachment format or content type. Only PDF, PNG, and JPEG are allowed."}), 400
+                
+                file.seek(0, os.SEEK_END)
+                file_size = file.tell()
+                file.seek(0)
+                if file_size > MAX_ATTACHMENT_SIZE:
+                    return jsonify({"error": "Attachment size exceeds maximum allowed limit of 5 MB."}), 400
+                
                 branch_dir = os.path.join(get_remittance_media_base(), str(branch_id))
-                if not os.path.exists(branch_dir):
-                    os.makedirs(branch_dir)
+                os.makedirs(branch_dir, exist_ok=True)
                 orig_ext = file.filename.rsplit('.', 1)[1].lower()
                 ts = get_now().strftime('%Y%m%d%H%M%S')
                 uid = str(uuid.uuid4().hex)[:6]
                 new_fname = f"SLIP_{ts}_{uid}.{orig_ext}"
                 full_path = os.path.join(branch_dir, new_fname)
-                file.save(full_path)
                 attachment_rel_path = os.path.relpath(full_path, get_project_root())
+                pending_file_save = (file, full_path)
                 
         # Generate Remittance Number
         ay_id = SequenceService.resolve_academic_year_id(h_year) or 1
@@ -245,46 +283,47 @@ def create_remittance(current_user):
         
         # Save Denominations
         for d in denoms:
-            val = int(d.get('denomination', 0))
-            qty = int(d.get('quantity', 0))
-            if qty > 0:
+            try:
+                val = int(Decimal(str(d.get('denomination', 0))))
+                qty = int(d.get('quantity', 0))
+            except (ValueError, TypeError, InvalidOperation):
+                continue
+            if qty > 0 and val > 0:
                 d_row = RemittanceDenomination(
                     remittance_id=remittance.id,
                     denomination=val,
                     quantity=qty,
-                    amount=Decimal(val) * Decimal(qty),
+                    amount=Decimal(str(val)) * Decimal(str(qty)),
                     created_by=current_user.user_id,
                     updated_by=current_user.user_id
                 )
                 db.session.add(d_row)
                 
-        # Save Receipts
-        raw_receipts = data.get('receipt_ids', '[]')
-        if isinstance(raw_receipts, str):
-            try:
-                receipt_items = json.loads(raw_receipts)
-            except json.JSONDecodeError:
-                receipt_items = []
-        else:
-            receipt_items = raw_receipts
-            
-        for item in receipt_items:
-            rec_id = item.get('fee_receipt_id') if isinstance(item, dict) else item
-            rec_amount = Decimal(str(item.get('receipt_amount', 0))) if isinstance(item, dict) else Decimal(0)
-            if not rec_amount and rec_id:
-                p_obj = FeePayment.query.get(int(rec_id))
-                if p_obj:
-                    rec_amount = Decimal(str(p_obj.amount_paid or 0))
-            if rec_id:
-                r_row = RemittanceReceipt(
-                    remittance_id=remittance.id,
-                    fee_receipt_id=int(rec_id),
-                    receipt_amount=rec_amount,
-                    created_by=current_user.user_id,
-                    updated_by=current_user.user_id
-                )
-                db.session.add(r_row)
+        # Save Receipts: Derive associations automatically on the server via FIFO allocation against deposit amount
+        amount_to_allocate = deposit_amount
+        for rec in position.get("unremitted_receipts", []):
+            if amount_to_allocate <= Decimal(0):
+                break
+            rec_id = rec.get("payment_id")
+            avail_amount = Decimal(str(rec.get("amount", 0)))
+            if avail_amount <= Decimal(0) or not rec_id:
+                continue
                 
+            alloc_amount = min(amount_to_allocate, avail_amount)
+            r_row = RemittanceReceipt(
+                remittance_id=remittance.id,
+                fee_receipt_id=int(rec_id),
+                receipt_amount=alloc_amount,
+                created_by=current_user.user_id,
+                updated_by=current_user.user_id
+            )
+            db.session.add(r_row)
+            amount_to_allocate -= alloc_amount
+                
+        if pending_file_save:
+            file_obj, path_to_save = pending_file_save
+            file_obj.save(path_to_save)
+            
         db.session.commit()
         return jsonify({
             "message": "Remittance deposit submitted successfully and pending Head Office approval.",
@@ -295,10 +334,15 @@ def create_remittance(current_user):
             "remaining_cash": float(remittance.remaining_cash),
             "status": remittance.status
         }), 201
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        current_app.logger.error(f"Error creating remittance: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        if attachment_rel_path:
+            try:
+                os.remove(os.path.join(get_project_root(), attachment_rel_path))
+            except Exception:
+                pass
+        current_app.logger.exception("Error creating remittance")
+        return jsonify({"error": "Could not create the remittance. Contact the administrator."}), 500
 
 @remittance_bp.route('', methods=['GET'])
 @token_required
@@ -374,9 +418,9 @@ def list_remittances(current_user):
             })
             
         return jsonify(result), 200
-    except Exception as e:
-        current_app.logger.error(f"Error listing remittances: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        current_app.logger.exception("Error listing remittances")
+        return jsonify({"error": "Could not retrieve remittances. Contact the administrator."}), 500
 
 @remittance_bp.route('/<int:remittance_id>/status', methods=['PATCH', 'POST'])
 @token_required
@@ -410,10 +454,10 @@ def update_remittance_status(current_user, remittance_id):
             "id": remittance.id,
             "status": remittance.status
         }), 200
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        current_app.logger.error(f"Error updating remittance status: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.exception("Error updating remittance status")
+        return jsonify({"error": "Could not update remittance status. Contact the administrator."}), 500
 
 @remittance_bp.route('/<int:remittance_id>/attachment', methods=['GET'])
 @token_required
@@ -431,6 +475,6 @@ def get_remittance_attachment(current_user, remittance_id):
             return jsonify({"error": "Attachment file not found on server storage"}), 404
             
         return send_file(file_full_path)
-    except Exception as e:
-        current_app.logger.error(f"Error serving remittance attachment: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        current_app.logger.exception("Error serving remittance attachment")
+        return jsonify({"error": "Could not serve remittance attachment. Contact the administrator."}), 500

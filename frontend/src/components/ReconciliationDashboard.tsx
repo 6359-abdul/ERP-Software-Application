@@ -331,7 +331,7 @@ const ReconciliationDashboard: React.FC = () => {
                   </button>
                   <button
                     onClick={handleExportMonthExcel}
-                    disabled={loading || monthData.length === 0}
+                    disabled={loading || activeMonthLedgerData.length === 0}
                     className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 rounded border border-emerald-300 shadow-sm transition-colors disabled:opacity-50"
                   >
                     <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
