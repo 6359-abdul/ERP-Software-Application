@@ -79,6 +79,7 @@ class SequenceService:
             
             adm_prefix = branch.branch_code if branch else "GEN"
             rec_prefix = branch.branch_code if branch else "REC"
+            rem_prefix = f"REM-{branch.branch_code.strip()}" if branch and branch.branch_code else f"REM-B{branch_id}"
             
             # Correction based on user prompt "if it is HATC... generate TC01". 
             # Maybe HATC is the branch code. TC is a sub-part.
@@ -91,9 +92,11 @@ class SequenceService:
                 branch_id=branch_id,
                 academic_year_id=academic_year_id,
                 admission_prefix=adm_prefix,
-                receipt_prefix=rec_prefix,  
+                receipt_prefix=rec_prefix,
+                remittance_prefix=rem_prefix,
                 last_admission_no=0,
                 last_receipt_no=0,
+                last_remittance_no=0,
                 created_by=user_id,
                 updated_by=user_id
             )
@@ -149,3 +152,28 @@ class SequenceService:
             return f"{seq.receipt_prefix}{seq.last_receipt_no:02d}"
         else:
             return f"{seq.last_receipt_no:02d}"  # Just the number 
+
+    @staticmethod
+    def generate_remittance_number(branch_id, academic_year_id):
+        """
+        Generates next Remittance Number with Branch Code: REM-{BRANCH_CODE}-{YYYY}-{0001}
+        """
+        seq = SequenceService._get_locked_sequence(branch_id, academic_year_id)
+        if not seq:
+            seq = SequenceService.get_or_create_sequence(branch_id, academic_year_id)
+        
+        if getattr(seq, "last_remittance_no", None) is None:
+            seq.last_remittance_no = 0
+            
+        seq.last_remittance_no += 1
+        
+        year_str = datetime.now().strftime("%Y")
+        prefix = getattr(seq, "remittance_prefix", "REM") or "REM"
+        
+        # If prefix is still default 'REM', upgrade it to include branch_code to ensure cross-branch uniqueness
+        if prefix == "REM":
+            branch = Branch.query.get(branch_id)
+            prefix = f"REM-{branch.branch_code.strip()}" if branch and branch.branch_code else f"REM-B{branch_id}"
+            seq.remittance_prefix = prefix
+        
+        return f"{prefix}-{year_str}-{seq.last_remittance_no:04d}"

@@ -1,9 +1,9 @@
 from flask import Blueprint, jsonify, request
 from extensions import db, to_local_time
-from models import FeePayment, Student, StudentFee
+from models import FeePayment, Student, StudentFee, RemittanceMaster, Branch
 from helpers import token_required, require_academic_year, has_global_branch_access, user_can_access_branch
 from datetime import date, datetime
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, extract
 from sqlalchemy.orm import selectinload
 
 def consolidate_receipts(payments):
@@ -948,3 +948,273 @@ def get_concession_details(current_user, student_id):
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/api/reports/reconciliation/month-wise", methods=["GET"])
+@token_required
+def get_reconciliation_month_wise(current_user):
+    try:
+        academic_year = request.args.get("academic_year") or request.headers.get("X-Academic-Year") or "2026-2027"
+        branch_val = request.args.get("branch") or request.args.get("branch_id") or request.headers.get("X-Branch") or current_user.branch
+        if not has_global_branch_access(current_user):
+            branch_val = current_user.branch
+
+        from routes.remittance_routes import resolve_branch
+        branch_id, branch_name = resolve_branch(branch_val)
+
+        try:
+            fy_start_year = int(academic_year.split("-")[0])
+        except (ValueError, IndexError):
+            fy_start_year = 2026
+
+        months = [
+            ("Apr", fy_start_year, 4),
+            ("May", fy_start_year, 5),
+            ("Jun", fy_start_year, 6),
+            ("Jul", fy_start_year, 7),
+            ("Aug", fy_start_year, 8),
+            ("Sep", fy_start_year, 9),
+            ("Oct", fy_start_year, 10),
+            ("Nov", fy_start_year, 11),
+            ("Dec", fy_start_year, 12),
+            ("Jan", fy_start_year + 1, 1),
+            ("Feb", fy_start_year + 1, 2),
+            ("Mar", fy_start_year + 1, 3),
+        ]
+
+        start_date = datetime(fy_start_year, 4, 1).date()
+
+        prev_fee_query = FeePayment.query.filter(
+            FeePayment.status == 'A',
+            FeePayment.payment_mode.in_(['Cash', 'CASH', 'cash']),
+            FeePayment.payment_date < start_date
+        )
+        if branch_name:
+            prev_fee_query = prev_fee_query.filter(FeePayment.branch == branch_name)
+        prev_fees = prev_fee_query.all()
+        opening_debit = sum(float(p.amount_paid or 0) for p in prev_fees if p.amount_paid)
+
+        prev_rem_query = RemittanceMaster.query.filter(
+            RemittanceMaster.is_active == True,
+            RemittanceMaster.status.in_(['Approved', 'Pending']),
+            RemittanceMaster.business_date < start_date
+        )
+        if branch_id:
+            prev_rem_query = prev_rem_query.filter(RemittanceMaster.branch_id == branch_id)
+        prev_rems = prev_rem_query.all()
+        opening_credit = sum(float(r.deposit_amount or 0) for r in prev_rems if r.deposit_amount)
+
+        opening_balance = opening_debit - opening_credit
+        running_balance = opening_balance
+
+        result = []
+        result.append({
+            "particulars": "Opening Balance",
+            "debit": 0.0,
+            "credit": 0.0,
+            "cash_in_hand": round(running_balance, 2),
+            "is_opening": True
+        })
+
+        for label, yr, mn in months:
+            fee_q = FeePayment.query.filter(
+                FeePayment.status == 'A',
+                FeePayment.payment_mode.in_(['Cash', 'CASH', 'cash']),
+                extract('month', FeePayment.payment_date) == mn,
+                extract('year', FeePayment.payment_date) == yr
+            )
+            if branch_name:
+                fee_q = fee_q.filter(FeePayment.branch == branch_name)
+            month_fees = fee_q.all()
+            debit = sum(float(p.amount_paid or 0) for p in month_fees if p.amount_paid)
+
+            rem_q = RemittanceMaster.query.filter(
+                RemittanceMaster.is_active == True,
+                RemittanceMaster.status.in_(['Approved', 'Pending']),
+                extract('month', RemittanceMaster.business_date) == mn,
+                extract('year', RemittanceMaster.business_date) == yr
+            )
+            if branch_id:
+                rem_q = rem_q.filter(RemittanceMaster.branch_id == branch_id)
+            month_rems = rem_q.all()
+            credit = sum(float(r.deposit_amount or 0) for r in month_rems if r.deposit_amount)
+
+            running_balance = running_balance + debit - credit
+
+            month_label = f"{label}-{yr}"
+            result.append({
+                "particulars": month_label,
+                "debit": round(debit, 2),
+                "credit": round(credit, 2),
+                "cash_in_hand": round(running_balance, 2),
+                "is_opening": False
+            })
+
+        return jsonify(result), 200
+    except Exception as e:
+        import logging
+        logging.error(f"Error in reconciliation month wise: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/api/reports/reconciliation/details", methods=["GET"])
+@token_required
+def get_reconciliation_details(current_user):
+    try:
+        academic_year = request.args.get("academic_year") or request.headers.get("X-Academic-Year") or "2026-2027"
+        branch_val = request.args.get("branch") or request.args.get("branch_id") or request.headers.get("X-Branch") or current_user.branch
+        month_filter = request.args.get("month")
+
+        if not has_global_branch_access(current_user):
+            branch_val = current_user.branch
+
+        from routes.remittance_routes import resolve_branch
+        branch_id, branch_name = resolve_branch(branch_val)
+
+        try:
+            fy_start_year = int(academic_year.split("-")[0])
+        except (ValueError, IndexError):
+            fy_start_year = 2026
+        start_date = datetime(fy_start_year, 4, 1).date()
+        end_date = datetime(fy_start_year + 1, 3, 31).date()
+
+        prev_fee_q = FeePayment.query.filter(
+            FeePayment.status == 'A',
+            FeePayment.payment_mode.in_(['Cash', 'CASH', 'cash']),
+            FeePayment.payment_date < start_date
+        )
+        if branch_name:
+            prev_fee_q = prev_fee_q.filter(FeePayment.branch == branch_name)
+        opening_debit = sum(float(p.amount_paid or 0) for p in prev_fee_q.all() if p.amount_paid)
+
+        prev_rem_q = RemittanceMaster.query.filter(
+            RemittanceMaster.is_active == True,
+            RemittanceMaster.status.in_(['Approved', 'Pending']),
+            RemittanceMaster.business_date < start_date
+        )
+        if branch_id:
+            prev_rem_q = prev_rem_q.filter(RemittanceMaster.branch_id == branch_id)
+        opening_credit = sum(float(r.deposit_amount or 0) for r in prev_rem_q.all() if r.deposit_amount)
+
+        opening_balance = opening_debit - opening_credit
+
+        fee_q = FeePayment.query.options(selectinload(FeePayment.student)).filter(
+            FeePayment.status == 'A',
+            FeePayment.payment_mode.in_(['Cash', 'CASH', 'cash']),
+            FeePayment.payment_date >= start_date,
+            FeePayment.payment_date <= end_date
+        )
+        if branch_name:
+            fee_q = fee_q.filter(FeePayment.branch == branch_name)
+        all_fees = fee_q.all()
+
+        rem_q = RemittanceMaster.query.filter(
+            RemittanceMaster.is_active == True,
+            RemittanceMaster.status.in_(['Approved', 'Pending']),
+            RemittanceMaster.business_date >= start_date,
+            RemittanceMaster.business_date <= end_date
+        )
+        if branch_id:
+            rem_q = rem_q.filter(RemittanceMaster.branch_id == branch_id)
+        all_rems = rem_q.all()
+
+        combined = []
+        for p in all_fees:
+            s_name = "Unknown"
+            if p.student:
+                s_name = f"{p.student.first_name or ''} {p.student.last_name or ''}".strip()
+            fee_desc = f"{p.fee_type or 'Fee'} {p.installment_name or ''}".strip()
+            combined.append({
+                "date_obj": p.payment_date,
+                "created_at": p.created_at if p.created_at else datetime.combine(p.payment_date, datetime.min.time()),
+                "date": p.payment_date.strftime("%Y-%m-%d") if p.payment_date else "",
+                "date_formatted": p.payment_date.strftime("%d %b %Y") if p.payment_date else "",
+                "voucher_no": p.receipt_no or f"RCP-{p.id}",
+                "voucher_type": "Fee Receipt",
+                "ledger_type": "Student Fee",
+                "ledger_head": fee_desc or "Fee Collection",
+                "narration": f"Cash fee received from {s_name} (Cls: {p.class_name or ''})",
+                "debit": float(p.amount_paid or 0),
+                "credit": 0.0,
+                "is_opening": False
+            })
+
+        for r in all_rems:
+            combined.append({
+                "date_obj": r.business_date,
+                "created_at": r.created_at if r.created_at else datetime.combine(r.business_date, datetime.min.time()),
+                "date": r.business_date.strftime("%Y-%m-%d") if r.business_date else "",
+                "date_formatted": r.business_date.strftime("%d %b %Y") if r.business_date else "",
+                "voucher_no": r.remittance_no or f"REM-{r.id}",
+                "voucher_type": "Remittance Deposit",
+                "ledger_type": "Bank / Corporate",
+                "ledger_head": "Corporate Office Deposit",
+                "narration": f"Cash Remittance Deposit ({r.status}) - {r.remarks or 'Bank Deposit'}",
+                "debit": 0.0,
+                "credit": float(r.deposit_amount or 0),
+                "is_opening": False
+            })
+
+        combined.sort(key=lambda x: (x["date_obj"], x["created_at"]))
+
+        running_bal = opening_balance
+        for item in combined:
+            running_bal = running_bal + item["debit"] - item["credit"]
+            item["cash_in_hand"] = round(running_bal, 2)
+            del item["date_obj"]
+            del item["created_at"]
+
+        if month_filter and month_filter != 'All' and '-' in month_filter:
+            m_str, y_str = month_filter.split('-', 1)
+            try:
+                y_int = int(y_str)
+                m_int = datetime.strptime(m_str, "%b").month
+            except ValueError:
+                y_int, m_int = None, None
+
+            if y_int and m_int:
+                month_start = date(y_int, m_int, 1)
+                temp_bal = opening_balance
+                filtered_items = []
+                for item in combined:
+                    if not item["date"]: continue
+                    item_date = datetime.strptime(item["date"], "%Y-%m-%d").date()
+                    if item_date < month_start:
+                        temp_bal = item["cash_in_hand"]
+                    elif item_date.year == y_int and item_date.month == m_int:
+                        filtered_items.append(item)
+
+                opening_row = {
+                    "date": month_start.strftime("%Y-%m-%d"),
+                    "date_formatted": f"01 {m_str} {y_str}",
+                    "voucher_no": "-",
+                    "voucher_type": "Opening Balance",
+                    "ledger_type": "-",
+                    "ledger_head": f"Opening Balance ({month_filter})",
+                    "narration": f"Brought forward cash balance for {month_filter}",
+                    "debit": 0.0,
+                    "credit": 0.0,
+                    "cash_in_hand": round(temp_bal, 2),
+                    "is_opening": True
+                }
+                return jsonify([opening_row] + filtered_items), 200
+
+        fy_opening_row = {
+            "date": start_date.strftime("%Y-%m-%d"),
+            "date_formatted": start_date.strftime("%d %b %Y"),
+            "voucher_no": "-",
+            "voucher_type": "Opening Balance",
+            "ledger_type": "-",
+            "ledger_head": f"FY Opening Balance ({academic_year})",
+            "narration": "Brought forward balance before fiscal year start",
+            "debit": 0.0,
+            "credit": 0.0,
+            "cash_in_hand": round(opening_balance, 2),
+            "is_opening": True
+        }
+        return jsonify([fy_opening_row] + combined), 200
+    except Exception as e:
+        import logging
+        logging.error(f"Error in reconciliation details: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+

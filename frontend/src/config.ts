@@ -23,6 +23,7 @@ const getApiUrl = (): string =>
 // Export the API URL
 // 
 export const API_URL = getApiUrl();
+export const DEFAULT_ACADEMIC_YEAR = '2024-2025';
 
 // Configuration object
 export const CONFIG = {

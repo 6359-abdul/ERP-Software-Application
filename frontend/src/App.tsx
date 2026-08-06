@@ -41,7 +41,10 @@ export type Page =
   | "fee-due-reports"
   | "user-daily-report"
   | "fund-allocation"
-  | "month-wise-ledger";
+  | "month-wise-ledger"
+  | "remittance-deposit"
+  | "remittance-approvals"
+  | "reconciliation-dashboard";
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {

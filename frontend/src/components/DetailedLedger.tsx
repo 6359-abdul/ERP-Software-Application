@@ -250,7 +250,7 @@ const DetailedLedger: React.FC<DetailedLedgerProps> = ({ filterMonth }) => {
                             ))}
                             {filteredData.length > 0 && (
                                 <tr className="bg-gray-100 font-semibold text-gray-800">
-                                    <td colSpan={5} className="p-3 border text-right">Total:</td>
+                                    <td colSpan={6} className="p-3 border text-right">Total:</td>
                                     <td className="p-3 border text-right text-emerald-700">
                                         {filteredData.reduce((sum, row) => sum + row.debit, 0).toFixed(2)}
                                     </td>
