@@ -43,7 +43,7 @@ const FinancialLayout: React.FC<FinancialLayoutProps> = ({ children, currentPage
       ]
     },
     {
-      name: 'Petty Cash',
+      name: 'Cash Management',
       id: 'pettyCash',
       icon: <FinancialIcon className="w-5 h-5" />,
       subItems: [
