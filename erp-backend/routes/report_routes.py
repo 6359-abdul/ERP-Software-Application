@@ -1140,6 +1140,17 @@ def get_reconciliation_details(current_user):
             })
 
         for r in all_rems:
+            is_bank = (getattr(r, 'deposit_type', 'Corporate Office') == 'Bank')
+            l_head = "Bank Deposit" if is_bank else "Corporate Office Deposit"
+            
+            if is_bank:
+                details = f"{r.bank_name or ''} {r.account_number or ''}".strip()
+                ref = f"Ref: {r.reference_no}" if getattr(r, 'reference_no', None) else ""
+                n_text = f"Bank Deposit ({r.status}) - {details} {ref}".strip()
+            else:
+                ref = f"Ref: {r.reference_no}" if getattr(r, 'reference_no', None) else ""
+                n_text = f"Corporate Office Deposit ({r.status}) {('- ' + ref) if ref else ''} {('- ' + r.remarks) if r.remarks else ''}".strip()
+
             combined.append({
                 "date_obj": r.business_date,
                 "created_at": r.created_at if r.created_at else datetime.combine(r.business_date, datetime.min.time()),
@@ -1148,8 +1159,8 @@ def get_reconciliation_details(current_user):
                 "voucher_no": r.remittance_no or f"REM-{r.id}",
                 "voucher_type": "Remittance Deposit",
                 "ledger_type": "Bank / Corporate",
-                "ledger_head": "Corporate Office Deposit",
-                "narration": f"Cash Remittance Deposit ({r.status}) - {r.remarks or 'Bank Deposit'}",
+                "ledger_head": l_head,
+                "narration": n_text,
                 "debit": 0.0,
                 "credit": float(r.deposit_amount or 0),
                 "is_opening": False

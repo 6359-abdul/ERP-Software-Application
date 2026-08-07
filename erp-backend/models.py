@@ -950,6 +950,11 @@ class RemittanceMaster(db.Model, AuditMixin):
     branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
     business_date = db.Column(db.Date, nullable=False, index=True)
     
+    deposit_type = db.Column(db.String(50), default="Corporate Office", server_default="Corporate Office", nullable=False)
+    bank_name = db.Column(db.String(100), nullable=True)
+    account_number = db.Column(db.String(100), nullable=True)
+    reference_no = db.Column(db.String(100), nullable=True)       # Bank deposit slip ID / Challan / Messenger name
+    
     cash_in_hand = db.Column(db.Numeric(12, 2), nullable=False)   # Read-only system snapshot
     deposit_amount = db.Column(db.Numeric(12, 2), nullable=False) # Manually entered deposit amount
     remaining_cash = db.Column(db.Numeric(12, 2), nullable=False) # Computed carry-forward balance

@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, request, jsonify, current_app, send_file
 from werkzeug.utils import secure_filename
 from extensions import db, get_now, get_today
+from sqlalchemy import inspect, text
 from models import (
     RemittanceMaster, RemittanceDenomination, RemittanceReceipt,
     FeePayment, Branch, User, Student
@@ -14,6 +15,23 @@ from helpers import token_required, require_academic_year, has_global_branch_acc
 from services.sequence_service import SequenceService
 
 remittance_bp = Blueprint('remittance_bp', __name__)
+
+def ensure_remittance_columns():
+    try:
+        inspector = inspect(db.engine)
+        columns = [col['name'] for col in inspector.get_columns('remittance_master')]
+        if 'deposit_type' not in columns:
+            db.session.execute(text("ALTER TABLE remittance_master ADD COLUMN deposit_type VARCHAR(50) NOT NULL DEFAULT 'Corporate Office'"))
+        if 'bank_name' not in columns:
+            db.session.execute(text("ALTER TABLE remittance_master ADD COLUMN bank_name VARCHAR(100) NULL"))
+        if 'account_number' not in columns:
+            db.session.execute(text("ALTER TABLE remittance_master ADD COLUMN account_number VARCHAR(100) NULL"))
+        if 'reference_no' not in columns:
+            db.session.execute(text("ALTER TABLE remittance_master ADD COLUMN reference_no VARCHAR(100) NULL"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"Note on ensure_remittance_columns: {e}")
 
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
 ALLOWED_MIMETYPES = {'application/pdf', 'image/png', 'image/jpeg', 'image/pjpeg'}
@@ -86,6 +104,33 @@ def calculate_branch_cash_position(branch_id, branch_name, academic_year=None):
     if cash_in_hand < Decimal(0):
         cash_in_hand = Decimal(0)
         
+    today_str = get_today().strftime('%Y-%m-%d')
+    today_collection = Decimal(0)
+    historical_collection = Decimal(0)
+    for p in all_cash_payments:
+        amt = Decimal(str(p.amount_paid or 0))
+        p_date = getattr(p, 'payment_date', '') or ''
+        p_date_str = p_date.strftime('%Y-%m-%d') if hasattr(p_date, 'strftime') else str(p_date)
+        if p_date_str < today_str and p_date_str != '':
+            historical_collection += amt
+        else:
+            today_collection += amt
+
+    today_remitted = Decimal(0)
+    historical_remitted = Decimal(0)
+    for r in active_remittances:
+        r_amt = Decimal(str(r.deposit_amount or 0))
+        r_date = getattr(r, 'business_date', '') or ''
+        r_date_str = r_date.strftime('%Y-%m-%d') if hasattr(r_date, 'strftime') else str(r_date)
+        if r_date_str < today_str and r_date_str != '':
+            historical_remitted += r_amt
+        else:
+            today_remitted += r_amt
+
+    opening_balance = historical_collection - historical_remitted
+    if opening_balance < Decimal(0):
+        opening_balance = Decimal(0)
+        
     # 3. Find unremitted cash receipts (supporting partial remittances)
     remitted_rows = db.session.query(RemittanceReceipt.fee_receipt_id, RemittanceReceipt.receipt_amount).join(
         RemittanceMaster, RemittanceReceipt.remittance_id == RemittanceMaster.id
@@ -121,6 +166,9 @@ def calculate_branch_cash_position(branch_id, branch_name, academic_year=None):
         
     return {
         "cash_in_hand": float(cash_in_hand),
+        "opening_balance": float(opening_balance),
+        "today_collection": float(today_collection),
+        "today_remitted": float(today_remitted),
         "total_cash_collected": float(total_cash_collected),
         "total_remitted": float(total_remitted),
         "unremitted_receipts": receipts_data
@@ -133,6 +181,7 @@ def get_cash_position(current_user):
     Returns real-time read-only cash position and unremitted cash receipts for cashier closing.
     """
     try:
+        ensure_remittance_columns()
         branch_val = request.args.get('branch_id') or request.args.get('branch') or request.headers.get('X-Branch') or current_user.branch
         if not has_global_branch_access(current_user):
             branch_val = current_user.branch
@@ -161,6 +210,7 @@ def create_remittance(current_user):
     """
     attachment_rel_path = None
     try:
+        ensure_remittance_columns()
         is_multipart = request.content_type and request.content_type.startswith('multipart/form-data')
         if is_multipart:
             data = request.form
@@ -264,10 +314,19 @@ def create_remittance(current_user):
         ay_id = SequenceService.resolve_academic_year_id(h_year) or 1
         remittance_no = SequenceService.generate_remittance_number(branch_id, ay_id)
         
+        deposit_type = data.get('deposit_type') or 'Corporate Office'
+        bank_name = data.get('bank_name') or None
+        account_number = data.get('account_number') or None
+        reference_no = data.get('reference_no') or None
+
         remittance = RemittanceMaster(
             remittance_no=remittance_no,
             branch_id=branch_id,
             business_date=business_date,
+            deposit_type=deposit_type,
+            bank_name=bank_name,
+            account_number=account_number,
+            reference_no=reference_no,
             cash_in_hand=system_cash_in_hand,
             deposit_amount=deposit_amount,
             remaining_cash=remaining_cash,
@@ -325,14 +384,40 @@ def create_remittance(current_user):
             file_obj.save(path_to_save)
             
         db.session.commit()
+        
+        denoms_out = [{
+            "denomination": d.denomination,
+            "quantity": d.quantity,
+            "amount": float(d.amount)
+        } for d in remittance.denominations]
+
         return jsonify({
-            "message": "Remittance deposit submitted successfully and pending Head Office approval.",
+            "message": f"Remittance deposit ({deposit_type}) submitted successfully and pending Head Office approval.",
             "remittance_id": remittance.id,
             "remittance_no": remittance.remittance_no,
             "cash_in_hand": float(remittance.cash_in_hand),
             "deposit_amount": float(remittance.deposit_amount),
             "remaining_cash": float(remittance.remaining_cash),
-            "status": remittance.status
+            "status": remittance.status,
+            "remittance": {
+                "id": remittance.id,
+                "remittance_no": remittance.remittance_no,
+                "branch_id": branch_id,
+                "branch_name": branch_name,
+                "business_date": business_date.strftime('%Y-%m-%d'),
+                "deposit_type": deposit_type,
+                "bank_name": bank_name or "",
+                "account_number": account_number or "",
+                "reference_no": reference_no or "",
+                "cash_in_hand": float(remittance.cash_in_hand),
+                "deposit_amount": float(remittance.deposit_amount),
+                "remaining_cash": float(remittance.remaining_cash),
+                "status": remittance.status,
+                "remarks": remittance.remarks or "",
+                "created_by": get_username_safe(current_user.user_id),
+                "created_at": get_now().strftime('%Y-%m-%d %H:%M:%S'),
+                "denominations": denoms_out
+            }
         }), 201
     except Exception:
         db.session.rollback()
@@ -351,6 +436,7 @@ def list_remittances(current_user):
     List cash remittances with filters for status, date, and branch.
     """
     try:
+        ensure_remittance_columns()
         query = RemittanceMaster.query.filter_by(is_active=True)
         
         branch_val = request.args.get('branch_id') or request.headers.get('X-Branch')
@@ -403,6 +489,10 @@ def list_remittances(current_user):
                 "branch_id": r.branch_id,
                 "branch_name": r.branch.branch_name if r.branch else str(r.branch_id),
                 "business_date": r.business_date.strftime('%Y-%m-%d') if r.business_date else "",
+                "deposit_type": getattr(r, "deposit_type", "Corporate Office") or "Corporate Office",
+                "bank_name": getattr(r, "bank_name", "") or "",
+                "account_number": getattr(r, "account_number", "") or "",
+                "reference_no": getattr(r, "reference_no", "") or "",
                 "cash_in_hand": float(r.cash_in_hand),
                 "deposit_amount": float(r.deposit_amount),
                 "remaining_cash": float(r.remaining_cash),
