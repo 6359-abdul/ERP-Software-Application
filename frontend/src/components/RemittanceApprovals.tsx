@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { remittanceApi } from '../api';
-import { API_URL, DEFAULT_ACADEMIC_YEAR } from '../config';
-
-const fmt = (val?: number | null): string => (val || 0).toLocaleString();
+import { API_URL } from '../config';
 
 const RemittanceApprovals: React.FC = () => {
   const [branches, setBranches] = useState<any[]>([]);
@@ -22,7 +20,7 @@ const RemittanceApprovals: React.FC = () => {
 
   const getHeaders = () => {
     const token = localStorage.getItem('token') || '';
-    const globalYear = localStorage.getItem('academicYear') || DEFAULT_ACADEMIC_YEAR;
+    const globalYear = localStorage.getItem('academicYear') || '2024-2025';
     return {
       'Authorization': `Bearer ${token}`,
       'X-Academic-Year': globalYear
@@ -169,7 +167,7 @@ const RemittanceApprovals: React.FC = () => {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex items-center justify-between">
           <div>
             <span className="text-xs font-bold uppercase text-slate-500">Total Pending Cash</span>
-            <div className="text-2xl font-black text-amber-600 mt-1">₹{fmt(pendingAmount)}</div>
+            <div className="text-2xl font-black text-amber-600 mt-1">₹{pendingAmount.toLocaleString()}</div>
           </div>
           <div className="p-3 bg-slate-100 text-slate-700 rounded-lg font-black text-xl">₹</div>
         </div>
@@ -177,7 +175,7 @@ const RemittanceApprovals: React.FC = () => {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex items-center justify-between">
           <div>
             <span className="text-xs font-bold uppercase text-emerald-700">Total Authorized Cash</span>
-            <div className="text-2xl font-black text-emerald-700 mt-1">₹{fmt(approvedAmount)}</div>
+            <div className="text-2xl font-black text-emerald-700 mt-1">₹{approvedAmount.toLocaleString()}</div>
           </div>
           <div className="p-3 bg-emerald-100 text-emerald-800 rounded-lg font-black text-xl">✓</div>
         </div>
@@ -245,6 +243,7 @@ const RemittanceApprovals: React.FC = () => {
                   <th className="py-3 px-4">Remittance ID</th>
                   <th className="py-3 px-4">Branch</th>
                   <th className="py-3 px-4">Date</th>
+                  <th className="py-3 px-4">Type & Details</th>
                   <th className="py-3 px-4 text-right">System Hand Cash</th>
                   <th className="py-3 px-4 text-right">Deposit Amount</th>
                   <th className="py-3 px-4 text-center">Status</th>
@@ -258,8 +257,22 @@ const RemittanceApprovals: React.FC = () => {
                     <td className="py-3.5 px-4 font-black text-blue-700">{rem.remittance_no}</td>
                     <td className="py-3.5 px-4 font-bold text-slate-800">{rem.branch_name}</td>
                     <td className="py-3.5 px-4 text-slate-600">{rem.business_date}</td>
-                    <td className="py-3.5 px-4 text-right text-slate-500">₹{fmt(rem.cash_in_hand)}</td>
-                    <td className="py-3.5 px-4 text-right font-black text-emerald-700 text-base">₹{fmt(rem.deposit_amount)}</td>
+                    <td className="py-3.5 px-4">
+                      {rem.deposit_type === 'Bank' ? (
+                        <div className="flex flex-col gap-0.5 text-xs">
+                          <span className="font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded w-max flex items-center gap-1">🏦 Bank Deposit</span>
+                          <span className="text-slate-600 font-semibold">{rem.bank_name || 'N/A'} • {rem.account_number || 'N/A'}</span>
+                          {rem.reference_no && <span className="text-slate-500 font-medium">Ref: {rem.reference_no}</span>}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-0.5 text-xs">
+                          <span className="font-extrabold text-blue-800 bg-blue-100 px-2 py-0.5 rounded w-max flex items-center gap-1">🏢 Corporate Office</span>
+                          {rem.reference_no && <span className="text-slate-600 font-semibold">Slip: {rem.reference_no}</span>}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-right text-slate-500">₹{rem.cash_in_hand.toLocaleString()}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-emerald-700 text-base">₹{rem.deposit_amount.toLocaleString()}</td>
                     <td className="py-3.5 px-4 text-center">
                       <span className={`px-3 py-1 rounded-full text-xs font-extrabold inline-block ${rem.status === 'Approved'
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
@@ -322,15 +335,43 @@ const RemittanceApprovals: React.FC = () => {
               <div className="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
                   <span className="text-[11px] uppercase text-slate-500 font-extrabold block">System Hand Cash</span>
-                  <span className="text-lg font-black text-slate-700">₹{fmt(selectedItem.cash_in_hand)}</span>
+                  <span className="text-lg font-black text-slate-700">₹{selectedItem.cash_in_hand.toLocaleString()}</span>
                 </div>
                 <div>
                   <span className="text-[11px] uppercase text-emerald-700 font-extrabold block">Deposit Amount</span>
-                  <span className="text-2xl font-black text-emerald-700">₹{fmt(selectedItem.deposit_amount)}</span>
+                  <span className="text-2xl font-black text-emerald-700">₹{selectedItem.deposit_amount.toLocaleString()}</span>
                 </div>
                 <div>
                   <span className="text-[11px] uppercase text-slate-500 font-extrabold block">Remaining Balance</span>
-                  <span className="text-lg font-black text-slate-700">₹{fmt(selectedItem.remaining_cash)}</span>
+                  <span className="text-lg font-black text-slate-700">₹{selectedItem.remaining_cash.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Deposit Type & Details */}
+              <div className={`p-4 rounded-xl border flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between ${selectedItem.deposit_type === 'Bank' ? 'bg-emerald-50 border-emerald-200' : 'bg-blue-50 border-blue-200'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`text-4xl ${selectedItem.deposit_type === 'Bank' ? 'text-emerald-600' : 'text-blue-600'}`}>
+                    {selectedItem.deposit_type === 'Bank' ? '🏦' : '🏢'}
+                  </div>
+                  <div>
+                    <h3 className={`text-sm font-extrabold uppercase ${selectedItem.deposit_type === 'Bank' ? 'text-emerald-800' : 'text-blue-800'}`}>
+                      {selectedItem.deposit_type === 'Bank' ? 'Bank Deposit' : 'Corporate Office Deposit'}
+                    </h3>
+                    <p className="text-xs text-slate-600 font-semibold mt-1">
+                      {selectedItem.deposit_type === 'Bank' ? (
+                        <>
+                          <span className="block">Bank: {selectedItem.bank_name || 'N/A'}</span>
+                          <span className="block">Account: {selectedItem.account_number || 'N/A'}</span>
+                        </>
+                      ) : (
+                        <span>Direct cash handover to Corporate Office</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[11px] uppercase text-slate-500 font-extrabold block">Reference / Slip No</span>
+                  <span className="text-base font-black text-slate-800">{selectedItem.reference_no || 'N/A'}</span>
                 </div>
               </div>
 
@@ -355,7 +396,7 @@ const RemittanceApprovals: React.FC = () => {
                           <tr key={i} className="font-medium">
                             <td className="p-2 font-bold">₹ {d.denomination}</td>
                             <td className="p-2 text-center font-bold text-slate-800">{d.quantity}</td>
-                            <td className="p-2 text-right font-extrabold">₹ {fmt(d.amount)}</td>
+                            <td className="p-2 text-right font-extrabold">₹ {d.amount.toLocaleString()}</td>
                           </tr>
                         ))}
                       </tbody>
