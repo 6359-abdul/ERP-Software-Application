@@ -10,6 +10,7 @@ import PromoteStudents from './PromoteStudents';
 import DemoteStudents from './DemoteStudents';
 import ClassSummary from './ClassSummary';
 import MakeStudentInactive from './MakeStudentInactive';
+import InactiveStudentReport from './InactiveStudentReport';
 import SearchStudent from './SearchStudent';
 import UpdateStudentDetails from './UpdateStudentDetails';
 import ChangeSection from './ChangeSection';
@@ -755,7 +756,7 @@ const StudentAdministration: React.FC<StudentAdministrationProps> = () => {
                 return <MakeStudentInactive />;
 
             case 'inactiveReport':
-                return <ComingSoon pageTitle="Inactive Student Report" />;
+                return <InactiveStudentReport onBack={() => setActiveView('students')} />;
 
             case 'updateDetails':
                 return <UpdateStudentDetails onBack={() => setActiveView('students')} />;
