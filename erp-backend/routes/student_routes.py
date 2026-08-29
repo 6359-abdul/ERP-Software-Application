@@ -16,9 +16,11 @@ from models import (
 )
 
 
-from services.sequence_service import SequenceService
-from helpers import token_required, require_academic_year, get_branch_query_filter, student_to_dict, auto_enroll_student_fee, require_editable_student, has_global_branch_access, user_can_access_branch
-from datetime import datetime
+from helpers import (
+    token_required, require_academic_year, get_branch_query_filter, student_to_dict,
+    auto_enroll_student_fee, require_editable_student, has_global_branch_access,
+    user_can_access_branch, user_can_access_class, get_user_allowed_classes
+)
 from sqlalchemy import or_, and_, func
 import io
 import csv
@@ -182,6 +184,8 @@ def get_students(current_user):
         # Note: In History Mode, we must check both Record and Student for Class/Section
         
         if class_name:
+            if not user_can_access_class(current_user, class_name):
+                return jsonify({"students": []}), 200
             if h_year:
                 q = q.filter(or_(
                     StudentAcademicRecord.class_name == class_name,
@@ -189,6 +193,16 @@ def get_students(current_user):
                 ))
             else:
                  q = q.filter_by(clazz=class_name)
+        else:
+            allowed_classes = get_user_allowed_classes(current_user)
+            if allowed_classes is not None:
+                if h_year:
+                    q = q.filter(or_(
+                        StudentAcademicRecord.class_name.in_(allowed_classes),
+                        and_(StudentAcademicRecord.id.is_(None), Student.clazz.in_(allowed_classes))
+                    ))
+                else:
+                    q = q.filter(Student.clazz.in_(allowed_classes))
 
         if section:
             if h_year:

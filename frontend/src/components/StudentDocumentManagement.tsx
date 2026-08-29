@@ -71,9 +71,20 @@ const StudentDocumentManagement: React.FC = () => {
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+    const filterClassesForUser = (classes: any[]): any[] => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (user?.role === 'Teacher' && user?.allowed_classes && user.allowed_classes.length > 0) {
+            const allowed = user.allowed_classes.map((c: any) => c.class_name || c);
+            if (!allowed.includes('All')) {
+                return classes.filter((c: any) => allowed.includes(c.class_name || c.name || c));
+            }
+        }
+        return classes;
+    };
+
     useEffect(() => {
         api.get('/classes')
-            .then(res => setClassOptions(res.data.classes || []))
+            .then(res => setClassOptions(filterClassesForUser(res.data.classes || [])))
             .catch(() => console.error("Failed loading classes"));
 
         loadDocumentTypes();

@@ -35,7 +35,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, navigateTo, onLogout, go
 
   // Initialize selected location on mount
   useEffect(() => {
-    if (hasGlobalBranchAccess || user.role === 'Admin' || user.role === 'Director' || user.role === 'Accountant') {
+    if (user?.username) {
       // Fetch allowed branches for user with metadata
       api.get('/branches').then(res => {
         if (res.data.branches) {

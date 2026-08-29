@@ -34,6 +34,17 @@ interface StudentDocument {
     upload_by_name: string;
 }
 
+const filterClassesForUser = (classes: any[]): any[] => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user?.role === 'Teacher' && user?.allowed_classes && user.allowed_classes.length > 0) {
+        const allowed = user.allowed_classes.map((c: any) => c.class_name || c);
+        if (!allowed.includes('All')) {
+            return classes.filter((c: any) => allowed.includes(c.class_name || c.name || c));
+        }
+    }
+    return classes;
+};
+
 const StudentDocumentView: React.FC = () => {
     const [classOptions, setClassOptions] = useState<ClassItem[]>([]);
     const [sectionOptions, setSectionOptions] = useState<string[]>([]);
@@ -51,7 +62,7 @@ const StudentDocumentView: React.FC = () => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
     useEffect(() => {
-        api.get('/classes').then(res => setClassOptions(res.data.classes || []));
+        api.get('/classes').then(res => setClassOptions(filterClassesForUser(res.data.classes || [])));
     }, []);
 
     useEffect(() => {
@@ -331,6 +342,9 @@ const StudentDocumentView: React.FC = () => {
 // ─────────────────────────────────────────────
 
 const DocumentManagement: React.FC = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isTeacher = user?.role === 'Teacher';
+
     const [activeTab, setActiveTab] = useState<DocTab>('dashboard');
     const [masterOpen, setMasterOpen] = useState(false);
     const [studentDocOpen, setStudentDocOpen] = useState(false);
@@ -365,25 +379,27 @@ const DocumentManagement: React.FC = () => {
 
                             {navBtn('dashboard', 'Dashboard')}
 
-                            {/* Master ▾ */}
-                            <div className="relative">
-                                <button
-                                    onClick={() => { setMasterOpen(v => !v); setStudentDocOpen(false); }}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors flex items-center gap-1 ${activeTab === 'add-category' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}`}
-                                >
-                                    Master ▾
-                                </button>
-                                {masterOpen && (
-                                    <div className="absolute left-0 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-lg z-50">
-                                        <button
-                                            onClick={() => { setActiveTab('add-category'); closeDropdowns(); }}
-                                            className="block w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-lg"
-                                        >
-                                            Add Category
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                            {/* Master ▾ (Admin Only) */}
+                            {!isTeacher && (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => { setMasterOpen(v => !v); setStudentDocOpen(false); }}
+                                        className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors flex items-center gap-1 ${activeTab === 'add-category' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}`}
+                                    >
+                                        Master ▾
+                                    </button>
+                                    {masterOpen && (
+                                        <div className="absolute left-0 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-lg z-50">
+                                            <button
+                                                onClick={() => { setActiveTab('add-category'); closeDropdowns(); }}
+                                                className="block w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-lg"
+                                            >
+                                                Add Category
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Upload Documents — goes to upload form */}
                             {navBtn('upload-documents', 'Upload Documents')}

@@ -99,9 +99,9 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
         }
     }, []);
 
-    const isGlobalUser = user?.role === 'Director' || 
-        user?.branch === 'All' || 
-        user?.branch === 'All Branches' || 
+    const isGlobalUser = user?.role === 'Director' ||
+        user?.branch === 'All' ||
+        user?.branch === 'All Branches' ||
         user?.branch === 'AllBranches' ||
         user?.role === 'Admin';
 
@@ -136,7 +136,7 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
                     setAcademicYears(res.data.academic_years);
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
 
         // Fetch branches
         api.get('/branches')
@@ -145,7 +145,7 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
                     setBranches(res.data.branches);
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
 
         // Fetch classes
         api.get('/classes')
@@ -154,7 +154,7 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
                     setClasses(res.data.classes);
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     // Fetch Inactive Students
@@ -326,6 +326,7 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
     // --------------------------------------------------------------------------
     // Export to CSV (.csv)
     // --------------------------------------------------------------------------
+
     const exportToCSV = () => {
         if (filteredStudents.length === 0) {
             alert('No inactive student data available to export.');
@@ -792,11 +793,10 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
                                                 {mName}
                                             </td>
                                             <td className="px-3 py-2.5 text-center">
-                                                <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${
-                                                    (s.gender || '').toLowerCase() === 'female' 
-                                                        ? 'bg-pink-100 text-pink-700' 
-                                                        : 'bg-blue-100 text-blue-700'
-                                                }`}>
+                                                <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${(s.gender || '').toLowerCase() === 'female'
+                                                    ? 'bg-pink-100 text-pink-700'
+                                                    : 'bg-blue-100 text-blue-700'
+                                                    }`}>
                                                     {s.gender || '-'}
                                                 </span>
                                             </td>
@@ -889,11 +889,10 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
                                         <button
                                             key={pageNum}
                                             onClick={() => setCurrentPage(pageNum)}
-                                            className={`min-w-[28px] px-2 py-1 text-xs font-medium rounded ${
-                                                currentPage === pageNum
-                                                    ? 'bg-violet-600 text-white font-bold'
-                                                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
-                                            }`}
+                                            className={`min-w-[28px] px-2 py-1 text-xs font-medium rounded ${currentPage === pageNum
+                                                ? 'bg-violet-600 text-white font-bold'
+                                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                                                }`}
                                         >
                                             {pageNum}
                                         </button>

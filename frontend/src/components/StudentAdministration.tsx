@@ -174,9 +174,26 @@ const Pagination: React.FC<PaginationProps> = ({
 // ---------------------------------------------------------------------------
 // Header Component
 // ---------------------------------------------------------------------------
-const StudentAdminHeader: React.FC<{ activeView: StudentAdminView; setActiveView: any }> =
+
+const filterClassesForUser = (classes: any[]): any[] => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user?.role === 'Teacher' && user?.allowed_classes && user.allowed_classes.length > 0) {
+        const allowed = user.allowed_classes.map((c: any) => c.class_name || c);
+        if (!allowed.includes('All')) {
+            return classes.filter((c: any) => allowed.includes(c.class_name || c.name || c));
+        }
+    }
+    return classes;
+};
+
+// ---------------------------------------------------------------------------
+// Sub-Navigation Component
+// ---------------------------------------------------------------------------
+const StudentAdminHeader: React.FC<{ activeView: StudentAdminView; setActiveView: (v: StudentAdminView) => void }> =
     ({ activeView, setActiveView }) => {
         const [open, setOpen] = useState<string | null>(null);
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const isTeacher = user?.role === 'Teacher';
 
         const toggle = (name: string) => setOpen(open === name ? null : name);
 
@@ -193,37 +210,35 @@ const StudentAdminHeader: React.FC<{ activeView: StudentAdminView; setActiveView
 
                     <div className="flex items-center flex-wrap gap-2">
                         <button className={btn('students')} onClick={() => setActiveView('students')}>Students</button>
-                        <button className={btn('addStudent')} onClick={() => setActiveView('addStudent')}>Create Student</button>
+                        {!isTeacher && (
+                            <button className={btn('addStudent')} onClick={() => setActiveView('addStudent')}>Create Student</button>
+                        )}
                         <button className={btn('search')} onClick={() => setActiveView('search')}>Search</button>
-                        <button className={btn('updateDetails')} onClick={() => setActiveView('updateDetails')}>Update Student Details</button>
+                        {!isTeacher && (
+                            <button className={btn('updateDetails')} onClick={() => setActiveView('updateDetails')}>Update Student Details</button>
+                        )}
                         <button className={btn('summary')} onClick={() => setActiveView('summary')}>Class Summary</button>
 
-                        {/* <Dropdown title="Report" isOpen={open === 'report'} onToggle={() => toggle('report')}>
-                            <DropdownItem>Custom Download</DropdownItem>
-                            <DropdownItem>Pre-defined Download</DropdownItem>
-                        </Dropdown>
+                        {!isTeacher && (
+                            <>
+                                <Dropdown
+                                    title="Inactive"
+                                    isOpen={open === 'inactive'}
+                                    onToggle={() => toggle('inactive')}
+                                >
+                                    <DropdownItem onClick={() => { setActiveView('inactive'); setOpen(null); }}>
+                                        Make Student Inactive
+                                    </DropdownItem>
+                                    <DropdownItem onClick={() => { setActiveView('inactiveReport'); setOpen(null); }}>
+                                        Inactive Student Report
+                                    </DropdownItem>
+                                </Dropdown>
 
-                      <Dropdown title="Certificates" isOpen={open === 'certs'} onToggle={() => toggle('certs')}>
-                            <DropdownItem>Student Certificate</DropdownItem>
-                            <DropdownItem>Teacher Certificate</DropdownItem>
-                        </Dropdown> */}
-
-                        <Dropdown
-                            title="Inactive"
-                            isOpen={open === 'inactive'}
-                            onToggle={() => toggle('inactive')}
-                        >
-                            <DropdownItem onClick={() => { setActiveView('inactive'); setOpen(null); }}>
-                                Make Student Inactive
-                            </DropdownItem>
-                            <DropdownItem onClick={() => { setActiveView('inactiveReport'); setOpen(null); }}>
-                                Inactive Student Report
-                            </DropdownItem>
-                        </Dropdown>
-
-                        <button className={btn('changeSection')} onClick={() => setActiveView('changeSection')}>Change Section</button>
-                        <button className={btn('upgrade')} onClick={() => setActiveView('upgrade')}>Upgrade</button>
-                        <button className={btn('demote')} onClick={() => setActiveView('demote')}>De-promote</button>
+                                <button className={btn('changeSection')} onClick={() => setActiveView('changeSection')}>Change Section</button>
+                                <button className={btn('upgrade')} onClick={() => setActiveView('upgrade')}>Upgrade</button>
+                                <button className={btn('demote')} onClick={() => setActiveView('demote')}>De-promote</button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -241,6 +256,8 @@ interface ClassItem {
 
 const StudentList: React.FC<{ onView: any; onEdit: any }> =
     ({ onView, onEdit }) => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const isTeacher = user?.role === 'Teacher';
 
         const [students, setStudents] = useState<Student[]>([]);
         const [loading, setLoading] = useState(false);
@@ -264,7 +281,7 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
         // Load classes and students
         useEffect(() => {
             api.get('/classes')
-                .then(res => setClassOptions(res.data.classes || []))
+                .then(res => setClassOptions(filterClassesForUser(res.data.classes || [])))
                 .catch(() => console.log("Failed loading classes"));
 
             loadStudents();
@@ -555,23 +572,27 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
                                                 <button onClick={() => handlePrint(s)} className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 flex items-center gap-1" title="Print">
                                                     <span>🖨️</span> Print
                                                 </button>
-                                                <button
-                                                    onClick={() => {
-                                                        if (s.is_locked) {
-                                                            alert("This student record is locked for this academic year and cannot be deactivated.");
-                                                        } else {
-                                                            handleDeleteClick(s);
-                                                        }
-                                                    }}
-                                                    className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${s.is_locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
-                                                    title={s.is_locked ? "Record locked (Promoted)" : "Deactivate"}
-                                                >
-                                                    <span>{s.is_locked ? '🔒' : '🚫'}</span> Inactivate
-                                                </button>
-                                                {s.status === 'Inactive' && (
-                                                    <button onClick={() => handleActivate(s)} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center gap-1" title="Activate">
-                                                        <span>✅</span> Activate
-                                                    </button>
+                                                {!isTeacher && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (s.is_locked) {
+                                                                    alert("This student record is locked for this academic year and cannot be deactivated.");
+                                                                } else {
+                                                                    handleDeleteClick(s);
+                                                                }
+                                                            }}
+                                                            className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${s.is_locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                                                            title={s.is_locked ? "Record locked (Promoted)" : "Deactivate"}
+                                                        >
+                                                            <span>{s.is_locked ? '🔒' : '🚫'}</span> Inactivate
+                                                        </button>
+                                                        {s.status === 'Inactive' && (
+                                                            <button onClick={() => handleActivate(s)} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center gap-1" title="Activate">
+                                                                <span>✅</span> Activate
+                                                            </button>
+                                                        )}
+                                                    </>
                                                 )}
                                             </div>
                                         </td>
