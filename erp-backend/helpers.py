@@ -272,7 +272,7 @@ def get_user_allowed_classes(user):
         return None
     records = UserClassAccess.query.filter_by(user_id=user.user_id, is_active=True).all()
     if not records:
-        return None
+        return []
     classes = []
     for r in records:
         if r.class_name and r.class_name != "All":
@@ -281,7 +281,7 @@ def get_user_allowed_classes(user):
             cm = ClassMaster.query.get(r.class_id)
             if cm and cm.class_name:
                 classes.append(cm.class_name)
-    return list(set(classes)) if classes else None
+    return list(set(classes))
 
 
 

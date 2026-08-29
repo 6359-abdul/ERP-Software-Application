@@ -252,8 +252,8 @@ def get_students(current_user):
              
              has_access = False
              # Check explicit branch request access
-             if req_branch and req_branch not in ("All", "All Branches") and (b_obj := Branch.query.filter(or_(Branch.branch_code == req_branch, Branch.branch_name == req_branch)).first()):
-                 has_access = bool(UserBranchAccess.query.filter_by(user_id=current_user.user_id, branch_id=b_obj.id, is_active=True).first())
+             if req_branch and req_branch not in ("All", "All Branches"):
+                 has_access = user_can_access_branch(current_user, req_branch)
              
              if has_access or (current_user.branch == 'All' and req_branch and req_branch not in ("All", "All Branches")):
                  branch_filter = get_branch_query_filter(Student.branch, req_branch)

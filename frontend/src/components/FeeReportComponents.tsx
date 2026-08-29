@@ -2450,8 +2450,16 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
         currentBranch.toLowerCase() === 'all' ||
         currentBranch.toLowerCase() === 'all branches';
 
+    useEffect(() => {
+        setStudents([]);
+        setSelectedStudent(null);
+        setReceipts([]);
+        setError('');
+    }, [currentBranch]);
+
     // Search students by name or admission no
     const handleSearch = async () => {
+        const reqBranch = currentBranch;
         if (isAllBranches) {
             setError('Please select a specific branch. This screen won\'t work on All Branches level.');
             return;
@@ -2472,6 +2480,7 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
                 type: searchType
             });
             const res = await api.get(`/students/search?${params.toString()}`);
+            if (reqBranch !== (localStorage.getItem('currentBranch') || '')) return;
             const list = res.data.students || res.data || [];
             setStudents(list);
 
@@ -2482,14 +2491,18 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
                 setError('No students found');
             }
         } catch (err: any) {
+            if (reqBranch !== (localStorage.getItem('currentBranch') || '')) return;
             setError(err.response?.data?.error || 'Failed to search students');
         } finally {
-            setSearching(false);
+            if (reqBranch === (localStorage.getItem('currentBranch') || '')) {
+                setSearching(false);
+            }
         }
     };
 
     // Fetch receipts for selected student
     const handleSelectStudent = async (student: any) => {
+        const reqBranch = currentBranch;
         try {
             setLoading(true);
             setSelectedStudent(student);
@@ -2497,12 +2510,16 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
 
             const studentId = student.id || student.student_id;
             const res = await api.get(`/reports/fees/student-receipts/${studentId}`);
+            if (reqBranch !== (localStorage.getItem('currentBranch') || '')) return;
             setReceipts(res.data.receipts || []);
         } catch (err: any) {
+            if (reqBranch !== (localStorage.getItem('currentBranch') || '')) return;
             setError(err.response?.data?.error || 'Failed to fetch receipts');
             setReceipts([]);
         } finally {
-            setLoading(false);
+            if (reqBranch === (localStorage.getItem('currentBranch') || '')) {
+                setLoading(false);
+            }
         }
     };
 

@@ -435,8 +435,8 @@ const DocumentManagement: React.FC = () => {
             )}
 
             {/* ─── Page Content ─── */}
-            {activeTab === 'dashboard' && <DocumentDashboard onNavigate={setActiveTab} />}
-            {activeTab === 'add-category' && <DocumentAdministration />}
+            {activeTab === 'dashboard' && <DocumentDashboard onNavigate={setActiveTab} isTeacher={isTeacher} />}
+            {activeTab === 'add-category' && !isTeacher && <DocumentAdministration />}
             {activeTab === 'upload-documents' && <StudentDocumentManagement />}
             {activeTab === 'student-doc-view' && <StudentDocumentView />}
         </div>
@@ -449,7 +449,7 @@ const DocumentManagement: React.FC = () => {
 
 type DashboardNavFn = (tab: DocTab) => void;
 
-const DocumentDashboard: React.FC<{ onNavigate: DashboardNavFn }> = ({ onNavigate }) => (
+const DocumentDashboard: React.FC<{ onNavigate: DashboardNavFn, isTeacher?: boolean }> = ({ onNavigate, isTeacher }) => (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
         <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -462,15 +462,17 @@ const DocumentDashboard: React.FC<{ onNavigate: DashboardNavFn }> = ({ onNavigat
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <DashCard
-                icon={<SetupIcon className="w-8 h-8 text-indigo-700" />}
-                iconBg="bg-indigo-100"
-                title="Document Categories (Master)"
-                desc="Add and manage allowed document types"
-                badge="Master → Add Category"
-                badgeColor="text-indigo-600 bg-indigo-50"
-                onClick={() => onNavigate('add-category')}
-            />
+            {!isTeacher && (
+                <DashCard
+                    icon={<SetupIcon className="w-8 h-8 text-indigo-700" />}
+                    iconBg="bg-indigo-100"
+                    title="Document Categories (Master)"
+                    desc="Add and manage allowed document types"
+                    badge="Master → Add Category"
+                    badgeColor="text-indigo-600 bg-indigo-50"
+                    onClick={() => onNavigate('add-category')}
+                />
+            )}
             <DashCard
                 icon={<UploadIcon className="w-8 h-8 text-blue-700" />}
                 iconBg="bg-blue-100"

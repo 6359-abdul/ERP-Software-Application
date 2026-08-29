@@ -38,7 +38,8 @@ def get_media_base():
 def can_access_student(current_user, student):
     if not student:
         return False
-    if has_global_branch_access(current_user) or current_user.role in ('Admin', 'Director'):
+    is_teacher = current_user.role == 'Teacher'
+    if not is_teacher and (has_global_branch_access(current_user) or current_user.role in ('Admin', 'Director')):
         return True
     
     # Check branch access

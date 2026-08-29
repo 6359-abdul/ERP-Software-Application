@@ -221,9 +221,9 @@ if __name__ == "__main__":
             upgrade()
             print("[SUCCESS] Database upgraded.")
         except Exception as mig_err:
-            print(f"[WARNING] Migration upgrade notice: {mig_err}")
-        db.create_all()
-        print("[SUCCESS] All tables verified.")
+            print(f"[ERROR] Migration failed: {mig_err}")
+            import sys
+            sys.exit(1)
 
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"

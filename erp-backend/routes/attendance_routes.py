@@ -108,8 +108,14 @@ def get_attendance(current_user):
                 )
                 if class_name:
                     iq = iq.filter(StudentAcademicRecord.class_name == class_name)
+                else:
+                    allowed_classes = get_user_allowed_classes(current_user)
+                    if allowed_classes is not None:
+                        iq = iq.filter(StudentAcademicRecord.class_name.in_(allowed_classes))
                 if section:
                     iq = iq.filter(StudentAcademicRecord.section == section)
+                if student_id:
+                    iq = iq.filter(Student.student_id == student_id)
                 if h_branch and h_branch != "All":
                     iq = iq.filter(Student.branch == h_branch)
                 inactive_count = iq.count()

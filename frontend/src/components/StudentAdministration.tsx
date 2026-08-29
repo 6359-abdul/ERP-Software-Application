@@ -556,19 +556,21 @@ const StudentList: React.FC<{ onView: any; onEdit: any }> =
                                                 <button onClick={() => onView(s)} className="px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1" title="Details">
                                                     <span>ℹ️</span> Details
                                                 </button>
-                                                <button
-                                                    onClick={() => {
-                                                        if (s.is_locked) {
-                                                            alert("This student record is locked for this academic year and cannot be edited.");
-                                                        } else {
-                                                            onEdit(s);
-                                                        }
-                                                    }}
-                                                    className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${s.is_locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                                    title={s.is_locked ? "Record locked (Promoted)" : "Edit"}
-                                                >
-                                                    <span>{s.is_locked ? '🔒' : '✏️'}</span> Edit
-                                                </button>
+                                                {!isTeacher && (
+                                                    <button
+                                                        onClick={() => {
+                                                            if (s.is_locked) {
+                                                                alert("This student record is locked for this academic year and cannot be edited.");
+                                                            } else {
+                                                                onEdit(s);
+                                                            }
+                                                        }}
+                                                        className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${s.is_locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                                                        title={s.is_locked ? "Record locked (Promoted)" : "Edit"}
+                                                    >
+                                                        <span>{s.is_locked ? '🔒' : '✏️'}</span> Edit
+                                                    </button>
+                                                )}
                                                 <button onClick={() => handlePrint(s)} className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 flex items-center gap-1" title="Print">
                                                     <span>🖨️</span> Print
                                                 </button>
