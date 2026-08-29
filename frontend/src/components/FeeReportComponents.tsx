@@ -2442,8 +2442,28 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
 
     const paymentModes = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque"];
 
+    const currentBranch = localStorage.getItem('currentBranch') || '';
+    const isAllBranches = !currentBranch ||
+        currentBranch === 'All' ||
+        currentBranch === 'All Branches' ||
+        currentBranch === 'AllBranches' ||
+        currentBranch.toLowerCase() === 'all' ||
+        currentBranch.toLowerCase() === 'all branches';
+
+    useEffect(() => {
+        setStudents([]);
+        setSelectedStudent(null);
+        setReceipts([]);
+        setError('');
+    }, [currentBranch]);
+
     // Search students by name or admission no
     const handleSearch = async () => {
+        const reqBranch = currentBranch;
+        if (isAllBranches) {
+            setError('Please select a specific branch. This screen won\'t work on All Branches level.');
+            return;
+        }
         if (!searchTerm.trim()) {
             alert('Please enter a search term');
             return;
@@ -2460,6 +2480,7 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
                 type: searchType
             });
             const res = await api.get(`/students/search?${params.toString()}`);
+            if (reqBranch !== (localStorage.getItem('currentBranch') || '')) return;
             const list = res.data.students || res.data || [];
             setStudents(list);
 
@@ -2470,14 +2491,18 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
                 setError('No students found');
             }
         } catch (err: any) {
+            if (reqBranch !== (localStorage.getItem('currentBranch') || '')) return;
             setError(err.response?.data?.error || 'Failed to search students');
         } finally {
-            setSearching(false);
+            if (reqBranch === (localStorage.getItem('currentBranch') || '')) {
+                setSearching(false);
+            }
         }
     };
 
     // Fetch receipts for selected student
     const handleSelectStudent = async (student: any) => {
+        const reqBranch = currentBranch;
         try {
             setLoading(true);
             setSelectedStudent(student);
@@ -2485,12 +2510,16 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
 
             const studentId = student.id || student.student_id;
             const res = await api.get(`/reports/fees/student-receipts/${studentId}`);
+            if (reqBranch !== (localStorage.getItem('currentBranch') || '')) return;
             setReceipts(res.data.receipts || []);
         } catch (err: any) {
+            if (reqBranch !== (localStorage.getItem('currentBranch') || '')) return;
             setError(err.response?.data?.error || 'Failed to fetch receipts');
             setReceipts([]);
         } finally {
-            setLoading(false);
+            if (reqBranch === (localStorage.getItem('currentBranch') || '')) {
+                setLoading(false);
+            }
         }
     };
 
@@ -2558,7 +2587,8 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
                         <select
                             value={searchType}
                             onChange={(e) => setSearchType(e.target.value as 'name' | 'admission')}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                            disabled={isAllBranches}
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
                         >
                             <option value="admission">Admission Number</option>
                             <option value="name">Student Name</option>
@@ -2570,23 +2600,37 @@ export const SearchStudentReport: React.FC<ReportProps> = ({ onViewReceipt }) =>
                         </label>
                         <input
                             type="text"
-                            placeholder={searchType === 'admission' ? 'e.g. HARG0001' : 'Enter student name...'}
+                            placeholder={isAllBranches ? 'Please select a specific branch from header first...' : (searchType === 'admission' ? 'e.g. HARG0001' : 'Enter student name...')}
                             value={searchTerm}
+                            disabled={isAllBranches}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                            onKeyDown={(e) => e.key === 'Enter' && !isAllBranches && handleSearch()}
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-400"
                         />
                     </div>
                     <div className="md:col-span-2">
                         <button
                             onClick={handleSearch}
-                            disabled={searching}
-                            className="w-full bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium hover:bg-indigo-800 disabled:opacity-50"
+                            disabled={searching || isAllBranches}
+                            className="w-full bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium hover:bg-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {searching ? 'Searching...' : '🔍 Search'}
                         </button>
                     </div>
                 </div>
+
+                {/* Warning banner when All Branches is selected */}
+                {isAllBranches && (
+                    <div className="mt-4 p-3.5 bg-amber-50 border border-amber-300 rounded-lg flex items-center gap-3 text-amber-800 text-sm">
+                        <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div>
+                            <span className="font-semibold text-amber-900">Please select a specific branch:</span>{' '}
+                            This screen won't work on "All Branches" level. Please select a specific branch from the header dropdown above to search students.
+                        </div>
+                    </div>
+                )}
             </div>
 
             {error && <div className="text-red-500 text-center py-2 px-4">{error}</div>}

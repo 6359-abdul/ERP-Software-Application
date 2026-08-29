@@ -27,6 +27,10 @@ const Profile: React.FC = () => {
     const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
     const [locationData, setLocationData] = useState<any[]>([]);
 
+    // Classes State for Teacher/User
+    const [availableClasses, setAvailableClasses] = useState<any[]>([]);
+    const [selectedClasses, setSelectedClasses] = useState<string[]>(['All']);
+
     const [addUserStatus, setAddUserStatus] = useState<{ type: 'success' | 'error' | '', msg: string }>({ type: '', msg: '' });
     const [addUserLoading, setAddUserLoading] = useState(false);
     const [isBranchLocked, setIsBranchLocked] = useState(false);
@@ -45,17 +49,19 @@ const Profile: React.FC = () => {
             setOriginalUsername(user.username || '');
         }
 
-        // Fetch Branches & Locations
+        // Fetch Branches, Locations & Classes
         const fetchData = async () => {
             try {
-                const [branchRes, locRes] = await Promise.all([
+                const [branchRes, locRes, classRes] = await Promise.all([
                     api.get('/branches'),
-                    api.get('/org/locations')
+                    api.get('/org/locations'),
+                    api.get('/classes')
                 ]);
                 setAvailableBranches(branchRes.data.branches || []);
                 setLocationData(locRes.data.locations || []);
+                setAvailableClasses(classRes.data.classes || classRes.data || []);
             } catch (err) {
-                console.error("Failed to fetch branches/locations", err);
+                console.error("Failed to fetch branches/locations/classes", err);
             }
         };
         fetchData();
@@ -229,6 +235,26 @@ const Profile: React.FC = () => {
         setSelectedBranches(newSelection);
     };
 
+    // ==================== CLASS TOGGLE HANDLER ====================
+    const handleClassToggle = (className: string) => {
+        if (className === 'All') {
+            if (selectedClasses.includes('All')) {
+                setSelectedClasses([]);
+            } else {
+                setSelectedClasses(['All']);
+            }
+            return;
+        }
+
+        let newSelection = selectedClasses.filter(c => c !== 'All');
+        if (selectedClasses.includes(className)) {
+            newSelection = newSelection.filter(c => c !== className);
+        } else {
+            newSelection.push(className);
+        }
+        setSelectedClasses(newSelection);
+    };
+
     // ==================== ADD USER HANDLER ====================
     const handleAddUser = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -260,13 +286,21 @@ const Profile: React.FC = () => {
             return;
         }
 
+        if (newUserRole === 'Teacher' && selectedClasses.length === 0) {
+            setAddUserStatus({ type: 'error', msg: 'Please select at least one class (or All Classes)' });
+            return;
+        }
+
         setAddUserLoading(true);
+
+        const classesToAssign = newUserRole === 'Teacher' ? selectedClasses : ['All'];
 
         const payload = {
             username: newUserUsername.trim(),
             password: newUserPassword,
             useremail: newUserEmail.trim(),
             branches: selectedBranches,
+            classes: classesToAssign,
             branch: selectedBranches[0] || 'North',
             location: newUserLocation,
             role: newUserRole
@@ -283,6 +317,7 @@ const Profile: React.FC = () => {
             setNewUserPassword('');
             setNewUserEmail('');
             setSelectedBranches([]);
+            setSelectedClasses(['All']);
             setNewUserRole('User');
             setNewUserLocation('');
 
@@ -299,6 +334,7 @@ const Profile: React.FC = () => {
         setNewUserPassword('');
         setNewUserEmail('');
         setSelectedBranches([]);
+        setSelectedClasses(['All']);
         setNewUserRole('User');
         setNewUserLocation('');
         setAddUserStatus({ type: '', msg: '' });
@@ -542,6 +578,50 @@ const Profile: React.FC = () => {
                                         />
                                     </div>
 
+                                    {/* Role */}
+                                    <div>
+                                        <label htmlFor="newUserRole" className="block text-sm font-medium text-gray-700 mb-1">
+                                            Role
+                                        </label>
+                                        <select
+                                            id="newUserRole"
+                                            value={newUserRole}
+                                            onChange={(e) => {
+                                                const selectedRole = e.target.value;
+                                                setNewUserRole(selectedRole);
+                                                if (selectedRole === 'Teacher') {
+                                                    setSelectedClasses([]);
+                                                } else {
+                                                    setSelectedClasses(['All']);
+                                                }
+                                            }}
+                                            disabled={addUserLoading}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                                        >
+                                            <option value="User">User</option>
+                                            <option value="Teacher">Teacher</option>
+                                            <option value="Admin">Admin</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Location (Auto-filled) */}
+                                    <div>
+                                        <label htmlFor="newUserLocation" className="block text-sm font-medium text-gray-700 mb-1">
+                                            Location
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="newUserLocation"
+                                            value={newUserLocation}
+                                            onChange={(e) => setNewUserLocation(e.target.value)}
+                                            disabled={addUserLoading}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 bg-gray-50"
+                                            placeholder="Auto-filled from branch"
+                                            readOnly
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">Auto-filled based on branch selection</p>
+                                    </div>
+
                                     {/* Branch Selection */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -591,40 +671,59 @@ const Profile: React.FC = () => {
                                         </p>
                                     </div>
 
-                                    {/* Location (Auto-filled) */}
-                                    <div>
-                                        <label htmlFor="newUserLocation" className="block text-sm font-medium text-gray-700 mb-1">
-                                            Location
-                                        </label>
-                                        <input
-                                            type="text"
-                                            id="newUserLocation"
-                                            value={newUserLocation}
-                                            onChange={(e) => setNewUserLocation(e.target.value)}
-                                            disabled={addUserLoading}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 bg-gray-50"
-                                            placeholder="Auto-filled from branch"
-                                            readOnly
-                                        />
-                                        <p className="text-xs text-gray-500 mt-1">Auto-filled based on branch selection</p>
-                                    </div>
+                                    {/* Class Selection (Only for Teacher) */}
+                                    {newUserRole === 'Teacher' && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Allowed Classes <span className="text-red-500">*</span>
+                                            </label>
+                                            <div className="border border-gray-300 rounded-md p-2 h-40 overflow-y-auto bg-white">
+                                                {/* All Classes Option */}
+                                                <div className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="class-all"
+                                                        checked={selectedClasses.includes('All')}
+                                                        onChange={() => handleClassToggle('All')}
+                                                        disabled={addUserLoading}
+                                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                    />
+                                                    <label htmlFor="class-all" className="text-sm font-medium text-gray-700">
+                                                        All Classes
+                                                    </label>
+                                                </div>
 
-                                    {/* Role */}
-                                    <div>
-                                        <label htmlFor="newUserRole" className="block text-sm font-medium text-gray-700 mb-1">
-                                            Role
-                                        </label>
-                                        <select
-                                            id="newUserRole"
-                                            value={newUserRole}
-                                            onChange={(e) => setNewUserRole(e.target.value)}
-                                            disabled={addUserLoading}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                                        >
-                                            <option value="User">User</option>
-                                            <option value="Admin">Admin</option>
-                                        </select>
-                                    </div>
+                                                <hr className="my-1" />
+
+                                                {/* Individual Classes */}
+                                                {availableClasses.map((c: any) => {
+                                                    const cName = c.class_name || c.name || String(c);
+                                                    return (
+                                                        <div key={c.id || cName} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                                                            <input
+                                                                type="checkbox"
+                                                                id={`class-${c.id || cName}`}
+                                                                checked={selectedClasses.includes(cName)}
+                                                                onChange={() => handleClassToggle(cName)}
+                                                                disabled={addUserLoading || selectedClasses.includes('All')}
+                                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                            />
+                                                            <label htmlFor={`class-${c.id || cName}`} className="text-sm text-gray-700">
+                                                                {cName}
+                                                            </label>
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                {availableClasses.length === 0 && (
+                                                    <p className="text-sm text-gray-500 p-2">No classes available</p>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Selected: {selectedClasses.length === 0 ? 'None' : selectedClasses.join(', ')}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Buttons */}

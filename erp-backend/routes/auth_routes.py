@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, current_app
 from extensions import db
 from extensions import limiter
-from models import User, Branch, UserBranchAccess, PasswordResetOTP
+from models import User, Branch, UserBranchAccess, UserClassAccess, ClassMaster, PasswordResetOTP
 from datetime import date, datetime, timedelta
 import jwt
 import secrets
@@ -62,7 +62,22 @@ def login_user():
             })
     except Exception as e:
         current_app.logger.warning("Error fetching branches for user %s: %s", username, e)
-        # Continue without branches if error occurs, or return error? For now, continue.
+
+    # Fetch Valid Classes: Only for Teachers do we fetch custom class assignments; remaining users get all classes
+    valid_classes = []
+    try:
+        if user.role == 'Teacher':
+            class_records = UserClassAccess.query.filter_by(user_id=user.user_id, is_active=True).all()
+            for cr in class_records:
+                valid_classes.append({
+                    "id": cr.id,
+                    "class_id": cr.class_id,
+                    "class_name": cr.class_name
+                })
+        else:
+            valid_classes = [{"id": 0, "class_id": None, "class_name": "All"}]
+    except Exception as e:
+        current_app.logger.warning("Error fetching classes for user %s: %s", username, e)
 
     token_payload = {
         'user_id': user.user_id,
@@ -71,6 +86,7 @@ def login_user():
         # Include branch and location for convenience, but rely on UserBranchAccess for auth
         'branch': user.branch, 
         'location': user.location,
+        'allowed_classes': valid_classes,
         'exp': datetime.utcnow() + timedelta(hours=24) # Token expiry
     }
     
@@ -87,7 +103,8 @@ def login_user():
             "role": user.role,
             "branch": user.branch, # Legacy string
             "location": user.location,
-            "allowed_branches": valid_branches # Phase 4: Auto-reflecting branches
+            "allowed_branches": valid_branches, # Phase 4: Auto-reflecting branches
+            "allowed_classes": valid_classes
         }
     }), 200
 
@@ -96,20 +113,28 @@ def login_user():
 def list_users(current_user):
     try:
         users = User.query.order_by(User.username).all()
-        return jsonify({
-            "users": [
-                {
-                    "user_id": u.user_id,
-                    "username": u.username,
-                    "name": u.username,
-                    "useremail": getattr(u, "useremail", ""),
-                    "role": u.role,
-                    "branch": u.branch,
-                    "location": getattr(u, "location", "")
-                }
-                for u in users
-            ]
-        }), 200
+        result = []
+        for u in users:
+            u_classes = []
+            try:
+                if u.role == 'Teacher':
+                    c_recs = UserClassAccess.query.filter_by(user_id=u.user_id, is_active=True).all()
+                    u_classes = [{"id": c.id, "class_id": c.class_id, "class_name": c.class_name} for c in c_recs]
+                else:
+                    u_classes = [{"id": 0, "class_id": None, "class_name": "All"}]
+            except Exception:
+                pass
+            result.append({
+                "user_id": u.user_id,
+                "username": u.username,
+                "name": u.username,
+                "useremail": getattr(u, "useremail", ""),
+                "role": u.role,
+                "branch": u.branch,
+                "location": getattr(u, "location", ""),
+                "allowed_classes": u_classes
+            })
+        return jsonify({"users": result}), 200
     except Exception as e:
         current_app.logger.exception("Error fetching users")
         return jsonify({"error": "Failed to fetch users"}), 500
@@ -159,6 +184,7 @@ def create_user(current_user):
         location = data.get("location", "")
         # Frontend sends "branches" array and legacy "branch" string
         branches = data.get("branches", [])
+        classes = data.get("classes", [])
         legacy_branch = data.get("branch", "North") # Default fallback
 
         if not username or not password or not useremail:
@@ -230,6 +256,44 @@ def create_user(current_user):
                             is_active=True
                         )
                         db.session.add(access)
+
+        # Handle Class Access: Only for Teacher user type we assign classes, remaining users get 'All' by default
+        if role == 'Teacher':
+            if classes:
+                if "All" in classes:
+                    access = UserClassAccess(
+                        user_id=new_user.user_id,
+                        class_name="All",
+                        is_active=True
+                    )
+                    db.session.add(access)
+                else:
+                    for c_item in classes:
+                        c_name = str(c_item).strip()
+                        cm = None
+                        if c_name.isdigit():
+                            cm = ClassMaster.query.get(int(c_name))
+                        if not cm:
+                            cm = ClassMaster.query.filter_by(class_name=c_name).first()
+                        
+                        class_id = cm.id if cm else None
+                        class_name = cm.class_name if cm else c_name
+                        
+                        access = UserClassAccess(
+                            user_id=new_user.user_id,
+                            class_id=class_id,
+                            class_name=class_name,
+                            is_active=True
+                        )
+                        db.session.add(access)
+        else:
+            # Remaining users by default all class should be there
+            access = UserClassAccess(
+                user_id=new_user.user_id,
+                class_name="All",
+                is_active=True
+            )
+            db.session.add(access)
 
         db.session.commit()
         return jsonify({"message": "User created successfully", "user_id": new_user.user_id}), 201
@@ -391,6 +455,40 @@ def reset_password():
 @token_required
 def get_user_profile(current_user):
     try:
+        valid_classes = []
+        try:
+            if current_user.role == 'Teacher':
+                class_records = UserClassAccess.query.filter_by(user_id=current_user.user_id, is_active=True).all()
+                for cr in class_records:
+                    valid_classes.append({
+                        "id": cr.id,
+                        "class_id": cr.class_id,
+                        "class_name": cr.class_name
+                    })
+            else:
+                valid_classes = [{"id": 0, "class_id": None, "class_name": "All"}]
+        except Exception:
+            pass
+
+        valid_branches = []
+        try:
+            today = date.today()
+            access_records = UserBranchAccess.query.filter(
+                UserBranchAccess.user_id == current_user.user_id,
+                UserBranchAccess.is_active == True,
+                UserBranchAccess.start_date <= today,
+                (UserBranchAccess.end_date.is_(None)) | (UserBranchAccess.end_date >= today)
+            ).join(Branch).all()
+            for record in access_records:
+                valid_branches.append({
+                    "branch_id": record.branch_id,
+                    "branch_code": record.branch.branch_code,
+                    "branch_name": record.branch.branch_name,
+                    "location_code": record.branch.location_code
+                })
+        except Exception:
+            pass
+
         return jsonify({
             "user": {
                 "user_id": current_user.user_id,
@@ -398,7 +496,9 @@ def get_user_profile(current_user):
                 "useremail": getattr(current_user, 'useremail', ''),
                 "role": current_user.role,
                 "branch": current_user.branch,
-                "location": getattr(current_user, 'location', '')
+                "location": getattr(current_user, 'location', ''),
+                "allowed_branches": valid_branches,
+                "allowed_classes": valid_classes
             }
         }), 200
     except Exception as e:

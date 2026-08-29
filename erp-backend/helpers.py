@@ -222,6 +222,69 @@ def user_can_access_branch(user, branch_identifier):
     return False
 
 
+def user_can_access_class(user, class_identifier):
+    """Verify if a user is allowed to access data from a specific class.
+    Only Teacher user type is restricted to assigned classes.
+    Remaining users by default have access to all classes."""
+    if not user:
+        return False
+    if getattr(user, "role", None) != "Teacher":
+        return True
+    if not class_identifier or str(class_identifier).strip() in ("All", "All Classes", ""):
+        return True
+
+    from models import UserClassAccess, ClassMaster
+    all_access = UserClassAccess.query.filter_by(user_id=user.user_id, class_name="All", is_active=True).first()
+    if all_access:
+        return True
+
+    c_val = str(class_identifier).strip()
+    if c_val.isdigit():
+        acc = UserClassAccess.query.filter_by(user_id=user.user_id, class_id=int(c_val), is_active=True).first()
+        if acc:
+            return True
+
+    acc = UserClassAccess.query.filter(
+        UserClassAccess.user_id == user.user_id,
+        UserClassAccess.is_active == True,
+        UserClassAccess.class_name == c_val
+    ).first()
+    if acc:
+        return True
+
+    cm = ClassMaster.query.filter_by(class_name=c_val).first()
+    if cm:
+        acc = UserClassAccess.query.filter_by(user_id=user.user_id, class_id=cm.id, is_active=True).first()
+        if acc:
+            return True
+
+    return False
+
+
+def get_user_allowed_classes(user):
+    """Return list of allowed class names for a user, or None if user has unrestricted access.
+    Only Teacher user type has class restrictions; remaining users by default have access to all classes."""
+    if not user or getattr(user, "role", None) != "Teacher":
+        return None
+    from models import UserClassAccess, ClassMaster
+    all_acc = UserClassAccess.query.filter_by(user_id=user.user_id, class_name="All", is_active=True).first()
+    if all_acc:
+        return None
+    records = UserClassAccess.query.filter_by(user_id=user.user_id, is_active=True).all()
+    if not records:
+        return []
+    classes = []
+    for r in records:
+        if r.class_name and r.class_name != "All":
+            classes.append(r.class_name)
+        elif r.class_id:
+            cm = ClassMaster.query.get(r.class_id)
+            if cm and cm.class_name:
+                classes.append(cm.class_name)
+    return list(set(classes))
+
+
+
 def normalize_fee_title(title):
     """Normalize fee title for matching (lowercase, remove 'fee', strip)"""
     if not title:

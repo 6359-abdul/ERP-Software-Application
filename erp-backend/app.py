@@ -217,8 +217,13 @@ if __name__ == "__main__":
     from flask_migrate import upgrade
     from sqlalchemy import inspect, text
     with app.app_context():
-        upgrade()
-        print("[SUCCESS] Database upgraded.")
+        try:
+            upgrade()
+            print("[SUCCESS] Database upgraded.")
+        except Exception as mig_err:
+            print(f"[ERROR] Migration failed: {mig_err}")
+            import sys
+            sys.exit(1)
 
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"

@@ -6,6 +6,16 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import api from '../api';
 
+const filterClassesForUser = (classes: any[]): any[] => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user?.role === 'Teacher' && user?.allowed_classes && user.allowed_classes.length > 0) {
+        const allowed = user.allowed_classes.map((c: any) => c.class_name || c);
+        if (!allowed.includes('All')) {
+            return classes.filter((c: any) => allowed.includes(c.class_name || c.name || c));
+        }
+    }
+    return classes;
+};
 
 interface StudentAttendanceProps {
     navigateTo: (page: Page) => void;
@@ -102,13 +112,17 @@ const TakeAttendanceForm: React.FC = () => {
     const [updateCount, setUpdateCount] = useState<number>(0);
     const [lastModified, setLastModified] = useState<string | null>(null);
     const [dateBlocked, setDateBlocked] = useState<{ blocked: boolean; reason: string }>({ blocked: false, reason: '' });
+    const [hasFetched, setHasFetched] = useState(false);
+    const [emptyMessage, setEmptyMessage] = useState('');
     useEffect(() => {
         api.get('/classes')
-            .then(res => setClassOptions(res.data.classes || []))
+            .then(res => setClassOptions(filterClassesForUser(res.data.classes || [])))
             .catch(err => console.error("Failed to load classes", err));
     }, []);
 
     useEffect(() => {
+        setHasFetched(false);
+        setEmptyMessage('');
         if (!selectedClass) {
             setSectionOptions([]);
             setSelectedSection('');
@@ -173,6 +187,8 @@ const TakeAttendanceForm: React.FC = () => {
             const fetchedStudents = res.data.students || [];
             const existingAttendance = res.data.attendance || {};
 
+            setHasFetched(true);
+            setEmptyMessage(res.data?.message || '');
             setStudents(fetchedStudents);
             setUpdateCount(res.data.class_update_count || 0);
             setLastModified(res.data.last_modified);
@@ -379,6 +395,20 @@ const TakeAttendanceForm: React.FC = () => {
                             </div>
                         </div>
                     )}
+
+                    {hasFetched && students.length === 0 && !loading && !dateBlocked.blocked && (
+                        <div className="mt-4 p-5 bg-amber-50 border border-amber-300 rounded-lg text-center shadow-sm">
+                            <div className="flex items-center justify-center gap-2 text-amber-800 font-semibold text-base mb-1">
+                                <span className="text-xl">⚠️</span> No Active Students Found
+                            </div>
+                            <p className="text-amber-700 text-sm">
+                                {emptyMessage || `No active students found in Class ${selectedClass}${selectedSection ? `, Section ${selectedSection}` : ''} for ${localStorage.getItem('currentBranch') || 'this branch'}.`}
+                            </p>
+                            <p className="text-xs text-amber-600 mt-2">
+                                Tip: Check other classes (e.g. Class 7) or verify student active status in Student Administration.
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -395,14 +425,18 @@ const RegisterViewTab: React.FC = () => {
     const [reportData, setReportData] = useState<any>(null);
     const [blockedDates, setBlockedDates] = useState<{ [date: string]: string }>({});
     const [loading, setLoading] = useState(false);
+    const [hasFetched, setHasFetched] = useState(false);
+    const [emptyMessage, setEmptyMessage] = useState('');
 
     useEffect(() => {
         api.get('/classes')
-            .then(res => setClassOptions(res.data.classes || []))
+            .then(res => setClassOptions(filterClassesForUser(res.data.classes || [])))
             .catch(err => console.error("Failed to load classes", err));
     }, []);
 
     useEffect(() => {
+        setHasFetched(false);
+        setEmptyMessage('');
         if (!selectedClass) {
             setSectionOptions([]);
             setSelectedSection('');
@@ -444,6 +478,8 @@ const RegisterViewTab: React.FC = () => {
                 }
             });
             setReportData(res.data);
+            setHasFetched(true);
+            setEmptyMessage(res.data?.message || '');
 
             // Fetch blocked dates for this month
             try {
@@ -631,7 +667,7 @@ const RegisterViewTab: React.FC = () => {
 
                     </div>
 
-                    {reportData && (
+                    {reportData && reportData.students && reportData.students.length > 0 && (
                         <div className="overflow-x-auto border rounded-lg mt-4">
                             <table className="min-w-full divide-y divide-gray-200 text-xs">
                                 <thead className="bg-gray-50">
@@ -737,6 +773,20 @@ const RegisterViewTab: React.FC = () => {
                                     Export Excel</button> </div>
                         </div>
                     )}
+
+                    {hasFetched && reportData && reportData.students && reportData.students.length === 0 && !loading && (
+                        <div className="mt-4 p-5 bg-amber-50 border border-amber-300 rounded-lg text-center shadow-sm">
+                            <div className="flex items-center justify-center gap-2 text-amber-800 font-semibold text-base mb-1">
+                                <span className="text-xl">⚠️</span> No Active Students Found
+                            </div>
+                            <p className="text-amber-700 text-sm">
+                                {emptyMessage || `No active students found in Class ${selectedClass}${selectedSection ? `, Section ${selectedSection}` : ''} for ${localStorage.getItem('currentBranch') || 'this branch'} in academic year ${localStorage.getItem('academicYear') || '2026-2027'}.`}
+                            </p>
+                            <p className="text-xs text-amber-600 mt-2">
+                                Tip: Check other classes (e.g. Class 7) or verify student active status in Student Administration.
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div >
@@ -756,14 +806,18 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
     const [blockedDates, setBlockedDates] = useState<{ [date: string]: string }>({});
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [hasFetched, setHasFetched] = useState(false);
+    const [emptyMessage, setEmptyMessage] = useState('');
 
     useEffect(() => {
         api.get('/classes')
-            .then(res => setClassOptions(res.data.classes || []))
+            .then(res => setClassOptions(filterClassesForUser(res.data.classes || [])))
             .catch(err => console.error("Failed to load classes", err));
     }, []);
 
     useEffect(() => {
+        setHasFetched(false);
+        setEmptyMessage('');
         if (!selectedClass) {
             setSectionOptions([]);
             setSelectedSection('');
@@ -806,6 +860,8 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
             });
 
             setStudents(res.data.students || []);
+            setHasFetched(true);
+            setEmptyMessage(res.data?.message || '');
 
             // Flatten attendance data for easier editing: "studentId-date" -> status
             const flatAttendance: { [key: string]: string } = {};
@@ -1189,6 +1245,20 @@ const MonthlyAttendanceEntryTab: React.FC = () => {
                             </div>
                         </div>
                     )}
+
+                    {hasFetched && students.length === 0 && !loading && (
+                        <div className="mt-4 p-5 bg-amber-50 border border-amber-300 rounded-lg text-center shadow-sm">
+                            <div className="flex items-center justify-center gap-2 text-amber-800 font-semibold text-base mb-1">
+                                <span className="text-xl">⚠️</span> No Active Students Found
+                            </div>
+                            <p className="text-amber-700 text-sm">
+                                {emptyMessage || `No active students found in Class ${selectedClass}${selectedSection ? `, Section ${selectedSection}` : ''} for ${localStorage.getItem('currentBranch') || 'this branch'} in academic year ${localStorage.getItem('academicYear') || '2026-2027'}.`}
+                            </p>
+                            <p className="text-xs text-amber-600 mt-2">
+                                Tip: Check other classes (e.g. Class 7) or verify student active status in Student Administration.
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -1237,7 +1307,7 @@ const AbsentReport: React.FC = () => {
 
     useEffect(() => {
         api.get('/classes')
-            .then(res => setClassOptions(res.data.classes || []))
+            .then(res => setClassOptions(filterClassesForUser(res.data.classes || [])))
             .catch(err => console.error("Failed to load classes", err));
     }, []);
     useEffect(() => {

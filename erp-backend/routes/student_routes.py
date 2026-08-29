@@ -16,9 +16,11 @@ from models import (
 )
 
 
-from services.sequence_service import SequenceService
-from helpers import token_required, require_academic_year, get_branch_query_filter, student_to_dict, auto_enroll_student_fee, require_editable_student, has_global_branch_access, user_can_access_branch
-from datetime import datetime
+from helpers import (
+    token_required, require_academic_year, get_branch_query_filter, student_to_dict,
+    auto_enroll_student_fee, require_editable_student, has_global_branch_access,
+    user_can_access_branch, user_can_access_class, get_user_allowed_classes
+)
 from sqlalchemy import or_, and_, func
 import io
 import csv
@@ -145,11 +147,18 @@ def get_students(current_user):
         section = request.args.get("section")
         search = request.args.get("search")
         
-        # Header Filtering
-        h_branch = request.headers.get("X-Branch")
-        h_year = request.headers.get("X-Academic-Year")
-        if h_year:
-            h_year = h_year.strip()
+        # Header or Query Parameter Filtering
+        h_branch = request.args.get("branch") or request.headers.get("X-Branch")
+        param_year = request.args.get("academic_year")
+        if param_year is not None:
+            param_year = param_year.strip()
+            h_year = None if param_year in ("All", "All Academic Years", "") else param_year
+        else:
+            h_year = request.headers.get("X-Academic-Year")
+            if h_year:
+                h_year = h_year.strip()
+                if h_year in ("All", "All Academic Years"):
+                    h_year = None
         
         # Base Query
         # We always start with Student.
@@ -175,6 +184,8 @@ def get_students(current_user):
         # Note: In History Mode, we must check both Record and Student for Class/Section
         
         if class_name:
+            if not user_can_access_class(current_user, class_name):
+                return jsonify({"students": []}), 200
             if h_year:
                 q = q.filter(or_(
                     StudentAcademicRecord.class_name == class_name,
@@ -182,6 +193,16 @@ def get_students(current_user):
                 ))
             else:
                  q = q.filter_by(clazz=class_name)
+        else:
+            allowed_classes = get_user_allowed_classes(current_user)
+            if allowed_classes is not None:
+                if h_year:
+                    q = q.filter(or_(
+                        StudentAcademicRecord.class_name.in_(allowed_classes),
+                        and_(StudentAcademicRecord.id.is_(None), Student.clazz.in_(allowed_classes))
+                    ))
+                else:
+                    q = q.filter(Student.clazz.in_(allowed_classes))
 
         if section:
             if h_year:
@@ -206,9 +227,22 @@ def get_students(current_user):
             )
         
         # Status Filtering
+        status_param = request.args.get("status")
         include_inactive = request.args.get("include_inactive")
-        if include_inactive != "true":
-             q = q.filter(Student.status == "Active")
+        if status_param:
+            if status_param.lower() in ("all", "all status"):
+                pass
+            elif status_param.lower() in ("inactive", "active"):
+                q = q.filter(func.lower(Student.status) == status_param.lower())
+            else:
+                q = q.filter(Student.status == status_param)
+        elif include_inactive != "true":
+            q = q.filter(Student.status == "Active")
+
+        # Location Filtering
+        h_location = request.args.get("location") or request.headers.get("X-Location")
+        if h_location and h_location not in ("All", "All Locations", "AllLocations"):
+            q = q.filter(Student.location == h_location)
 
         # Branch Filtering (Unified Logic)
         branch_filter = None
@@ -218,23 +252,21 @@ def get_students(current_user):
              
              has_access = False
              # Check explicit branch request access
-             if req_branch and req_branch != "All" and (b_obj := Branch.query.filter(or_(Branch.branch_code == req_branch, Branch.branch_name == req_branch)).first()):
-                 has_access = bool(UserBranchAccess.query.filter_by(user_id=current_user.user_id, branch_id=b_obj.id, is_active=True).first())
+             if req_branch and req_branch not in ("All", "All Branches"):
+                 has_access = user_can_access_branch(current_user, req_branch)
              
-             if has_access or (current_user.branch == 'All' and req_branch and req_branch != "All"):
+             if has_access or (current_user.branch == 'All' and req_branch and req_branch not in ("All", "All Branches")):
                  branch_filter = get_branch_query_filter(Student.branch, req_branch)
              elif current_user.branch != 'All':
                   branch_filter = get_branch_query_filter(Student.branch, current_user.branch)
 
         else:
              # Global Access User
-             branch_param = request.args.get("branch")
-             if branch_param in ("All", "All Branches"):
+             branch_param = request.args.get("branch") or h_branch
+             if branch_param in ("All", "All Branches", "AllBranches"):
                  pass 
              elif branch_param:
                  branch_filter = get_branch_query_filter(Student.branch, branch_param)
-             elif h_branch and h_branch != "All":
-                 branch_filter = get_branch_query_filter(Student.branch, h_branch)
         
         if branch_filter is not None:
             q = q.filter(branch_filter)

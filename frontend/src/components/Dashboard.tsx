@@ -67,6 +67,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isTeacher = user?.role === 'Teacher';
+  const teacherAllowedPages = [
+    'dashboard', 'profile', 'staff-support', 'administration',
+    'student-attendance', 'attendance-report', 'student-administration', 'document-management'
+  ];
+
   return (
     <div className="flex min-h-screen bg-white">
       <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} navigateTo={navigateTo} currentPage={currentPage} />
@@ -82,48 +89,54 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         />
         <main className="flex-1">
         <div className="mx-auto w-full max-w-[1920px] px-4">
-          {currentPage === 'dashboard' && <MainContent navigateTo={navigateTo} />}
-          {currentPage === 'profile' && <Profile />}
-          {financialPages.includes(currentPage) ? (
-            <FinancialLayout currentPage={currentPage} navigateTo={navigateTo}>
-              {currentPage === 'fee' && <Fee navigateTo={navigateTo} />}
-              {currentPage === 'fee-type' && <FeeType />}
-              {currentPage === 'class-fee-structure' && <ClassFeeStructure />}
-              {currentPage === 'assign-special-fee' && <AssignSpecialFee />}
-              {currentPage === 'fee-installments' && <FeeInstallments />}
-              {currentPage === 'take-fee' && <TakeFee navigateTo={navigateTo} />}
-              {currentPage === 'concession-master' && <ConcessionMaster />}
-              {currentPage === 'student-concession' && <StudentConcession />}
-              {currentPage === 'update-student-fee-structure' && <UpdateStudentFeeStructure />}
-              {currentPage === 'update-rebate-date' && <UpdateRebateDate />}
-              {currentPage === 'fee-reports' && <FeeReports />}
-              {currentPage === 'fee-due-reports' && <FeeDueReports />}
-              {currentPage === 'deleted-receipts' && <DeletedReceiptsReport />}
-              {currentPage === 'fee-concession-report' && <FeeConcessionReport />}
-              {currentPage === 'adjust-fee-report' && <AdjustFeeReport />}
-              {currentPage === 'petty-cash' && <PettyCash />}
-              {currentPage === 'petty-cash-report' && <PettyCashReport />}
-              {currentPage === 'fund-allocation' && <FundAllocation />}
-              {currentPage === 'month-wise-ledger' && <MonthWiseLedger />}
-              {currentPage === 'user-daily-report' && <FeeReports singleDailyMode={true} />}
-              {currentPage === 'remittance-deposit' && <RemittanceDeposit />}
-              {currentPage === 'remittance-approvals' && <RemittanceApprovals />}
-              {currentPage === 'reconciliation-dashboard' && <ReconciliationDashboard />}
-            </FinancialLayout>
+          {isTeacher && !teacherAllowedPages.includes(currentPage) ? (
+            <Administration navigateTo={navigateTo} />
           ) : (
             <>
-              {currentPage === 'administration' && <Administration navigateTo={navigateTo} />}
-              {currentPage === 'academic' && <AcademicManagement navigateTo={navigateTo} />}
-              {currentPage === 'academics' && <Academics />}
-              {currentPage === 'setup' && <SetupSchool navigateTo={navigateTo} />}
-              {currentPage === 'classes-management' && <ClassesManagement navigateTo={navigateTo} />}
-              {currentPage === 'student-attendance' && <StudentAttendance navigateTo={navigateTo} />}
-              {currentPage === 'attendance-report' && <StudentAttendance navigateTo={navigateTo} defaultTab="absent-report" />}
-              {currentPage === 'student-administration' && <StudentAdministration navigateTo={navigateTo} />}
-              {currentPage === 'staff-support' && <StaffSupport />}
-              {currentPage === 'configuration' && <Configuration navigateTo={navigateTo} />}
-              {currentPage === 'document-management' && <DocumentManagement />}
-              {currentPage === 'create-student' && <CreateStudent mode="create" onCancel={() => navigateTo('dashboard')} onSave={() => navigateTo('student-administration')} />}
+              {currentPage === 'dashboard' && <MainContent navigateTo={navigateTo} />}
+              {currentPage === 'profile' && <Profile />}
+              {financialPages.includes(currentPage) ? (
+                <FinancialLayout currentPage={currentPage} navigateTo={navigateTo}>
+                  {currentPage === 'fee' && <Fee navigateTo={navigateTo} />}
+                  {currentPage === 'fee-type' && <FeeType />}
+                  {currentPage === 'class-fee-structure' && <ClassFeeStructure />}
+                  {currentPage === 'assign-special-fee' && <AssignSpecialFee />}
+                  {currentPage === 'fee-installments' && <FeeInstallments />}
+                  {currentPage === 'take-fee' && <TakeFee navigateTo={navigateTo} />}
+                  {currentPage === 'concession-master' && <ConcessionMaster />}
+                  {currentPage === 'student-concession' && <StudentConcession />}
+                  {currentPage === 'update-student-fee-structure' && <UpdateStudentFeeStructure />}
+                  {currentPage === 'update-rebate-date' && <UpdateRebateDate />}
+                  {currentPage === 'fee-reports' && <FeeReports />}
+                  {currentPage === 'fee-due-reports' && <FeeDueReports />}
+                  {currentPage === 'deleted-receipts' && <DeletedReceiptsReport />}
+                  {currentPage === 'fee-concession-report' && <FeeConcessionReport />}
+                  {currentPage === 'adjust-fee-report' && <AdjustFeeReport />}
+                  {currentPage === 'petty-cash' && <PettyCash />}
+                  {currentPage === 'petty-cash-report' && <PettyCashReport />}
+                  {currentPage === 'fund-allocation' && <FundAllocation />}
+                  {currentPage === 'month-wise-ledger' && <MonthWiseLedger />}
+                  {currentPage === 'user-daily-report' && <FeeReports singleDailyMode={true} />}
+                  {currentPage === 'remittance-deposit' && <RemittanceDeposit />}
+                  {currentPage === 'remittance-approvals' && <RemittanceApprovals />}
+                  {currentPage === 'reconciliation-dashboard' && <ReconciliationDashboard />}
+                </FinancialLayout>
+              ) : (
+                <>
+                  {currentPage === 'administration' && <Administration navigateTo={navigateTo} />}
+                  {currentPage === 'academic' && <AcademicManagement navigateTo={navigateTo} />}
+                  {currentPage === 'academics' && <Academics />}
+                  {currentPage === 'setup' && <SetupSchool navigateTo={navigateTo} />}
+                  {currentPage === 'classes-management' && <ClassesManagement navigateTo={navigateTo} />}
+                  {currentPage === 'student-attendance' && <StudentAttendance navigateTo={navigateTo} />}
+                  {currentPage === 'attendance-report' && <StudentAttendance navigateTo={navigateTo} defaultTab="absent-report" />}
+                  {currentPage === 'student-administration' && <StudentAdministration navigateTo={navigateTo} />}
+                  {currentPage === 'staff-support' && <StaffSupport />}
+                  {currentPage === 'configuration' && <Configuration navigateTo={navigateTo} />}
+                  {currentPage === 'document-management' && <DocumentManagement />}
+                  {currentPage === 'create-student' && <CreateStudent mode="create" onCancel={() => navigateTo('dashboard')} onSave={() => navigateTo('student-administration')} />}
+                </>
+              )}
             </>
           )}
         </div>

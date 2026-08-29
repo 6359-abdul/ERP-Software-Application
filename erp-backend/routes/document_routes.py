@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, send_file, current_app
 from extensions import db, get_now, to_local_time
-from models import DocumentType, StudentDocument, Student, User, Branch, UserBranchAccess
-from helpers import token_required
+from models import DocumentType, StudentDocument, Student, User, Branch, UserBranchAccess, UserClassAccess
+from helpers import token_required, user_can_access_branch, user_can_access_class, has_global_branch_access
 from datetime import datetime
 import os
 import uuid
@@ -38,22 +38,19 @@ def get_media_base():
 def can_access_student(current_user, student):
     if not student:
         return False
-    if current_user.role == 'Admin' or current_user.role == 'Director' or current_user.branch == 'All':
+    is_teacher = current_user.role == 'Teacher'
+    if not is_teacher and (has_global_branch_access(current_user) or current_user.role in ('Admin', 'Director')):
         return True
-    if student.branch == current_user.branch:
-        return True
-
-    branch_obj = Branch.query.filter(
-        (Branch.branch_code == student.branch) | (Branch.branch_name == student.branch)
-    ).first()
-    if not branch_obj:
+    
+    # Check branch access
+    if not user_can_access_branch(current_user, student.branch):
         return False
-
-    return UserBranchAccess.query.filter_by(
-        user_id=current_user.user_id,
-        branch_id=branch_obj.id,
-        is_active=True
-    ).first() is not None
+        
+    # Check class access
+    if student.clazz and not user_can_access_class(current_user, student.clazz):
+        return False
+        
+    return True
 
 
 # ==========================================

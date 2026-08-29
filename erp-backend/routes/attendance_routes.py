@@ -1,7 +1,11 @@
 from flask import Blueprint, jsonify, request
 from extensions import db, get_today, get_now, to_local_time
-from models import Student, Attendance, Branch, UserBranchAccess, StudentAcademicRecord
-from helpers import token_required, require_academic_year, student_to_dict, get_default_location, ensure_student_editable
+from models import Student, Attendance, Branch, UserBranchAccess, StudentAcademicRecord, UserClassAccess, ClassMaster
+from helpers import (
+    token_required, require_academic_year, student_to_dict, get_default_location,
+    ensure_student_editable, user_can_access_branch, user_can_access_class,
+    get_user_allowed_classes, has_global_branch_access
+)
 from datetime import datetime, date
 from sqlalchemy import or_
 from routes.config_routes import is_weekoff_or_holiday
@@ -24,17 +28,14 @@ def get_attendance(current_user):
         if err: return err, code
         
         # Branch Permissions Logic
-        if current_user.role not in ('Admin', 'Director'):
-             # Enforce user's branch
-             if current_user.branch and current_user.branch != 'All':
-                  h_branch = current_user.branch
-             else:
-                  # If user has "All" (legacy) but really shouldn't see global
-                  # We might need to check "allowed_branches" but for now stick to current_user.branch
-                  h_branch = current_user.branch 
-        
+        requested_branch = request.args.get("branch") or h_branch
+        if not has_global_branch_access(current_user):
+            if requested_branch and requested_branch != "All" and user_can_access_branch(current_user, requested_branch):
+                h_branch = requested_branch
+            elif current_user.branch and current_user.branch != 'All':
+                h_branch = current_user.branch
         elif not h_branch:
-             h_branch = "All"
+            h_branch = "All"
         
         # Base query joining Student and Academic Record
         # We need students who were in the requested class/section DURING the requested academic year
@@ -47,20 +48,27 @@ def get_attendance(current_user):
         )
         
         # STRICT BRANCH SEGREGATION
-        if current_user.role not in ('Admin', 'Director'):
-             if current_user.branch and current_user.branch != 'All':
-                  q = q.filter(Student.branch == current_user.branch)
+        if not has_global_branch_access(current_user):
+            if h_branch and h_branch != "All":
+                q = q.filter(Student.branch == h_branch)
         else:
-             branch_param = request.args.get("branch")
-             if branch_param == "All" or branch_param == "All Branches":
-                 pass
-             elif branch_param:
-                 q = q.filter(Student.branch == branch_param)
-             elif h_branch and h_branch != "All":
-                 q = q.filter(Student.branch == h_branch)
+            branch_param = request.args.get("branch")
+            if branch_param == "All" or branch_param == "All Branches":
+                pass
+            elif branch_param:
+                q = q.filter(Student.branch == branch_param)
+            elif h_branch and h_branch != "All":
+                q = q.filter(Student.branch == h_branch)
         
         if class_name:
+            if not user_can_access_class(current_user, class_name):
+                return jsonify({"students": [], "attendance": {}}), 200
             q = q.filter(StudentAcademicRecord.class_name == class_name)
+        else:
+            allowed_classes = get_user_allowed_classes(current_user)
+            if allowed_classes is not None:
+                q = q.filter(StudentAcademicRecord.class_name.in_(allowed_classes))
+
         if section:
             q = q.filter(StudentAcademicRecord.section == section)
         if student_id:
@@ -89,7 +97,39 @@ def get_attendance(current_user):
             student_ids.append(s.student_id)
             
         if not student_ids:
-             return jsonify({"students": [], "attendance": {}}), 200
+            inactive_count = 0
+            try:
+                iq = db.session.query(Student).join(
+                    StudentAcademicRecord,
+                    Student.student_id == StudentAcademicRecord.student_id
+                ).filter(
+                    StudentAcademicRecord.academic_year == h_year,
+                    Student.status == "Inactive"
+                )
+                if class_name:
+                    iq = iq.filter(StudentAcademicRecord.class_name == class_name)
+                else:
+                    allowed_classes = get_user_allowed_classes(current_user)
+                    if allowed_classes is not None:
+                        iq = iq.filter(StudentAcademicRecord.class_name.in_(allowed_classes))
+                if section:
+                    iq = iq.filter(StudentAcademicRecord.section == section)
+                if student_id:
+                    iq = iq.filter(Student.student_id == student_id)
+                if h_branch and h_branch != "All":
+                    iq = iq.filter(Student.branch == h_branch)
+                inactive_count = iq.count()
+            except Exception:
+                pass
+            msg = "No active students found in this class/section."
+            if inactive_count > 0:
+                msg = f"No active students found in this class/section ({inactive_count} student(s) in this class are currently marked Inactive)."
+            return jsonify({
+                "students": [],
+                "attendance": {},
+                "inactive_count": inactive_count,
+                "message": msg
+            }), 200
         
         attendance_data = {}
         
@@ -353,11 +393,17 @@ def generate_template(current_user):
         h_year, err, code = require_academic_year()
         if err: return err, code
         
-        if current_user.role not in ('Admin', 'Director'):
-             h_branch = current_user.branch
+        if not user_can_access_class(current_user, class_name):
+            return jsonify({"error": "Unauthorized access to this class"}), 403
+
+        if not has_global_branch_access(current_user):
+            if h_branch and h_branch != "All" and user_can_access_branch(current_user, h_branch):
+                pass
+            elif current_user.branch and current_user.branch != 'All':
+                h_branch = current_user.branch
 
         q = db.session.query(Student, StudentAcademicRecord).join(
-            StudentAcademicRecord,Student.student_id == StudentAcademicRecord.student_id
+            StudentAcademicRecord, Student.student_id == StudentAcademicRecord.student_id
         ).filter(
             StudentAcademicRecord.academic_year == h_year,
             Student.status == "Active",
@@ -368,8 +414,8 @@ def generate_template(current_user):
             q = q.filter(StudentAcademicRecord.section == section)
             
         # Branch Logic
-        if current_user.role not in ('Admin', 'Director') or (h_branch and h_branch != "All"):
-             q = q.filter(Student.branch == h_branch)
+        if not has_global_branch_access(current_user) or (h_branch and h_branch != "All"):
+            q = q.filter(Student.branch == h_branch)
         
         results = q.order_by(StudentAcademicRecord.roll_number).all()
         

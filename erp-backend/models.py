@@ -449,6 +449,20 @@ class UserBranchAccess(db.Model, AuditMixin):
         foreign_keys=[user_id]
     )
 
+class UserClassAccess(db.Model, AuditMixin):
+    __tablename__ = "user_class_access"
+    __audit_module__ = "SYSTEM"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=False)
+    class_id = db.Column(db.Integer, db.ForeignKey("classes.id"), nullable=True)
+    class_name = db.Column(db.String(50), nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+
+    # Relationships
+    class_master = db.relationship("ClassMaster", foreign_keys=[class_id])
+    user = db.relationship("User", foreign_keys=[user_id])
+
 class BranchYearSequence(db.Model, AuditMixin):
     __tablename__ = "enrollment_sequences"
     __audit_module__ = "SYSTEM"

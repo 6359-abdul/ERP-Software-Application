@@ -23,6 +23,16 @@ const navCategories: { title: string; icon: React.ReactNode; page: Page }[] = [
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, navigateTo, currentPage }) => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isTeacher = user?.role === 'Teacher';
+
+  const visibleCategories = navCategories.filter((cat) => {
+    if (isTeacher) {
+      return cat.page === 'administration' || cat.page === 'dashboard';
+    }
+    return true;
+  });
+
   return (
     <aside className={`flex-shrink-0 bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${isOpen ? 'w-64' : 'w-0 overflow-hidden md:w-20'} md:relative absolute h-full z-10 md:z-auto`}>
       <div className="flex items-center justify-between h-16 px-4 border-b">
@@ -42,7 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, navigateTo, cu
         />
       </div>
       <nav className="flex-1 px-2 space-y-1 overflow-y-auto">
-        {navCategories.map((cat) => (
+        {visibleCategories.map((cat) => (
           <a
             key={cat.title}
             href="#"

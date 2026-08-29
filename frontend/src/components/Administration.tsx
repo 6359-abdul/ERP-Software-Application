@@ -176,6 +176,16 @@ const Administration: React.FC<AdministrationProps> = ({ navigateTo }) => {
         }
     ];
 
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isTeacher = user?.role === 'Teacher';
+
+    const visibleModules = administrationModules.filter((m) => {
+        if (isTeacher) {
+            return m.id === 'student' || m.id === 'student-attendance' || m.id === 'document';
+        }
+        return true;
+    });
+
     const handleModuleClick = (module: AdministrationModule) => {
         if (module.page) {
             navigateTo(module.page);
@@ -202,7 +212,7 @@ const Administration: React.FC<AdministrationProps> = ({ navigateTo }) => {
             {/* Main Content */}
             <div className="max-w-7xl mx-auto px-6 py-8">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                    {administrationModules.map((module) => (
+                    {visibleModules.map((module) => (
                         <button
                             key={module.id}
                             onClick={() => handleModuleClick(module)}
