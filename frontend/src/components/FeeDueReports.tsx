@@ -127,7 +127,10 @@ const FeeDueReports: React.FC = () => {
         loadInitialData();
         fetchReport();
     }, []);
-    const fetchReport = async () => {
+    const fetchReport = async (feeTypeParam?: string, installmentParam?: string) => {
+        const fType = feeTypeParam !== undefined ? feeTypeParam : selectedFeeType;
+        const inst = installmentParam !== undefined ? installmentParam : selectedInstallment;
+
         const start = new Date(startDate);
         const end = new Date(endDate);
         const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
@@ -142,8 +145,8 @@ const FeeDueReports: React.FC = () => {
             const params = new URLSearchParams({
                 start_date: startDate,
                 end_date: endDate,
-                fee_type: selectedFeeType,
-                installment: selectedInstallment
+                fee_type: fType,
+                installment: inst
             });
 
             const res = await api.get(`/reports/fees/standard-due?${params.toString()}`);
@@ -159,13 +162,30 @@ const FeeDueReports: React.FC = () => {
 
     // Filter installments based on selected fee type (if applicable, though often installments apply across types)
     const feeTypeName = (ft: any) => ft.feetype || ft.fee_type;
+    const uniqueFeeTypeNames = Array.from(new Set(feeTypes.map(ft => feeTypeName(ft)).filter(Boolean)));
+
+    // Normalize names to handle Tuition Fee / Tution Fee
+    const normalizeTypeName = (name: string) => {
+        if (!name) return '';
+        const lower = name.trim().toLowerCase();
+        if (lower === 'tution fee' || lower === 'tuition fee') {
+            return 'Tuition Fee';
+        }
+        return name.trim();
+    };
+
+    const matchingFeeTypeIds = selectedFeeType !== 'All' 
+        ? feeTypes.filter(ft => normalizeTypeName(feeTypeName(ft)) === normalizeTypeName(selectedFeeType)).map(ft => ft.id)
+        : [];
 
     const availableInstallments = selectedFeeType !== 'All' 
-        ? installments.filter(i => !i.fee_type_id || i.fee_type_id === feeTypes.find(ft => feeTypeName(ft) === selectedFeeType)?.id)
+        ? installments.filter(i => matchingFeeTypeIds.includes(i.fee_type_id))
         : installments;
         
     // Unique installment titles
-    const uniqueInstallmentTitles = Array.from(new Set(availableInstallments.map(i => i.title)));
+    const uniqueInstallmentTitles = Array.from(new Set(availableInstallments.map(i => i.title).filter(Boolean)));
+    const hasInstallments = selectedFeeType === 'All' || uniqueInstallmentTitles.length > 0;
+
     const totalFee = data.reduce((sum, s) => sum + (s.total_fee || 0), 0);
     const totalDue = data.reduce((sum, s) => sum + (s.due_amount || 0), 0);
     const totalPaid = data.reduce((sum, s) => sum + (s.paid_amount || 0), 0);
@@ -266,36 +286,56 @@ const FeeDueReports: React.FC = () => {
                         <select
                             value={selectedFeeType}
                             onChange={(e) => {
-                                setSelectedFeeType(e.target.value);
+                                const newFeeType = e.target.value;
+                                setSelectedFeeType(newFeeType);
                                 setSelectedInstallment('All'); // Reset installment when fee type changes
+                                fetchReport(newFeeType, 'All'); // Auto-fetch immediately
                             }}
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                         >
                             <option value="All">All Fee Types</option>
-                            {feeTypes.map(ft => (
-                                <option key={ft.id} value={ft.feetype || ft.fee_type}>{ft.feetype || ft.fee_type}</option>
+                            {uniqueFeeTypeNames.map(name => (
+                                <option key={name} value={name}>{name}</option>
                             ))}
                         </select>
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Installment</label>
-                        <select
-                            value={selectedInstallment}
-                            onChange={(e) => setSelectedInstallment(e.target.value)}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                        >
-                            <option value="All">All Installments</option>
-                            {uniqueInstallmentTitles.map(t => (
-                                <option key={t} value={t}>{t}</option>
-                            ))}
-                        </select>
+                        {hasInstallments ? (
+                            <select
+                                value={selectedInstallment}
+                                onChange={(e) => {
+                                    const newInst = e.target.value;
+                                    setSelectedInstallment(newInst);
+                                    fetchReport(selectedFeeType, newInst); // Auto-fetch immediately
+                                }}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                            >
+                                <option value="All">All Installments</option>
+                                {selectedFeeType === 'All' && (
+                                    <option value="One-Time">One-Time / Non-Installment</option>
+                                )}
+                                {uniqueInstallmentTitles.map(t => (
+                                    <option key={t} value={t}>{t}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <select
+                                value="All"
+                                disabled
+                                title="This fee type does not have installments"
+                                className="block w-full rounded-md border-gray-200 bg-gray-100 text-gray-400 shadow-sm sm:text-sm border p-2 cursor-not-allowed"
+                            >
+                                <option value="All">Not Applicable (No Installments)</option>
+                            </select>
+                        )}
                     </div>
                 </FilterContainer>
 
                 <div className="flex flex-wrap gap-3 mb-6 px-4 items-center">
                     <button
-                        onClick={fetchReport}
+                        onClick={() => fetchReport()}
                         className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>

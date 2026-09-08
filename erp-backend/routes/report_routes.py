@@ -560,6 +560,7 @@ def report_standard_fee_due(current_user):
             Student.student_id,
             Student.clazz,
             Student.section,
+            Student.branch,
             Student.admission_no,
             Student.first_name,
             Student.StudentMiddleName,
@@ -580,31 +581,47 @@ def report_standard_fee_due(current_user):
             StudentFee.academic_year == h_year,
             Student.academic_year == h_year,
             StudentFee.is_active == True,
-            StudentFee.status == 'Pending'
+            StudentFee.due_amount > 0
         )        
         if target_branch and target_branch not in ['All', 'AllBranches']:
             query = query.filter(Student.branch == target_branch)
             
-        if start_date_str and end_date_str:
+        # Date range filter applies when installment is 'All'
+        # When a specific installment is chosen (e.g. 'October Fee'), the user explicitly targets that installment
+        if start_date_str and end_date_str and installment_filter == 'All':
             try:
                 target_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
                 target_end = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-                query = query.filter(StudentFee.due_date >= target_start, StudentFee.due_date <= target_end)
+                # Fee types without installments (like Annual Fee, Admission Fee) have due_date == NULL
+                # Include fees falling within date range OR fees without an installment due date
+                query = query.filter(
+                    or_(
+                        StudentFee.due_date.between(target_start, target_end),
+                        StudentFee.due_date.is_(None)
+                    )
+                )
             except ValueError:
                 return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
                 
         if fee_type_filter != 'All':
-            query = query.filter(FeeType.feetype == fee_type_filter)
+            norm_filter = fee_type_filter.strip().lower()
+            if norm_filter in ['tuition fee', 'tution fee']:
+                query = query.filter(FeeType.feetype.in_(['Tuition Fee', 'Tution Fee']))
+            else:
+                query = query.filter(func.lower(func.trim(FeeType.feetype)) == norm_filter)
             
         if installment_filter != 'All':
-            query = query.filter(StudentFee.installment_schedule_id == installment_filter)
+            if installment_filter in ['One-Time', 'One-Time / Non-Installment']:
+                query = query.filter(or_(StudentFee.month == 'One-Time', StudentFee.month.is_(None)))
+            else:
+                query = query.filter(func.lower(func.trim(StudentFee.month)) == installment_filter.strip().lower())
             
         query = query.group_by(
-            Student.student_id, Student.clazz, Student.section, Student.admission_no,
+            Student.student_id, Student.clazz, Student.section, Student.branch, Student.admission_no,
             Student.first_name, Student.StudentMiddleName, Student.last_name,
             Student.Fatherfirstname, Student.FatherMiddleName, Student.FatherLastName,
             Student.FatherPhone
-        )
+        ).having(func.sum(StudentFee.due_amount) > 0)
         
         results = query.all()
         
@@ -616,6 +633,7 @@ def report_standard_fee_due(current_user):
                 "admission_no": r.admission_no,
                 "class": r.clazz,
                 "section": r.section,
+                "branch": r.branch,
                 "father_name": f"{r.Fatherfirstname or ''} {r.FatherMiddleName or ''} {r.FatherLastName or ''}".strip(),
                 "father_mobile": r.FatherPhone,
                 "total_fee": float(r.total_fee or 0),
