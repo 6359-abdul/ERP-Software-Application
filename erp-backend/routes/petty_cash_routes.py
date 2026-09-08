@@ -369,7 +369,7 @@ def create_transaction(current_user):
                 .filter_by(branch_id=branch_id, academic_year=academic_year, is_active=True).scalar() or 0
                 
             total_spent = db.session.query(db.func.sum(PettyCash.amount))\
-                .filter(PettyCash.branch_id == branch_id, PettyCash.academic_year == academic_year, PettyCash.voucher_type.in_(['Payment', 'Payments']), PettyCash.is_active == True).scalar() or 0
+                .filter(PettyCash.branch_id == branch_id, PettyCash.academic_year == academic_year, PettyCash.voucher_type.in_(['Payment', 'Payments']), PettyCash.is_active == True, PettyCash.approval_status == 'Approved').scalar() or 0
         
             cash_in_hand = float(total_allocated) - float(total_spent)
     
@@ -521,7 +521,7 @@ def update_transaction(current_user, txn_id):
                     .filter_by(branch_id=txn.branch_id, academic_year=txn.academic_year, is_active=True).scalar() or 0
                     
                 total_spent = db.session.query(db.func.sum(PettyCash.amount))\
-                    .filter(PettyCash.branch_id == txn.branch_id, PettyCash.academic_year == txn.academic_year, PettyCash.voucher_type.in_(['Payment', 'Payments']), PettyCash.is_active == True, PettyCash.id != txn.id).scalar() or 0
+                    .filter(PettyCash.branch_id == txn.branch_id, PettyCash.academic_year == txn.academic_year, PettyCash.voucher_type.in_(['Payment', 'Payments']), PettyCash.is_active == True, PettyCash.approval_status == 'Approved', PettyCash.id != txn.id).scalar() or 0
                     
                 cash_in_hand = float(total_allocated) - float(total_spent)
                 
@@ -583,6 +583,17 @@ def approve_transaction(current_user, txn_id):
         if not txn.is_active:
             return jsonify({"message": "Transaction not found"}), 404
             
+        if status == 'Approved' and txn.voucher_type in ('Payment', 'Payments'):
+            total_allocated = db.session.query(db.func.sum(PettyCashFundAllocation.amount))\
+                .filter_by(branch_id=txn.branch_id, academic_year=txn.academic_year, is_active=True).scalar() or 0
+                
+            total_spent = db.session.query(db.func.sum(PettyCash.amount))\
+                .filter(PettyCash.branch_id == txn.branch_id, PettyCash.academic_year == txn.academic_year, PettyCash.voucher_type.in_(['Payment', 'Payments']), PettyCash.is_active == True, PettyCash.approval_status == 'Approved', PettyCash.id != txn.id).scalar() or 0
+                
+            cash_in_hand = float(total_allocated) - float(total_spent)
+            if float(txn.amount) > cash_in_hand and not is_petty_cash_negative_allowed():
+                return jsonify({"message": f"Cannot approve. Insufficient petty cash balance. Available: {cash_in_hand:.2f}"}), 400
+
         txn.approval_status = status
         txn.approved_by = current_user.user_id
         txn.approved_at = datetime.now()
