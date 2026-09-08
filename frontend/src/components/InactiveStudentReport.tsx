@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -127,8 +127,6 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [itemsPerPage, setItemsPerPage] = useState<number>(15);
 
-    const latestRequestId = useRef(0);
-
     // Initial load: fetch master lists
     useEffect(() => {
         // Fetch academic years
@@ -161,7 +159,6 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
 
     // Fetch Inactive Students
     const fetchInactiveStudents = async () => {
-        const requestId = ++latestRequestId.current;
         setLoading(true);
         setError('');
         try {
@@ -187,19 +184,13 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
             const list: InactiveStudent[] = res.data?.students || [];
             // Ensure client-side fallback filter for Inactive status just in case
             const inactiveOnly = list.filter(s => (s.status || '').toLowerCase() === 'inactive');
-            if (requestId === latestRequestId.current) {
-                setStudents(inactiveOnly);
-            }
+            setStudents(inactiveOnly);
         } catch (err: any) {
-            if (requestId === latestRequestId.current) {
-                console.error('Error fetching inactive students:', err);
-                setError(err.response?.data?.error || 'Failed to load inactive students report.');
-                setStudents([]);
-            }
+            console.error('Error fetching inactive students:', err);
+            setError(err.response?.data?.error || 'Failed to load inactive students report.');
+            setStudents([]);
         } finally {
-            if (requestId === latestRequestId.current) {
-                setLoading(false);
-            }
+            setLoading(false);
         }
     };
 
@@ -359,11 +350,7 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
         for (const row of data) {
             const values = headers.map(header => {
                 const val = (row as any)[header] ?? '';
-                let stringVal = String(val);
-                if (/^[\t\r ]*[=+\-@]/.test(stringVal)) {
-                    stringVal = "'" + stringVal;
-                }
-                stringVal = stringVal.replace(/"/g, '""');
+                const stringVal = String(val).replace(/"/g, '""');
                 return `"${stringVal}"`;
             });
             csvRows.push(values.join(','));
