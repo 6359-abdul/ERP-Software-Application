@@ -350,7 +350,7 @@ const InactiveStudentReport: React.FC<InactiveStudentReportProps> = ({ onBack })
         for (const row of data) {
             const values = headers.map(header => {
                 const val = (row as any)[header] ?? '';
-                const stringVal = String(val).replace(/"/g, '""');
+                const stringVal = escapteCsvValue(val).replace(/"/g, '""');
                 return `"${stringVal}"`;
             });
             csvRows.push(values.join(','));
