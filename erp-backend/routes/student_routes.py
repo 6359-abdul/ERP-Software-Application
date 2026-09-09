@@ -21,6 +21,7 @@ from helpers import (
     auto_enroll_student_fee, require_editable_student, has_global_branch_access,
     user_can_access_branch, user_can_access_class, get_user_allowed_classes
 )
+from services.sequence_service import SequenceService
 from sqlalchemy import or_, and_, func
 import io
 import csv
