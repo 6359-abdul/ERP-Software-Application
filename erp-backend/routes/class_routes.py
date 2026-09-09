@@ -348,7 +348,7 @@ def get_classes():
     # Sort nicely if possible (custom sort/numeric)
     # Simple sort by ID or Name
     classes.sort(key=lambda x: x.id) 
-    return jsonify([
+    return jsonify({"classes": [
         {
             "id": c.id,
             "class_name": c.class_name,
@@ -357,7 +357,7 @@ def get_classes():
             "created_by": c.created_by,
             "updated_by": c.updated_by
         } for c in classes
-    ])
+    ]})
 
 
 @bp.route("/api/classes/summary", methods=["GET"])
